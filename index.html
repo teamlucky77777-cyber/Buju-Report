@@ -1,0 +1,2274 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Buju Quick Report</title>
+<style>
+:root {
+  --bg: #0A0A0F;
+  --surface: #16161E;
+  --surface-2: #1E1E28;
+  --surface-3: #262633;
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --text: #FFFFFF;
+  --text-secondary: rgba(255, 255, 255, 0.65);
+  --text-tertiary: rgba(255, 255, 255, 0.40);
+  --accent: #0A84FF;
+  --accent-soft: rgba(10, 132, 255, 0.12);
+  --success: #30D158;
+  --success-soft: rgba(48, 209, 88, 0.12);
+  --warning: #FF9F0A;
+  --warning-soft: rgba(255, 159, 10, 0.12);
+  --danger: #FF453A;
+  --danger-soft: rgba(255, 69, 58, 0.12);
+  --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Pretendard", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  margin: 0;
+  padding: 0;
+  line-height: 1.5;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  padding: 20px 16px 80px;
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+h1 { font-size: 34px; font-weight: 700; letter-spacing: -0.025em; margin: 0 0 6px; }
+h2 { font-size: 22px; font-weight: 600; margin: 28px 0 14px; letter-spacing: -0.015em; }
+h3 { font-size: 16px; font-weight: 600; margin: 20px 0 10px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.06em; }
+p { margin: 0; }
+.subtitle { color: var(--text-secondary); font-size: 15px; margin: 0 0 28px; }
+
+/* Top bar */
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.lang-bar { display: flex; gap: 4px; }
+.lang-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 6px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-family: inherit;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+.lang-btn.active {
+  background: var(--text);
+  color: var(--bg);
+  border-color: var(--text);
+}
+.icon-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  transition: all 0.2s ease;
+}
+.icon-btn:hover {
+  background: var(--surface-2);
+  color: var(--text);
+}
+
+/* Header bar with user info */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  margin-bottom: 24px;
+}
+.header-left { display: flex; align-items: center; gap: 12px; }
+.avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0A84FF, #5E5CE6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 16px;
+}
+.header-info { font-size: 15px; }
+.header-info .name { font-weight: 600; }
+.header-info .sub { color: var(--text-tertiary); font-size: 12px; }
+
+/* Menu cards */
+.menu-grid {
+  display: grid;
+  gap: 12px;
+  margin-top: 24px;
+}
+.menu-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 22px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  width: 100%;
+  color: var(--text);
+  font-family: inherit;
+}
+.menu-card:hover {
+  background: var(--surface-2);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow);
+}
+.menu-card-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  flex-shrink: 0;
+}
+.menu-card-icon.green { background: var(--success-soft); }
+.menu-card-icon.blue { background: var(--accent-soft); }
+.menu-card-icon.red { background: var(--danger-soft); }
+.menu-card-content { flex: 1; }
+.menu-card-title { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+.menu-card-subtitle { color: var(--text-secondary); font-size: 13px; margin-top: 2px; }
+.menu-card-arrow { color: var(--text-tertiary); font-size: 18px; }
+
+/* Selection cards (PC and Map) */
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 8px;
+  margin: 10px 0 4px;
+}
+.select-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+  user-select: none;
+  font-family: inherit;
+  color: var(--text);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 80px;
+}
+.select-card:hover {
+  background: var(--surface-2);
+  border-color: var(--border-strong);
+  transform: translateY(-1px);
+}
+.select-card.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  border-width: 1.5px;
+}
+.select-card .num {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-bottom: 2px;
+}
+.select-card .label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.select-card.active .label { color: var(--text); }
+.select-card.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.select-card.has-children::after {
+  content: '▸';
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 10px;
+  color: var(--text-tertiary);
+}
+.select-card { position: relative; }
+
+/* Fields */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.field label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+.field .hint {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-weight: 400;
+}
+.input, .textarea {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 11px;
+  padding: 13px 14px;
+  font-family: inherit;
+  font-size: 16px;
+  color: var(--text);
+  outline: none;
+  transition: all 0.15s ease;
+  width: 100%;
+}
+.input:focus, .textarea:focus {
+  border-color: var(--accent);
+  background: var(--surface-2);
+}
+.input::placeholder, .textarea::placeholder {
+  color: var(--text-tertiary);
+}
+.textarea { resize: vertical; min-height: 70px; }
+
+.live-preview {
+  font-size: 13px;
+  color: var(--success);
+  font-family: 'SF Mono', monospace;
+  padding: 6px 12px;
+  background: var(--success-soft);
+  border-radius: 8px;
+  margin-top: 4px;
+  display: none;
+}
+.live-preview.visible { display: block; }
+.live-preview.warning {
+  color: var(--warning);
+  background: var(--warning-soft);
+}
+
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* Buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  border: none;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  width: 100%;
+  letter-spacing: -0.01em;
+}
+.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: translateY(0); opacity: 0.85; }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.btn-primary { background: var(--accent); color: white; }
+.btn-success { background: var(--success); color: #002910; }
+.btn-secondary {
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 14px;
+  padding: 10px 16px;
+}
+.btn-icon { padding: 10px 14px; }
+.btn-sm { padding: 8px 12px; font-size: 14px; }
+
+/* Selected display */
+.selected-display {
+  background: var(--accent-soft);
+  border: 1px solid rgba(10, 132, 255, 0.3);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin: 12px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.selected-display .lbl {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+.selected-display .val {
+  font-size: 16px;
+  font-weight: 600;
+}
+.selected-display .change-btn {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* Info card */
+.info-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin: 12px 0;
+  font-size: 14px;
+}
+.info-card.success { background: var(--success-soft); border-color: rgba(48, 209, 88, 0.25); }
+.info-card.warning { background: var(--warning-soft); border-color: rgba(255, 159, 10, 0.25); color: var(--warning); }
+.info-card.muted { color: var(--text-secondary); font-size: 13px; }
+.info-card .stat-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.info-card .stat { font-size: 13px; color: var(--text-secondary); }
+.info-card .stat b { color: var(--text); font-weight: 600; }
+.info-card .stat-map {
+  color: var(--text-tertiary);
+  font-size: 12px;
+  margin-top: 6px;
+}
+
+/* Screenshot zone */
+.screenshot-zone {
+  border: 2px dashed var(--border-strong);
+  border-radius: 14px;
+  padding: 32px 20px;
+  text-align: center;
+  cursor: pointer;
+  background: var(--surface);
+  transition: all 0.2s ease;
+}
+.screenshot-zone:hover {
+  background: var(--surface-2);
+  border-color: var(--accent);
+}
+.screenshot-zone.has-image {
+  border-color: var(--success);
+  border-style: solid;
+  padding: 14px;
+  background: var(--success-soft);
+}
+.screenshot-zone img {
+  max-width: 100%;
+  max-height: 280px;
+  border-radius: 8px;
+  margin-top: 10px;
+}
+.screenshot-icon {
+  font-size: 28px;
+  margin-bottom: 4px;
+  opacity: 0.7;
+}
+.screenshot-text {
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-100px);
+  padding: 14px 22px;
+  background: var(--surface-3);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 500;
+  z-index: 1000;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(20px);
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+.toast.success { border-color: var(--success); color: var(--success); }
+.toast.error { border-color: var(--danger); color: var(--danger); }
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  z-index: 100;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+}
+.modal-sheet {
+  background: var(--bg);
+  border-radius: 20px 20px 0 0;
+  padding: 8px 16px 28px;
+  width: 100%;
+  max-width: 720px;
+  max-height: 85vh;
+  overflow-y: auto;
+  animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+.modal-handle {
+  width: 36px;
+  height: 4px;
+  background: var(--border-strong);
+  border-radius: 2px;
+  margin: 8px auto 16px;
+}
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.modal-header h2 { margin: 0; }
+.modal-close {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+}
+.modal-back {
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+}
+.modal-back.hidden { display: none; }
+
+/* Submap flat sectioned layout */
+#submap-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.submap-section-header {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-tertiary);
+  font-weight: 700;
+  padding: 4px 2px 2px;
+  border-bottom: 1px solid var(--border);
+  margin-top: 6px;
+}
+.submap-section-header:first-child { margin-top: 0; }
+.submap-cards {
+  gap: 8px;
+}
+
+/* Back button */
+.back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  color: var(--accent);
+  font-size: 15px;
+  cursor: pointer;
+  padding: 4px 0;
+  margin-bottom: 12px;
+  font-family: inherit;
+  font-weight: 500;
+}
+.back-btn:hover { opacity: 0.8; }
+
+/* Map editor specific */
+.map-list-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--surface);
+  border-radius: 10px;
+  margin-bottom: 6px;
+}
+.map-list-item .name { flex: 1; }
+.map-list-item .delete-btn {
+  background: transparent;
+  border: none;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 14px;
+  font-family: inherit;
+  padding: 4px 8px;
+}
+
+.hidden { display: none !important; }
+.fade-in { animation: fadeIn 0.3s ease-out; }
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+details {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-bottom: 12px;
+}
+details summary {
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  user-select: none;
+}
+details[open] summary { margin-bottom: 12px; }
+
+/* PC card with character name */
+.pc-card .charname {
+  font-size: 11px;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+.pc-card.active .charname { color: var(--text-secondary); }
+
+/* Smart time picker — auto-fill from prev session + quick step buttons */
+.time-pickers {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 8px;
+}
+.time-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.time-block-label {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+.time-input {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-family: 'SF Mono', 'Menlo', monospace;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-align: center;
+  width: 100%;
+  padding: 4px 0;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.time-input:focus {
+  outline: none;
+  color: var(--accent);
+}
+.time-input::placeholder { color: var(--text-tertiary); opacity: 0.5; }
+.time-input.invalid { color: var(--danger); }
+.time-steppers {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 4px;
+  width: 100%;
+}
+.step-btn {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 4px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+.step-btn:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.step-btn:active { transform: scale(0.95); }
+.time-tilde {
+  color: var(--text-tertiary);
+  font-size: 20px;
+  font-weight: 300;
+  padding: 0 2px;
+}
+.time-summary {
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: center;
+  padding: 6px 0 4px;
+}
+.time-summary b {
+  color: var(--accent);
+  font-family: 'SF Mono', monospace;
+  font-weight: 600;
+}
+.time-summary .auto-tag {
+  display: inline-block;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 6px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+@media (max-width: 420px) {
+  .time-input { font-size: 24px; }
+  .step-btn { font-size: 11px; padding: 7px 2px; }
+}
+
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div id="toast" class="toast"></div>
+
+  <!-- SETUP VIEW -->
+  <div id="setup-view">
+    <div class="top-bar">
+      <div></div>
+      <div class="lang-bar">
+        <button class="lang-btn" data-lang="ko">한국어</button>
+        <button class="lang-btn" data-lang="en">English</button>
+      </div>
+    </div>
+    <h1 data-i18n="setup_title">초기 셋업</h1>
+    <p class="subtitle" data-i18n="setup_desc">이 PC에서 일하는 정보를 한 번만 입력하세요.</p>
+    <form id="setup-form">
+      <div class="field">
+        <label data-i18n="name_label">이름 (Player)</label>
+        <input type="text" class="input" id="setup-name" required placeholder="Manji" autocomplete="off">
+      </div>
+      <div class="field">
+        <label data-i18n="thread_label">Discord 스레드 ID 또는 링크</label>
+        <input type="text" class="input" id="setup-thread" required placeholder="https://discord.com/channels/.../..." autocomplete="off">
+        <span class="hint" data-i18n="thread_hint">디스코드에서 본인 스레드 우클릭 → '링크 복사'</span>
+      </div>
+      <button type="submit" class="btn btn-primary" data-i18n="start">시작하기</button>
+    </form>
+  </div>
+
+  <!-- MAIN MENU -->
+  <div id="menu-view" class="hidden">
+    <div class="top-bar">
+      <div class="lang-bar">
+        <button class="lang-btn" data-lang="ko">한국어</button>
+        <button class="lang-btn" data-lang="en">English</button>
+      </div>
+      <button class="icon-btn" onclick="openSettings()" title="Settings">⚙</button>
+    </div>
+    <div class="header">
+      <div class="header-left">
+        <div class="avatar" id="avatar">M</div>
+        <div class="header-info">
+          <div class="name" id="header-name">Player</div>
+          <div class="sub"><span data-i18n="role">Player</span></div>
+        </div>
+      </div>
+      <button class="btn-ghost" onclick="showSetup()" data-i18n="edit">편집</button>
+    </div>
+    <div class="menu-grid">
+      <button class="menu-card" onclick="showForm('checkin')">
+        <div class="menu-card-icon green">🟢</div>
+        <div class="menu-card-content">
+          <div class="menu-card-title" data-i18n="title_checkin">체크인</div>
+          <div class="menu-card-subtitle" data-i18n="title_checkin_sub">시작 데이터 기록</div>
+        </div>
+        <div class="menu-card-arrow">›</div>
+      </button>
+      <button class="menu-card" onclick="showForm('hourly')">
+        <div class="menu-card-icon blue">📊</div>
+        <div class="menu-card-content">
+          <div class="menu-card-title" data-i18n="title_hourly">1시간 리포트</div>
+          <div class="menu-card-subtitle" data-i18n="title_hourly_sub">매 시간 진행 상황</div>
+        </div>
+        <div class="menu-card-arrow">›</div>
+      </button>
+      <button class="menu-card" onclick="showForm('checkout')">
+        <div class="menu-card-icon red">🔴</div>
+        <div class="menu-card-content">
+          <div class="menu-card-title" data-i18n="title_checkout">체크아웃</div>
+          <div class="menu-card-subtitle" data-i18n="title_checkout_sub">근무 종료 기록</div>
+        </div>
+        <div class="menu-card-arrow">›</div>
+      </button>
+    </div>
+  </div>
+
+  <!-- FORM VIEW (unified for checkin/hourly/checkout) -->
+  <div id="form-view" class="hidden">
+    <button class="back-btn" onclick="showMenu()">‹ <span data-i18n="back">메뉴로</span></button>
+    <h1 id="form-title">🟢 체크인</h1>
+
+    <!-- Step 1: PC -->
+    <h3 data-i18n="select_pc">담당 캐릭터 (PC)</h3>
+    <div class="card-grid" id="pc-grid"></div>
+
+    <!-- Selected PC display -->
+    <div class="selected-display hidden" id="selected-pc-display">
+      <div>
+        <div class="lbl" data-i18n="selected_pc">선택됨</div>
+        <div class="val" id="selected-pc-val">—</div>
+      </div>
+    </div>
+
+    <!-- Prev session info -->
+    <div class="info-card muted hidden" id="prev-info"></div>
+
+    <!-- Step 2: Map -->
+    <h3 data-i18n="select_map">사냥터 (MAP)</h3>
+    <div class="card-grid" id="map-grid"></div>
+    <button class="btn btn-ghost btn-sm" onclick="openMapEditor()" data-i18n="edit_maps">+ 맵 추가/편집</button>
+
+    <div class="selected-display hidden" id="selected-map-display">
+      <div>
+        <div class="lbl" data-i18n="selected_map">사냥터</div>
+        <div class="val" id="selected-map-val">—</div>
+      </div>
+    </div>
+
+    <!-- Step 3: Fields -->
+    <form id="report-form" data-type="">
+      <!-- Play time (checkin only) -->
+      <div id="playtime-fields" class="hidden">
+        <h3 data-i18n="play_time">운영시간</h3>
+        <div class="time-pickers">
+          <div class="time-block">
+            <div class="time-block-label" data-i18n="play_start">시작</div>
+            <input type="text" class="time-input" name="playStart" value="09:00" inputmode="numeric" pattern="[0-9]{1,2}:[0-9]{2}" maxlength="5" autocomplete="off" placeholder="HH:MM">
+            <div class="time-steppers">
+              <button type="button" class="step-btn" data-target="playStart" data-mins="-60">−1H</button>
+              <button type="button" class="step-btn" data-target="playStart" data-mins="-30">−30</button>
+              <button type="button" class="step-btn" data-target="playStart" data-mins="30">+30</button>
+              <button type="button" class="step-btn" data-target="playStart" data-mins="60">+1H</button>
+            </div>
+          </div>
+          <div class="time-tilde">~</div>
+          <div class="time-block">
+            <div class="time-block-label" data-i18n="play_end">종료</div>
+            <input type="text" class="time-input" name="playEnd" value="21:00" inputmode="numeric" pattern="[0-9]{1,2}:[0-9]{2}" maxlength="5" autocomplete="off" placeholder="HH:MM">
+            <div class="time-steppers">
+              <button type="button" class="step-btn" data-target="playEnd" data-mins="-60">−1H</button>
+              <button type="button" class="step-btn" data-target="playEnd" data-mins="-30">−30</button>
+              <button type="button" class="step-btn" data-target="playEnd" data-mins="30">+30</button>
+              <button type="button" class="step-btn" data-target="playEnd" data-mins="60">+1H</button>
+            </div>
+          </div>
+        </div>
+        <div class="time-summary" id="time-summary"></div>
+      </div>
+
+      <!-- Always: EXP / ADENA -->
+      <div class="field">
+        <label>EXP (%) <span class="hint" data-i18n="exp_hint">소수점 2자리 (예: 23.23)</span></label>
+        <input type="text" class="input" name="exp" required placeholder="2323" autocomplete="off" inputmode="numeric">
+      </div>
+
+      <div class="field">
+        <label>ADENA</label>
+        <input type="text" class="input" name="adena" required placeholder="1605693" autocomplete="off" inputmode="numeric">
+        <div class="live-preview" id="adena-preview"></div>
+      </div>
+
+      <!-- Computed LV (display only) -->
+      <div class="info-card success hidden" id="computed-lv">
+        <span data-i18n="auto_level">자동 레벨</span>: <b id="computed-lv-val">—</b>
+        <span class="hint" id="lv-explanation"></span>
+      </div>
+
+      <!-- Red potion (always) -->
+      <div class="field" id="potion-field">
+        <label data-i18n="potion_label">Red Potion</label>
+        <input type="number" class="input" name="potion" min="0" value="0" autocomplete="off" inputmode="numeric" onwheel="this.blur()">
+      </div>
+
+      <!-- Hourly extra (collapsed) -->
+      <details id="hourly-extra" class="hidden">
+        <summary data-i18n="extra_info">추가 정보 (선택)</summary>
+        <div class="row">
+          <div class="field">
+            <label data-i18n="drop_label">DROP</label>
+            <input type="number" class="input" name="drop" min="0" value="0" autocomplete="off" inputmode="numeric" onwheel="this.blur()">
+          </div>
+          <div class="field">
+            <label data-i18n="dead_label">DEAD</label>
+            <input type="number" class="input" name="dead" min="0" value="0" autocomplete="off" inputmode="numeric" onwheel="this.blur()">
+          </div>
+        </div>
+      </details>
+
+      <!-- Checkout extras -->
+      <div id="checkout-extras" class="hidden">
+        <div class="row">
+          <div class="field">
+            <label data-i18n="potion_total">POTION USED (총)</label>
+            <input type="number" class="input" name="potionTotal" min="0" value="0" autocomplete="off" inputmode="numeric" onwheel="this.blur()">
+          </div>
+          <div class="field">
+            <label data-i18n="total_dead">TOTAL DEAD</label>
+            <input type="number" class="input" name="totalDead" min="0" value="0" autocomplete="off" inputmode="numeric" onwheel="this.blur()">
+          </div>
+        </div>
+      </div>
+
+      <!-- Note -->
+      <div class="field">
+        <label data-i18n="note_optional">NOTE (선택)</label>
+        <textarea class="textarea" name="note" placeholder="-"></textarea>
+      </div>
+
+      <!-- Screenshot -->
+      <div class="field">
+        <label data-i18n="screenshot_label">스크린샷</label>
+        <div class="screenshot-zone" id="screenshot-zone">
+          <div class="screenshot-icon">📸</div>
+          <div class="screenshot-text" data-i18n="screenshot_placeholder">클릭 또는 Ctrl+V로 붙여넣기</div>
+          <img class="preview hidden" />
+          <input type="file" accept="image/*" hidden>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-success" id="submit-btn" data-i18n="submit">제출</button>
+    </form>
+  </div>
+</div>
+
+<!-- Sub-map modal -->
+<div id="submap-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeSubmap()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <h2 id="submap-title">서브 맵 선택</h2>
+      <button class="modal-close" onclick="closeSubmap()" data-i18n="cancel">취소</button>
+    </div>
+    <div id="submap-grid"></div>
+  </div>
+</div>
+
+<!-- Settings modal -->
+<div id="settings-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeSettings()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <h2 data-i18n="settings_title">설정</h2>
+      <button class="modal-close" onclick="closeSettings()" data-i18n="done">완료</button>
+    </div>
+
+    <h3 data-i18n="client_management">클라이언트 관리</h3>
+    <p style="font-size:13px; color: var(--text-tertiary); margin-bottom:12px;" data-i18n="client_management_hint">
+      PC별 클라이언트를 추가, 수정, 삭제할 수 있습니다. 변경사항은 즉시 카카오톡 검색에도 반영됩니다.
+    </p>
+    <div id="clients-list" style="display:flex; flex-direction:column; gap:8px; margin-bottom:24px;"></div>
+
+    <h3 data-i18n="initial_levels">캐릭터별 초기 레벨</h3>
+    <p style="font-size:13px; color: var(--text-tertiary); margin-bottom:12px;" data-i18n="initial_levels_hint">
+      직전 세션 데이터가 없을 때만 사용됩니다. Supabase에 데이터가 있으면 자동으로 가져옵니다.
+    </p>
+    <div id="initial-levels-grid" style="display:grid; grid-template-columns: repeat(2,1fr); gap:8px;"></div>
+
+    <h3 data-i18n="custom_maps" style="margin-top:24px;">맵 관리</h3>
+    <div id="map-list"></div>
+    <div style="display:flex; gap:8px; margin-top:8px;">
+      <input type="text" class="input" id="new-map-name" placeholder="새 맵 이름" style="flex:1;">
+      <button type="button" class="btn btn-secondary btn-sm" onclick="addCustomMap()" data-i18n="add">추가</button>
+    </div>
+
+    <h3 style="margin-top:24px;">⚠️ <span data-i18n="reset">초기화</span></h3>
+    <button type="button" class="btn btn-secondary btn-sm" onclick="resetAll()" style="color: var(--danger);">
+      <span data-i18n="reset_local">로컬 데이터 초기화 (셋업부터 다시)</span>
+    </button>
+  </div>
+</div>
+
+<!-- Client editor modal -->
+<div id="client-editor-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeClientEditor()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <h2 id="client-editor-title">PC 편집</h2>
+      <button class="modal-close" onclick="closeClientEditor()" data-i18n="cancel">취소</button>
+    </div>
+    <div class="field">
+      <label><span data-i18n="display_name">캐릭터명</span> *</label>
+      <input type="text" class="input" id="client-display-name" placeholder="예: 두클럽" autocomplete="off">
+    </div>
+    <div class="field">
+      <label><span data-i18n="keywords">검색 키워드</span> <span class="hint" data-i18n="keywords_hint">쉼표로 구분 (예: 두클럽,두클,점커님)</span></label>
+      <input type="text" class="input" id="client-keywords" placeholder="두클럽,두클,점커님" autocomplete="off">
+    </div>
+    <div class="field">
+      <label><span data-i18n="level">레벨</span> <span class="hint" data-i18n="level_hint">선택 · 비워두면 자동</span></label>
+      <input type="number" class="input" id="client-level" placeholder="예: 50" min="1" max="999" autocomplete="off">
+    </div>
+    <div style="display:flex; gap:8px; margin-top:16px;">
+      <button type="button" class="btn btn-primary" onclick="saveClient()" style="flex:2;" data-i18n="save">저장</button>
+      <button type="button" class="btn btn-secondary" id="client-delete-btn" onclick="deleteCurrentClient()" style="flex:1; color: var(--danger);" data-i18n="delete">삭제</button>
+    </div>
+  </div>
+</div>
+
+<!-- Map editor inline modal -->
+<div id="map-editor-modal" class="modal-overlay hidden" onclick="if(event.target===this)closeMapEditor()">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <h2 data-i18n="edit_maps_title">맵 추가/편집</h2>
+      <button class="modal-close" onclick="closeMapEditor()" data-i18n="done">완료</button>
+    </div>
+    <div id="map-editor-list"></div>
+    <div style="display:flex; gap:8px; margin-top:12px;">
+      <input type="text" class="input" id="new-map-input" placeholder="새 맵 이름 (예: New Dungeon)" style="flex:1;">
+      <button type="button" class="btn btn-primary btn-sm" onclick="addMapFromEditor()" data-i18n="add">추가</button>
+    </div>
+    <p style="font-size:12px; color: var(--text-tertiary); margin-top:10px;" data-i18n="map_editor_hint">
+      추가된 맵은 이 브라우저에만 저장됩니다. 기본 맵은 삭제할 수 없습니다.
+    </p>
+  </div>
+</div>
+
+<script>
+// ====================================================
+// CONSTANTS
+// ====================================================
+const DEFAULT_MAPS = [
+  { id: 'talking', ko: '말하는 섬 던전', en: 'Talking Island Dungeon' },
+  { id: 'elf', ko: '요정 숲 던전', en: 'Elf Forest Dungeon' },
+  { id: 'gludio', ko: '글루디오 던전', en: 'Gludio Dungeon' },
+  { id: 'desert', ko: '사막 던전', en: 'Desert Dungeon' },
+  { id: 'ant', ko: '개미굴', en: 'Ant Cave' },
+  { id: 'giran', ko: '기란 던전', en: 'Giran Dungeon' },
+  { id: 'dragon', ko: '용의 계곡 던전', en: 'Dragon Valley Dungeon' },
+  { id: 'eva', ko: '에바 왕국', en: "Eva's Kingdom" },
+  { id: 'orc', ko: '오크 숲', en: 'Orc Forest' },
+  { id: 'blessed', ko: '축복의 땅 (ATS ZONE)', en: 'Blessed Lands (ATS ZONE)', children: [
+    { id: 'polluted', ko: '오염된 축복의 땅', en: 'Polluted Blessed Lands', children: [
+      { id: 'pol_fairy',  ko: '요정의 땅',   en: 'Fairy Land' },
+      { id: 'pol_human',  ko: '인간의 땅',   en: 'Human Land' },
+      { id: 'pol_orc',    ko: '오크의 땅',   en: 'Orc Land' },
+      { id: 'pol_spirit', ko: '정령의 땅',   en: 'Spirit Land' },
+    ]},
+    { id: 'corrupted', ko: '타락한 축복의 땅', en: 'Corrupted Blessed Lands', children: [
+      { id: 'cor_spring', ko: '봄', en: 'Spring', children: [
+        { id: 'cor_spr_fairy',  ko: '요정의 땅',   en: 'Fairy Land' },
+        { id: 'cor_spr_human',  ko: '인간의 땅',   en: 'Human Land' },
+        { id: 'cor_spr_orc',    ko: '오크의 땅',   en: 'Orc Land' },
+        { id: 'cor_spr_spirit', ko: '정령의 땅',   en: 'Spirit Land' },
+      ]},
+      { id: 'cor_summer', ko: '여름', en: 'Summer', children: [
+        { id: 'cor_sum_fairy',  ko: '요정의 땅',   en: 'Fairy Land' },
+        { id: 'cor_sum_human',  ko: '인간의 땅',   en: 'Human Land' },
+        { id: 'cor_sum_orc',    ko: '오크의 땅',   en: 'Orc Land' },
+        { id: 'cor_sum_spirit', ko: '정령의 땅',   en: 'Spirit Land' },
+      ]},
+      { id: 'cor_autumn', ko: '가을', en: 'Autumn', children: [
+        { id: 'cor_aut_fairy',  ko: '요정의 땅',   en: 'Fairy Land' },
+        { id: 'cor_aut_human',  ko: '인간의 땅',   en: 'Human Land' },
+        { id: 'cor_aut_orc',    ko: '오크의 땅',   en: 'Orc Land' },
+        { id: 'cor_aut_spirit', ko: '정령의 땅',   en: 'Spirit Land' },
+      ]},
+      { id: 'cor_winter', ko: '겨울', en: 'Winter', children: [
+        { id: 'cor_win_fairy',  ko: '요정의 땅',   en: 'Fairy Land' },
+        { id: 'cor_win_human',  ko: '인간의 땅',   en: 'Human Land' },
+        { id: 'cor_win_orc',    ko: '오크의 땅',   en: 'Orc Land' },
+        { id: 'cor_win_spirit', ko: '정령의 땅',   en: 'Spirit Land' },
+      ]},
+    ]},
+  ]},
+];
+
+const T = {
+  ko: {
+    setup_title: '초기 셋업', setup_desc: '이 PC에서 일하는 정보를 한 번만 입력하세요.',
+    name_label: '이름 (Player)', thread_label: 'Discord 스레드 ID 또는 링크',
+    thread_hint: '디스코드에서 본인 스레드 우클릭 → \'링크 복사\'',
+    thread_invalid: '스레드 ID 또는 링크 형식이 올바르지 않습니다.',
+    start: '시작하기', role: 'Player', edit: '편집',
+    title_checkin: '🟢 체크인', title_hourly: '📊 1시간 리포트', title_checkout: '🔴 체크아웃',
+    title_checkin_sub: '시작 데이터 기록', title_hourly_sub: '매 시간 진행 상황', title_checkout_sub: '근무 종료 기록',
+    select_pc: '담당 캐릭터 (PC)', selected_pc: '선택됨',
+    select_map: '사냥터 (MAP)', selected_map: '사냥터',
+    play_start: '시작', play_end: '종료', play_time: '운영시간',
+    exp_hint: '숫자만 입력 (예: 2323 → 23.23)',
+    auto_level: '자동 레벨',
+    lv_same: '(이전과 동일)', lv_up: '⭐ 레벨업! (이전: {prev}, EXP 리셋 감지)',
+    lv_initial: '(초기 레벨)',
+    lv_from_settings: '(설정에서 지정)',
+    potion_label: 'Red Potion',
+    extra_info: '추가 정보 (선택)',
+    drop_label: 'DROP', dead_label: 'DEAD',
+    potion_total: 'POTION USED (총)', total_dead: 'TOTAL DEAD',
+    note_optional: 'NOTE (선택)', screenshot_label: '스크린샷',
+    screenshot_placeholder: '클릭 또는 Ctrl+V로 붙여넣기',
+    screenshot_attached: '✓ 스크린샷 첨부됨 (클릭/붙여넣기로 교체)',
+    submit: '제출', submitting: '제출 중...', back: '메뉴로',
+    settings_title: '설정', initial_levels: '캐릭터별 초기 레벨',
+    initial_levels_hint: '여기에 입력한 레벨이 Supabase 데이터보다 우선합니다. 캐릭터가 실제 레벨업했지만 자동 감지가 틀린 경우 사용하세요. 비워두면 Supabase 데이터 사용.',
+    client_management: '클라이언트 관리',
+    client_management_hint: 'PC별 클라이언트를 추가, 수정, 삭제할 수 있습니다. 변경사항은 즉시 카카오톡 검색에도 반영됩니다.',
+    display_name: '캐릭터명',
+    keywords: '검색 키워드',
+    keywords_hint: '쉼표로 구분 (예: 두클럽,두클,점커님)',
+    level: '레벨',
+    level_hint: '선택 · 비워두면 자동',
+    save: '저장',
+    custom_maps: '맵 관리', add: '추가',
+    edit_maps: '+ 맵 추가/편집', edit_maps_title: '맵 추가/편집',
+    map_editor_hint: '추가된 맵은 이 브라우저에만 저장됩니다. 기본 맵은 삭제할 수 없습니다.',
+    reset: '초기화', reset_local: '로컬 데이터 초기화 (셋업부터 다시)',
+    cancel: '취소', done: '완료', delete: '삭제', back: '‹ 뒤로',
+    select_first: '먼저 캐릭터(PC)를 선택해주세요.',
+    map_select: '사냥터를 선택해주세요.',
+    not_registered: '(미등록)',
+    no_prev: '직전 데이터 없음 (첫 체크인부터 진행)',
+    no_checkin: '체크인 기록 없음 — 먼저 체크인을 해주세요',
+    prev_data: '직전',
+    checkin_data: '체크인 시점',
+    success: '✅ 제출 완료!',
+    failed: '❌ 실패: ',
+    invalid_exp: 'EXP 값이 올바르지 않습니다 (0~100)',
+    invalid_adena: 'ADENA 값이 올바르지 않습니다',
+    confirm_reset: '로컬 데이터를 모두 초기화하시겠습니까?',
+  },
+  en: {
+    setup_title: 'Setup', setup_desc: 'Enter your info for this device (one-time).',
+    name_label: 'Name (Player)', thread_label: 'Discord Thread ID or Link',
+    thread_hint: 'In Discord: right-click your thread → Copy Link',
+    thread_invalid: 'Invalid thread ID or link.',
+    start: 'Start', role: 'Player', edit: 'Edit',
+    title_checkin: '🟢 Check In', title_hourly: '📊 Hourly Report', title_checkout: '🔴 Check Out',
+    title_checkin_sub: 'Record start data', title_hourly_sub: 'Hourly progress', title_checkout_sub: 'End of shift',
+    select_pc: 'Character (PC)', selected_pc: 'Selected',
+    select_map: 'Hunting Ground', selected_map: 'Map',
+    play_start: 'Start', play_end: 'End', play_time: 'Play Time',
+    exp_hint: 'Digits only (e.g., 2323 → 23.23)',
+    auto_level: 'Auto Level',
+    lv_same: '(same as before)', lv_up: '⭐ Level Up! (was {prev}, EXP reset detected)',
+    lv_initial: '(initial level)',
+    lv_from_settings: '(from settings)',
+    potion_label: 'Red Potion',
+    extra_info: 'Extra Info (optional)',
+    drop_label: 'DROP', dead_label: 'DEAD',
+    potion_total: 'Potion Used (Total)', total_dead: 'Total Dead',
+    note_optional: 'Note (optional)', screenshot_label: 'Screenshot',
+    screenshot_placeholder: 'Click or paste with Ctrl+V',
+    screenshot_attached: '✓ Screenshot attached (click/paste to replace)',
+    submit: 'Submit', submitting: 'Submitting...', back: 'Back',
+    settings_title: 'Settings', initial_levels: 'Initial Level per Character',
+    initial_levels_hint: 'Values entered here override Supabase data. Use this when the character has actually leveled up but auto-detection missed it. Leave blank to use Supabase data.',
+    client_management: 'Client Management',
+    client_management_hint: 'Add, edit, or delete clients per PC. Changes are immediately reflected in KakaoTalk searches.',
+    display_name: 'Character Name',
+    keywords: 'Search Keywords',
+    keywords_hint: 'Comma-separated (e.g., name,nickname,alias)',
+    level: 'Level',
+    level_hint: 'Optional · auto if empty',
+    save: 'Save',
+    custom_maps: 'Maps', add: 'Add',
+    edit_maps: '+ Add/Edit Maps', edit_maps_title: 'Edit Maps',
+    map_editor_hint: 'Added maps are stored in this browser only. Default maps cannot be removed.',
+    reset: 'Reset', reset_local: 'Reset Local Data (back to setup)',
+    cancel: 'Cancel', done: 'Done', delete: 'Delete', back: '‹ Back',
+    select_first: 'Please select a character (PC) first.',
+    map_select: 'Please select a map.',
+    not_registered: '(not registered)',
+    no_prev: 'No previous data (first check-in)',
+    no_checkin: 'No check-in found — please check in first',
+    prev_data: 'Previous',
+    checkin_data: 'At Check-in',
+    success: '✅ Submitted!',
+    failed: '❌ Failed: ',
+    invalid_exp: 'Invalid EXP (must be 0~100)',
+    invalid_adena: 'Invalid ADENA',
+    confirm_reset: 'Reset all local data?',
+  }
+};
+
+// ====================================================
+// STATE
+// ====================================================
+let lang = localStorage.getItem('lang') || 'ko';
+const t = (k, params={}) => {
+  let s = T[lang][k] || k;
+  Object.entries(params).forEach(([key, val]) => { s = s.replace('{'+key+'}', val); });
+  return s;
+};
+
+const state = {
+  name: localStorage.getItem('name') || localStorage.getItem('booster') || '',
+  threadId: localStorage.getItem('threadId') || '',
+  initialLevels: JSON.parse(localStorage.getItem('initialLevels') || '{}'),
+  customMaps: JSON.parse(localStorage.getItem('customMaps') || '[]'),
+  
+  clients: [],
+  
+  // Current form session
+  formType: null,
+  selectedPc: null,
+  selectedClient: null,
+  selectedMap: null,
+  prevSession: null,
+  screenshot: null,
+  computedLevel: null,
+};
+
+// ====================================================
+// UTILS
+// ====================================================
+function truncExp(n) {
+  if (n == null || n === '') return null;
+  const num = Number(n);
+  if (isNaN(num)) return null;
+  return Math.floor(num * 100) / 100;
+}
+
+function getMapName(map) {
+  return map[lang] || map.ko || map.en || map.name;
+}
+
+function getAllMaps() {
+  return [...DEFAULT_MAPS, ...state.customMaps];
+}
+
+function saveState() {
+  localStorage.setItem('name', state.name);
+  localStorage.setItem('threadId', state.threadId);
+  localStorage.setItem('initialLevels', JSON.stringify(state.initialLevels));
+  localStorage.setItem('customMaps', JSON.stringify(state.customMaps));
+  localStorage.setItem('lang', lang);
+}
+
+// ====================================================
+// I18N
+// ====================================================
+function applyLanguage() {
+  document.documentElement.lang = lang;
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    if (T[lang][key]) el.textContent = T[lang][key];
+  });
+  document.querySelectorAll('.lang-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.lang === lang);
+  });
+  // Re-render dynamic content
+  renderPcGrid();
+  renderMapGrid();
+  if (typeof updateTimeSummary === 'function') updateTimeSummary(false);
+}
+
+document.querySelectorAll('.lang-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    lang = btn.dataset.lang;
+    saveState();
+    applyLanguage();
+  });
+});
+
+// ====================================================
+// VIEW SWITCHER
+// ====================================================
+function hideAll() {
+  document.querySelectorAll('[id$="-view"]').forEach(el => el.classList.add('hidden'));
+}
+function showView(id) {
+  hideAll();
+  const el = document.getElementById(id);
+  el.classList.remove('hidden');
+  el.classList.add('fade-in');
+  setTimeout(() => el.classList.remove('fade-in'), 350);
+}
+
+function showSetup() {
+  showView('setup-view');
+  document.getElementById('setup-name').value = state.name;
+  document.getElementById('setup-thread').value = state.threadId;
+}
+
+function showMenu() {
+  showView('menu-view');
+  document.getElementById('header-name').textContent = state.name || 'Player';
+  document.getElementById('avatar').textContent = (state.name[0] || 'P').toUpperCase();
+}
+
+function showForm(type) {
+  state.formType = type;
+  state.selectedPc = null;
+  state.selectedClient = null;
+  state.selectedMap = null;
+  state.prevSession = null;
+  state.screenshot = null;
+  state.computedLevel = null;
+
+  showView('form-view');
+
+  // 클라이언트 목록이 비어있으면 재시도 (서버가 슬립모드에서 깨어난 경우)
+  ensureClientsLoaded();
+
+  // Title
+  document.getElementById('form-title').textContent = t('title_' + type);
+
+  // Show/hide conditional fields
+  document.getElementById('playtime-fields').classList.toggle('hidden', type !== 'checkin');
+  document.getElementById('hourly-extra').classList.toggle('hidden', type !== 'hourly');
+  document.getElementById('checkout-extras').classList.toggle('hidden', type !== 'checkout');
+  document.getElementById('potion-field').classList.toggle('hidden', type === 'checkout');
+
+  // Reset form
+  document.getElementById('report-form').reset();
+  document.getElementById('selected-pc-display').classList.add('hidden');
+  document.getElementById('selected-map-display').classList.add('hidden');
+  document.getElementById('prev-info').classList.add('hidden');
+  document.getElementById('computed-lv').classList.add('hidden');
+  document.getElementById('adena-preview').classList.remove('visible');
+
+  // Reset screenshot
+  const zone = document.getElementById('screenshot-zone');
+  zone.classList.remove('has-image');
+  zone.querySelector('.preview').classList.add('hidden');
+  zone.querySelector('.screenshot-text').textContent = t('screenshot_placeholder');
+
+  // Set data-type for submit handler
+  document.getElementById('report-form').dataset.type = type;
+
+  renderPcGrid();
+  renderMapGrid();
+  
+  // Initialize time summary (for checkin form)
+  if (type === 'checkin') {
+    // Reset to sensible defaults — will be overridden by autoFillPlayTime if prev session exists
+    const startInput = document.querySelector('input[name="playStart"]');
+    const endInput = document.querySelector('input[name="playEnd"]');
+    if (startInput) startInput.value = '09:00';
+    if (endInput) endInput.value = '21:00';
+    updateTimeSummary(false);
+  }
+}
+
+// ====================================================
+// PC GRID
+// ====================================================
+function renderPcGrid() {
+  const grid = document.getElementById('pc-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  for (let n = 1; n <= 10; n++) {
+    const client = state.clients.find(c => Number(c.number) === n);
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'select-card pc-card';
+    if (state.selectedPc === n) card.classList.add('active');
+    
+    const charName = client ? client.display_name : t('not_registered');
+    card.innerHTML = `<div class="num">PC ${n}</div><div class="charname">${charName}</div>`;
+    
+    card.addEventListener('click', () => selectPc(n, client));
+    grid.appendChild(card);
+  }
+}
+
+async function selectPc(pcNum, client) {
+  state.selectedPc = pcNum;
+  state.selectedClient = client;
+  renderPcGrid();
+  
+  // Show selected display
+  const display = document.getElementById('selected-pc-display');
+  display.classList.remove('hidden');
+  const name = client ? client.display_name : `PC ${pcNum}`;
+  document.getElementById('selected-pc-val').textContent = `PC ${pcNum} · ${name}`;
+  
+  // Fetch previous data
+  await fetchPrevData(pcNum);
+}
+
+async function fetchPrevData(pcNum) {
+  const card = document.getElementById('prev-info');
+  card.classList.remove('hidden');
+  card.classList.add('muted');
+  card.textContent = '…';
+  
+  // Reset auto-fill tag (will re-add if prev data fills time)
+  document.querySelectorAll('.time-summary .auto-tag').forEach(el => el.remove());
+  
+  // 체크아웃: 직전 CHECKIN 데이터를 가져옴 (시프트 시작 시점)
+  // 체크인/시간단위: 직전 non-CHECKOUT (가장 최근 로그)
+  const isCheckout = state.formType === 'checkout';
+  const url = '/api/last-session-by-no/' + encodeURIComponent(pcNum) 
+            + (isCheckout ? '?type=CHECKIN' : '');
+  
+  // 최대 2회 재시도 (서버 슬립모드 대비)
+  let lastError = null;
+  for (let i = 0; i < 2; i++) {
+    try {
+      const r = await fetch(url);
+      const data = await r.json();
+      state.prevSession = data?.session || null;
+      
+      if (!state.prevSession) {
+        card.innerHTML = `<span style="color:var(--warning)">⚠</span> ${
+          isCheckout ? t('no_checkin') : t('no_prev')
+        }`;
+        updateComputedLevel(null);
+        return;
+      }
+      
+      const s = state.prevSession;
+      card.classList.remove('muted');
+      card.classList.add('success');
+      const sourceLabel = isCheckout ? t('checkin_data') : t('prev_data');
+      card.innerHTML = `
+        <b>${sourceLabel}:</b>
+        <div class="stat-row" style="margin-top:6px;">
+          <div class="stat">LV <b>${s.level ?? '-'}</b></div>
+          <div class="stat">EXP <b>${truncExp(s.exp_after)?.toFixed(2) ?? '-'}%</b></div>
+          <div class="stat">ADENA <b>${(s.adena_after ?? 0).toLocaleString()}</b></div>
+        </div>
+        ${s.map ? `<div class="stat-map">📍 ${s.map}</div>` : ''}
+      `;
+      
+      updateComputedLevel(state.prevSession);
+      
+      // Auto-fill play_time from previous session (smart default)
+      autoFillPlayTime(state.prevSession);
+      return;
+    } catch (e) {
+      lastError = e;
+      if (i < 1) {
+        card.innerHTML = `<span style="color:var(--text-tertiary)">⏳ 서버 깨우는 중... (재시도)</span>`;
+        await new Promise(r => setTimeout(r, 3000));
+      }
+    }
+  }
+  
+  card.innerHTML = `<span style="color:var(--danger)">⚠</span> ${lastError?.message || 'Failed to fetch'}`;
+  state.prevSession = null;
+}
+
+// ====================================================
+// SMART TIME PICKER
+// ====================================================
+function autoFillPlayTime(session) {
+  if (!session || !session.play_time_start || !session.play_time_end) {
+    updateTimeSummary();
+    return;
+  }
+  const startInput = document.querySelector('input[name="playStart"]');
+  const endInput = document.querySelector('input[name="playEnd"]');
+  if (startInput) startInput.value = normalizeTimeStr(session.play_time_start);
+  if (endInput) endInput.value = normalizeTimeStr(session.play_time_end);
+  updateTimeSummary(true);
+}
+
+function normalizeTimeStr(s) {
+  // Accept "21:00", "21.00", "21:0", "21" -> "21:00"
+  if (!s) return '09:00';
+  s = String(s).trim().replace('.', ':');
+  if (!s.includes(':')) s += ':00';
+  const [h, m] = s.split(':');
+  return String(h).padStart(2, '0') + ':' + String(m || '00').padStart(2, '0');
+}
+
+function timeToMinutes(s) {
+  s = normalizeTimeStr(s);
+  const [h, m] = s.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function minutesToTime(min) {
+  min = ((min % 1440) + 1440) % 1440; // wrap 24h
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+}
+
+function stepTime(targetName, deltaMin) {
+  const input = document.querySelector(`input[name="${targetName}"]`);
+  if (!input) return;
+  const cur = timeToMinutes(input.value || '09:00');
+  input.value = minutesToTime(cur + deltaMin);
+  updateTimeSummary(false);
+}
+
+function updateTimeSummary(isAuto) {
+  const summary = document.getElementById('time-summary');
+  if (!summary) return;
+  const startInput = document.querySelector('input[name="playStart"]');
+  const endInput = document.querySelector('input[name="playEnd"]');
+  if (!startInput || !endInput) return;
+  
+  const start = startInput.value || '09:00';
+  const end = endInput.value || '21:00';
+  
+  // Calculate duration (handles overnight)
+  let startMin = timeToMinutes(start);
+  let endMin = timeToMinutes(end);
+  let durMin = endMin - startMin;
+  if (durMin <= 0) durMin += 1440; // crosses midnight
+  
+  const hours = Math.floor(durMin / 60);
+  const mins = durMin % 60;
+  const curLang = (typeof lang !== 'undefined' ? lang : 'ko');
+  
+  let durStr;
+  if (curLang === 'ko') {
+    durStr = mins === 0 ? `${hours}시간 운영` : `${hours}시간 ${mins}분 운영`;
+  } else {
+    durStr = mins === 0 ? `${hours}h shift` : `${hours}h ${mins}m shift`;
+  }
+  
+  const autoTag = isAuto ? `<span class="auto-tag">${curLang === 'ko' ? '이전 시프트' : 'from last session'}</span>` : '';
+  summary.innerHTML = `<b>${start} ~ ${end}</b> · ${durStr}${autoTag}`;
+}
+
+// Wire up step buttons + input change listeners
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.step-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.target;
+      const mins = parseInt(btn.dataset.mins, 10);
+      stepTime(target, mins);
+    });
+  });
+  document.querySelectorAll('.time-input').forEach(inp => {
+    // Auto-format on typing: "9" -> "09", "930" -> "9:30", etc.
+    inp.addEventListener('input', (e) => {
+      const raw = e.target.value.replace(/[^\d]/g, '').slice(0, 4);
+      let formatted = raw;
+      if (raw.length === 3) formatted = raw[0] + ':' + raw.slice(1);
+      else if (raw.length === 4) formatted = raw.slice(0, 2) + ':' + raw.slice(2);
+      e.target.value = formatted;
+      
+      // Validate as user types but only mark invalid if complete
+      const m = formatted.match(/^(\d{1,2}):(\d{2})$/);
+      if (m && (Number(m[1]) > 23 || Number(m[2]) > 59)) {
+        e.target.classList.add('invalid');
+      } else {
+        e.target.classList.remove('invalid');
+      }
+      updateTimeSummary(false);
+    });
+    
+    // Normalize on blur: "9:0" -> "09:00", validate range
+    inp.addEventListener('blur', (e) => {
+      const v = e.target.value.trim();
+      if (!v) { e.target.value = '00:00'; updateTimeSummary(false); return; }
+      const m = v.match(/^(\d{1,2}):?(\d{0,2})$/);
+      if (!m) { e.target.value = '00:00'; e.target.classList.remove('invalid'); updateTimeSummary(false); return; }
+      let h = Math.min(23, Math.max(0, parseInt(m[1], 10) || 0));
+      let mi = Math.min(59, Math.max(0, parseInt(m[2] || '0', 10)));
+      e.target.value = String(h).padStart(2, '0') + ':' + String(mi).padStart(2, '0');
+      e.target.classList.remove('invalid');
+      updateTimeSummary(false);
+    });
+    
+    // Select all on focus for easy retyping
+    inp.addEventListener('focus', (e) => e.target.select());
+  });
+});
+
+// ====================================================
+// MAP GRID
+// ====================================================
+function renderMapGrid() {
+  const grid = document.getElementById('map-grid');
+  if (!grid) return;
+  grid.innerHTML = '';
+  getAllMaps().forEach((map, idx) => {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'select-card';
+    if (map.children) card.classList.add('has-children');
+    if (state.selectedMap && state.selectedMap.id === map.id) card.classList.add('active');
+    
+    card.innerHTML = `<div class="label" style="font-size:13px; font-weight:600; color:var(--text);">${getMapName(map)}</div>`;
+    
+    card.addEventListener('click', () => {
+      if (map.children) {
+        openSubmap(map);
+      } else {
+        selectMap(map);
+      }
+    });
+    grid.appendChild(card);
+  });
+}
+
+function selectMap(map, submap) {
+  state.selectedMap = submap ? { ...map, sub: submap } : map;
+  renderMapGrid();
+  
+  const display = document.getElementById('selected-map-display');
+  display.classList.remove('hidden');
+  let label = getMapName(map);
+  if (submap) label += ' · ' + getMapName(submap);
+  document.getElementById('selected-map-val').textContent = label;
+}
+
+// ====================================================
+// SUBMAP — Flat sectioned layout (2-click max)
+// ====================================================
+
+// Recursively collect all leaves under root, grouped by their intermediate path
+function flattenMapTree(root) {
+  const sections = new Map(); // sectionTitle -> [{leaf, path}]
+  
+  function walk(node, intermediates) {
+    if (!node.children) {
+      // Leaf — group by intermediate path
+      const title = intermediates.map(getMapName).join(' · ');
+      if (!sections.has(title)) sections.set(title, []);
+      sections.get(title).push({
+        leaf: node,
+        path: [...intermediates, node]
+      });
+      return;
+    }
+    node.children.forEach(c => walk(c, [...intermediates, node]));
+  }
+  
+  root.children.forEach(c => walk(c, []));
+  return Array.from(sections.entries()).map(([title, leaves]) => ({ title, leaves }));
+}
+
+function openSubmap(map) {
+  document.getElementById('submap-title').textContent = getMapName(map);
+  
+  const container = document.getElementById('submap-grid');
+  container.innerHTML = '';
+  
+  const sections = flattenMapTree(map);
+  
+  sections.forEach((section, sectionIdx) => {
+    // Show section header only if title exists AND there are multiple sections
+    if (section.title && sections.length > 1) {
+      const header = document.createElement('div');
+      header.className = 'submap-section-header';
+      header.textContent = `${sectionIdx + 1}. ${section.title}`;
+      container.appendChild(header);
+    }
+    
+    const cardGrid = document.createElement('div');
+    cardGrid.className = 'card-grid submap-cards';
+    section.leaves.forEach(({ leaf, path }, leafIdx) => {
+      const card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'select-card';
+      const showNumber = sections.length > 1 || section.leaves.length > 1;
+      const numPrefix = showNumber ? `${leafIdx + 1}. ` : '';
+      card.innerHTML = `<div class="label" style="font-size:13px; font-weight:600; color:var(--text);">${numPrefix}${getMapShortName(leaf)}</div>`;
+      card.addEventListener('click', () => {
+        selectMapFromPath(map, path);
+        closeSubmap();
+      });
+      cardGrid.appendChild(card);
+    });
+    container.appendChild(cardGrid);
+  });
+  
+  document.getElementById('submap-modal').classList.remove('hidden');
+}
+
+// Strip "의 땅" / " Land" suffix for compact display in cards
+function getMapShortName(map) {
+  return getMapName(map).replace(/의 땅$/, '').replace(/ Land$/, '');
+}
+
+function selectMapFromPath(root, path) {
+  // path = [intermediate1, intermediate2, ..., leaf] (excludes root)
+  const leaf = path[path.length - 1];
+  state.selectedMap = {
+    ...root,
+    sub: leaf,        // backwards compat
+    path: path        // full nested path
+  };
+  renderMapGrid();
+  
+  const display = document.getElementById('selected-map-display');
+  display.classList.remove('hidden');
+  const label = getMapName(root) + ' · ' + path.map(getMapName).join(' · ');
+  document.getElementById('selected-map-val').textContent = label;
+}
+
+function closeSubmap() {
+  document.getElementById('submap-modal').classList.add('hidden');
+}
+
+// ====================================================
+// LEVEL AUTO-COMPUTATION
+// ====================================================
+function updateComputedLevel(prevSession) {
+  const expInput = document.querySelector('input[name="exp"]');
+  const expVal = expInput?.value;
+  const lvCard = document.getElementById('computed-lv');
+  
+  if (!state.selectedPc) {
+    lvCard.classList.add('hidden');
+    return;
+  }
+  
+  // Settings level takes precedence over Supabase
+  const settingsLv = state.initialLevels[state.selectedPc];
+  const supabaseLv = prevSession?.level;
+  const baseLv = settingsLv || supabaseLv || 1;
+  const usingSettings = !!settingsLv;
+  
+  // For check-in: just show the base level
+  if (state.formType === 'checkin') {
+    state.computedLevel = baseLv;
+    document.getElementById('computed-lv-val').textContent = baseLv;
+    let explanation = '';
+    if (usingSettings) explanation = ' ' + t('lv_from_settings');
+    else if (!prevSession) explanation = ' ' + t('lv_initial');
+    document.getElementById('lv-explanation').textContent = explanation;
+    lvCard.classList.remove('hidden');
+    return;
+  }
+  
+  // For hourly/checkout: detect level-up via EXP reset
+  if (!prevSession && !settingsLv) {
+    state.computedLevel = 1;
+    document.getElementById('computed-lv-val').textContent = 1;
+    document.getElementById('lv-explanation').textContent = ' ' + t('lv_initial');
+    lvCard.classList.remove('hidden');
+    return;
+  }
+  
+  const prevLv = baseLv;
+  const prevExp = truncExp(prevSession?.exp_after);
+  const newExp = truncExp(expVal);
+  
+  let level = prevLv;
+  let explanation = usingSettings ? ' ' + t('lv_from_settings') : ' ' + t('lv_same');
+  if (newExp != null && prevExp != null && newExp < prevExp) {
+    level = prevLv + 1;
+    explanation = ' ' + t('lv_up', { prev: prevLv });
+  }
+  state.computedLevel = level;
+  document.getElementById('computed-lv-val').textContent = level;
+  document.getElementById('lv-explanation').textContent = explanation;
+  lvCard.classList.remove('hidden');
+}
+
+// React to EXP changes (with auto-decimal formatting)
+document.addEventListener('input', (e) => {
+  if (e.target.matches('input[name="exp"]')) {
+    autoFormatExp(e.target);
+    updateComputedLevel(state.prevSession);
+  }
+  if (e.target.matches('input[name="adena"]')) {
+    updateAdenaPreview(e.target);
+  }
+});
+
+// Auto-format EXP: "2323" → "23.23", "550" → "5.50", "5" → "0.05"
+// Hard cap at 4 digits (max EXP = 99.99%). Extra digits ignored.
+function autoFormatExp(input) {
+  // Strip everything except digits AND cap at 4 digits
+  const raw = input.value.replace(/[^\d]/g, '').slice(0, 4);
+  
+  if (raw.length === 0) {
+    input.value = '';
+    return;
+  }
+  
+  // Always treat last 2 digits as decimal portion
+  const padded = raw.padStart(3, '0');
+  const intPart = padded.slice(0, -2).replace(/^0+/, '') || '0';
+  const decPart = padded.slice(-2);
+  
+  input.value = `${intPart}.${decPart}`;
+}
+
+// Select all on focus for easy retyping
+document.addEventListener('focus', (e) => {
+  if (e.target.matches('input[name="exp"]')) {
+    e.target.select();
+  }
+}, true);
+
+function updateAdenaPreview(input) {
+  const preview = document.getElementById('adena-preview');
+  const v = input.value.trim().replace(/[^\d]/g, '');
+  if (!v) {
+    preview.classList.remove('visible');
+    return;
+  }
+  const n = Number(v);
+  preview.classList.add('visible');
+  if (n >= 1_000_000_000_000) {
+    preview.classList.add('warning');
+    preview.textContent = `⚠ ${n.toLocaleString()} (너무 큰 숫자?)`;
+  } else {
+    preview.classList.remove('warning');
+    preview.textContent = `→ ${n.toLocaleString()} 아덴`;
+  }
+}
+
+// ====================================================
+// SETUP SUBMIT
+// ====================================================
+document.getElementById('setup-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  state.name = document.getElementById('setup-name').value.trim();
+  
+  let threadInput = document.getElementById('setup-thread').value.trim();
+  const urlMatch = threadInput.match(/channels\/\d+\/(\d+)/);
+  if (urlMatch) threadInput = urlMatch[1];
+  if (!/^\d{10,25}$/.test(threadInput)) {
+    showToast(t('thread_invalid'), 'error');
+    return;
+  }
+  state.threadId = threadInput;
+  saveState();
+  showMenu();
+});
+
+// ====================================================
+// SCREENSHOT
+// ====================================================
+(function setupScreenshot() {
+  const zone = document.getElementById('screenshot-zone');
+  if (!zone) return;
+  const fileInput = zone.querySelector('input[type="file"]');
+  zone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (file) attachImage(file);
+  });
+})();
+
+function attachImage(file) {
+  state.screenshot = file;
+  const zone = document.getElementById('screenshot-zone');
+  const preview = zone.querySelector('.preview');
+  const text = zone.querySelector('.screenshot-text');
+  const icon = zone.querySelector('.screenshot-icon');
+  zone.classList.add('has-image');
+  text.textContent = t('screenshot_attached');
+  if (icon) icon.style.display = 'none';
+  preview.src = URL.createObjectURL(file);
+  preview.classList.remove('hidden');
+}
+
+document.addEventListener('paste', (e) => {
+  const formView = document.getElementById('form-view');
+  if (formView.classList.contains('hidden')) return;
+  for (const item of e.clipboardData.items) {
+    if (item.type.startsWith('image/')) {
+      const file = item.getAsFile();
+      if (file) attachImage(file);
+      e.preventDefault();
+      break;
+    }
+  }
+});
+
+// ====================================================
+// FORM SUBMIT
+// ====================================================
+document.getElementById('report-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  
+  if (!state.selectedPc) { showToast(t('select_first'), 'error'); return; }
+  if (!state.selectedMap) { showToast(t('map_select'), 'error'); return; }
+  
+  const fd = new FormData(e.target);
+  const exp = truncExp(fd.get('exp'));
+  if (exp == null || exp < 0 || exp > 100) {
+    showToast(t('invalid_exp'), 'error'); return;
+  }
+  
+  const adenaStr = (fd.get('adena') || '').toString().replace(/[^\d]/g, '');
+  if (!adenaStr || isNaN(Number(adenaStr))) {
+    showToast(t('invalid_adena'), 'error'); return;
+  }
+  const adena = Number(adenaStr);
+  
+  const submitBtn = document.getElementById('submit-btn');
+  const orig = submitBtn.textContent;
+  submitBtn.disabled = true;
+  submitBtn.textContent = t('submitting');
+  
+  try {
+    // Build map name with full nested path (e.g., "축복의 땅 · 타락한 축복의 땅 · 봄 · 요정의 땅")
+    let mapName = getMapName(state.selectedMap);
+    if (state.selectedMap.path && state.selectedMap.path.length > 0) {
+      // New multi-level path
+      mapName = getMapName(state.selectedMap) + ' · ' + state.selectedMap.path.map(getMapName).join(' · ');
+    } else if (state.selectedMap.sub) {
+      // Legacy single-submap (backward compat)
+      mapName = getMapName(state.selectedMap) + ' · ' + getMapName(state.selectedMap.sub);
+    }
+    
+    const fields = {
+      pc: String(state.selectedPc),
+      booster: state.name,
+      threadId: state.threadId,
+      clientNo: String(state.selectedPc),
+      playStart: fd.get('playStart') || (state.prevSession?.play_time_start) || '',
+      playEnd: fd.get('playEnd') || (state.prevSession?.play_time_end) || '',
+      map: mapName,
+      lv: String(state.computedLevel || 1),
+      exp: exp.toFixed(2),
+      adena: String(adena),
+      potion: fd.get('potion') || '0',
+      potionTotal: fd.get('potionTotal') || null,
+      drop: fd.get('drop') || '0',
+      dead: fd.get('dead') || '0',
+      totalDead: fd.get('totalDead') || null,
+      note: fd.get('note') || '',
+    };
+    
+    if (state.formType === 'hourly' || state.formType === 'checkout') {
+      if (state.prevSession) {
+        fields.prevLv = state.prevSession.level;
+        fields.prevExp = truncExp(state.prevSession.exp_after);
+        fields.prevAdena = state.prevSession.adena_after;
+      } else {
+        fields.prevLv = state.computedLevel;
+        fields.prevExp = exp;
+        fields.prevAdena = adena;
+      }
+    }
+    
+    const body = new FormData();
+    body.append('type', state.formType);
+    body.append('fields', JSON.stringify(fields));
+    if (state.screenshot) body.append('screenshot', state.screenshot);
+    
+    const r = await fetch('/api/report', { method: 'POST', body });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Submit failed');
+    
+    showToast(t('success'), 'success');
+    setTimeout(showMenu, 800);
+  } catch (err) {
+    showToast(t('failed') + err.message, 'error');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = orig;
+  }
+});
+
+// ====================================================
+// SETTINGS MODAL
+// ====================================================
+function openSettings() {
+  document.getElementById('settings-modal').classList.remove('hidden');
+  renderClientsList();
+  renderInitialLevels();
+  renderMapList();
+}
+function closeSettings() {
+  document.getElementById('settings-modal').classList.add('hidden');
+  saveState();
+}
+
+// ====================================================
+// CLIENT MANAGEMENT
+// ====================================================
+let adminClients = []; // full client list with keywords
+let editingClientNumber = null; // null = create new, number = edit existing
+
+async function renderClientsList() {
+  const list = document.getElementById('clients-list');
+  list.innerHTML = '<div style="color:var(--text-tertiary); font-size:13px; padding:8px;">불러오는 중…</div>';
+  
+  try {
+    const r = await fetch('/api/clients/admin');
+    adminClients = await r.json();
+  } catch (e) {
+    list.innerHTML = `<div style="color:var(--danger); font-size:13px; padding:8px;">로드 실패: ${e.message}</div>`;
+    return;
+  }
+  
+  list.innerHTML = '';
+  for (let n = 1; n <= 10; n++) {
+    const client = adminClients.find(c => Number(c.number) === n);
+    const div = document.createElement('div');
+    div.style.cssText = 'display:flex; align-items:center; gap:8px; background:var(--surface); padding:10px 12px; border-radius:10px;';
+    
+    if (client) {
+      const kw = client.keywords && client.keywords !== client.display_name 
+        ? `<span style="color:var(--text-tertiary); font-size:11px; margin-left:4px;">[${client.keywords}]</span>` 
+        : '';
+      div.innerHTML = `
+        <div style="flex:1; min-width:0;">
+          <div style="font-size:13px; font-weight:600;">PC ${n} · ${client.display_name}${kw}</div>
+        </div>
+        <button type="button" class="btn btn-secondary btn-sm" data-action="edit" data-pc="${n}" style="width:auto; flex-shrink:0;">수정</button>
+      `;
+    } else {
+      div.innerHTML = `
+        <div style="flex:1; color:var(--text-tertiary); font-size:13px;">PC ${n} · 비어있음</div>
+        <button type="button" class="btn btn-primary btn-sm" data-action="add" data-pc="${n}" style="width:auto; flex-shrink:0;">추가</button>
+      `;
+    }
+    list.appendChild(div);
+  }
+  
+  list.querySelectorAll('button[data-action]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const pc = Number(btn.dataset.pc);
+      const action = btn.dataset.action;
+      openClientEditor(pc, action === 'edit');
+    });
+  });
+}
+
+function openClientEditor(pcNum, isEdit) {
+  editingClientNumber = pcNum;
+  const title = `PC ${pcNum} ${isEdit ? '수정' : '추가'}`;
+  document.getElementById('client-editor-title').textContent = title;
+  
+  const nameInput = document.getElementById('client-display-name');
+  const kwInput = document.getElementById('client-keywords');
+  const lvInput = document.getElementById('client-level');
+  const deleteBtn = document.getElementById('client-delete-btn');
+  
+  lvInput.value = state.initialLevels[pcNum] || '';
+  
+  if (isEdit) {
+    const client = adminClients.find(c => Number(c.number) === pcNum);
+    nameInput.value = client?.display_name || '';
+    kwInput.value = client?.keywords || '';
+    deleteBtn.classList.remove('hidden');
+  } else {
+    nameInput.value = '';
+    kwInput.value = '';
+    deleteBtn.classList.add('hidden');
+  }
+  
+  document.getElementById('client-editor-modal').classList.remove('hidden');
+  setTimeout(() => nameInput.focus(), 100);
+}
+
+function closeClientEditor() {
+  document.getElementById('client-editor-modal').classList.add('hidden');
+  editingClientNumber = null;
+}
+
+async function saveClient() {
+  if (editingClientNumber == null) return;
+  
+  const display_name = document.getElementById('client-display-name').value.trim();
+  let keywords = document.getElementById('client-keywords').value.trim();
+  
+  if (!display_name) {
+    showToast('캐릭터명을 입력해주세요', 'error');
+    return;
+  }
+  
+  if (!keywords) keywords = display_name;
+  
+  const isExisting = adminClients.some(c => Number(c.number) === editingClientNumber);
+  
+  try {
+    let r;
+    if (isExisting) {
+      r = await fetch(`/api/clients/${editingClientNumber}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ display_name, keywords })
+      });
+    } else {
+      r = await fetch('/api/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ number: editingClientNumber, display_name, keywords })
+      });
+    }
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Failed');
+    
+    // 레벨 저장 (initialLevels, localStorage)
+    const lvRaw = document.getElementById('client-level').value.trim();
+    const lv = parseInt(lvRaw);
+    if (lv > 0) state.initialLevels[editingClientNumber] = lv;
+    else delete state.initialLevels[editingClientNumber];
+    saveState();
+    
+    showToast('저장됨', 'success');
+    closeClientEditor();
+    await renderClientsList();
+    await loadClients();
+    renderInitialLevels();
+  } catch (e) {
+    showToast('실패: ' + e.message, 'error');
+  }
+}
+
+async function deleteCurrentClient() {
+  if (editingClientNumber == null) return;
+  const client = adminClients.find(c => Number(c.number) === editingClientNumber);
+  if (!client) return;
+  
+  if (!confirm(`PC ${editingClientNumber} (${client.display_name}) 클라이언트를 삭제하시겠습니까?\n\n과거 세션 기록은 삭제되지 않지만, 카카오톡에서 이 캐릭터명으로 검색해도 더이상 응답하지 않게 됩니다.`)) {
+    return;
+  }
+  
+  try {
+    const r = await fetch(`/api/clients/${editingClientNumber}`, { method: 'DELETE' });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Failed');
+    
+    showToast('삭제됨', 'success');
+    closeClientEditor();
+    await renderClientsList();
+    await loadClients();
+    renderInitialLevels();
+  } catch (e) {
+    showToast('실패: ' + e.message, 'error');
+  }
+}
+
+function renderInitialLevels() {
+  const grid = document.getElementById('initial-levels-grid');
+  grid.innerHTML = '';
+  for (let n = 1; n <= 10; n++) {
+    const client = state.clients.find(c => Number(c.number) === n);
+    const val = state.initialLevels[n] || '';
+    const div = document.createElement('div');
+    div.style.cssText = 'display:flex; align-items:center; gap:8px; background:var(--surface); padding:8px; border-radius:10px;';
+    div.innerHTML = `
+      <div style="font-size:13px; flex:1;">PC ${n}${client ? ' · ' + client.display_name : ''}</div>
+      <input type="number" class="input" style="width:70px; padding:6px 10px; font-size:14px;" min="1" max="80" value="${val}" data-pc="${n}" placeholder="LV">
+    `;
+    grid.appendChild(div);
+  }
+  grid.querySelectorAll('input').forEach(i => {
+    i.addEventListener('change', (e) => {
+      const pc = e.target.dataset.pc;
+      const v = parseInt(e.target.value);
+      if (v) state.initialLevels[pc] = v;
+      else delete state.initialLevels[pc];
+      saveState();
+    });
+  });
+}
+
+function renderMapList() {
+  const list = document.getElementById('map-list');
+  list.innerHTML = '';
+  // Show all (defaults read-only)
+  DEFAULT_MAPS.forEach(map => {
+    const item = document.createElement('div');
+    item.className = 'map-list-item';
+    item.innerHTML = `<span class="name">${getMapName(map)} <span style="color:var(--text-tertiary); font-size:11px;">(기본)</span></span>`;
+    list.appendChild(item);
+  });
+  state.customMaps.forEach((map, idx) => {
+    const item = document.createElement('div');
+    item.className = 'map-list-item';
+    item.innerHTML = `
+      <span class="name">${getMapName(map)}</span>
+      <button class="delete-btn" data-idx="${idx}">${t('delete')}</button>
+    `;
+    item.querySelector('.delete-btn').addEventListener('click', () => {
+      state.customMaps.splice(idx, 1);
+      saveState();
+      renderMapList();
+      renderMapGrid();
+    });
+    list.appendChild(item);
+  });
+}
+
+function addCustomMap() {
+  const input = document.getElementById('new-map-name');
+  const name = input.value.trim();
+  if (!name) return;
+  const id = 'custom_' + Date.now();
+  state.customMaps.push({ id, ko: name, en: name });
+  input.value = '';
+  saveState();
+  renderMapList();
+  renderMapGrid();
+}
+
+function resetAll() {
+  if (!confirm(t('confirm_reset'))) return;
+  localStorage.clear();
+  location.reload();
+}
+
+// ====================================================
+// MAP EDITOR (from form view)
+// ====================================================
+function openMapEditor() {
+  document.getElementById('map-editor-modal').classList.remove('hidden');
+  renderMapEditorList();
+}
+function closeMapEditor() {
+  document.getElementById('map-editor-modal').classList.add('hidden');
+}
+function renderMapEditorList() {
+  const list = document.getElementById('map-editor-list');
+  list.innerHTML = '';
+  DEFAULT_MAPS.forEach(map => {
+    const item = document.createElement('div');
+    item.className = 'map-list-item';
+    item.innerHTML = `<span class="name">${getMapName(map)} <span style="color:var(--text-tertiary); font-size:11px;">기본</span></span>`;
+    list.appendChild(item);
+  });
+  state.customMaps.forEach((map, idx) => {
+    const item = document.createElement('div');
+    item.className = 'map-list-item';
+    item.innerHTML = `
+      <span class="name">${getMapName(map)}</span>
+      <button class="delete-btn" data-idx="${idx}">${t('delete')}</button>
+    `;
+    item.querySelector('.delete-btn').addEventListener('click', () => {
+      state.customMaps.splice(idx, 1);
+      saveState();
+      renderMapEditorList();
+      renderMapGrid();
+    });
+    list.appendChild(item);
+  });
+}
+function addMapFromEditor() {
+  const input = document.getElementById('new-map-input');
+  const name = input.value.trim();
+  if (!name) return;
+  const id = 'custom_' + Date.now();
+  state.customMaps.push({ id, ko: name, en: name });
+  input.value = '';
+  saveState();
+  renderMapEditorList();
+  renderMapGrid();
+}
+
+// ====================================================
+// TOAST
+// ====================================================
+function showToast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast ' + (type || '') + ' show';
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+// ====================================================
+// LOAD CLIENTS (with retry)
+// ====================================================
+async function loadClients(retries = 3) {
+  for (let i = 0; i < retries; i++) {
+    try {
+      const r = await fetch('/api/clients');
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      state.clients = await r.json();
+      console.log('Clients loaded:', state.clients.length);
+      return;
+    } catch (e) {
+      console.warn(`loadClients attempt ${i+1} failed:`, e.message);
+      if (i < retries - 1) {
+        await new Promise(r => setTimeout(r, (i + 1) * 3000)); // 3s, 6s, 9s
+      } else {
+        state.clients = [];
+      }
+    }
+  }
+}
+
+// 화면이 활성화될 때마다 클라이언트 목록 새로 받아오기
+function ensureClientsLoaded() {
+  if (state.clients.length === 0) {
+    loadClients().then(() => {
+      renderPcGrid();
+    });
+  }
+}
+
+// ====================================================
+// INIT
+// ====================================================
+(async function init() {
+  applyLanguage();
+  await loadClients();
+  if (state.name && state.threadId) {
+    showMenu();
+  } else {
+    showSetup();
+  }
+})();
+</script>
+</body>
+</html>
