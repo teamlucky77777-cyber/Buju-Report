@@ -803,13 +803,16 @@ body.role-player #section-staff { display:none !important; }
 .rp-shot-preview{ position:relative; display:inline-block; }
 .rp-shot-preview img{ max-width:100%; max-height:220px; border-radius:8px; display:block; }
 .rp-shot-x{ position:absolute; top:6px; right:6px; width:26px; height:26px; border:none; border-radius:50%; background:rgba(0,0,0,.6); color:#fff; cursor:pointer; font-size:15px; line-height:1; }
-.tpick{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
-.tp-ampm{ display:inline-flex; background:var(--surface-3); border:1px solid var(--border-strong); border-radius:9px; padding:2px; }
-.tp-ap{ border:0; background:transparent; color:var(--tx2); font-size:12px; font-weight:700; padding:5px 10px; border-radius:7px; cursor:pointer; transition:.15s; }
-.tp-ap.on{ background:var(--ac); color:#fff; }
-.tp-h, .tp-m{ background:var(--surface-3); border:1px solid var(--border-strong); border-radius:9px; color:var(--tx); font-size:14px; font-weight:600; padding:7px 9px; cursor:pointer; }
-.tp-h:focus, .tp-m:focus{ outline:none; border-color:var(--ac); }
-.tp-sep{ color:var(--tx2); font-weight:800; }
+.tpick{ width:100%; }
+.tp-row{ display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+.tp-btn{ flex:0 0 auto; min-width:56px; height:46px; padding:0 18px; border:1.5px solid var(--border-strong); border-radius:12px; background:var(--surface-3); color:var(--tx2); font-size:15px; font-weight:700; cursor:pointer; transition:.14s; }
+.tp-btn:hover{ border-color:var(--ac); color:var(--tx); }
+.tp-btn.on{ background:var(--ac); border-color:var(--ac); color:#fff; box-shadow:0 2px 10px -3px var(--ac); }
+.tp-hwrap{ display:flex; align-items:center; gap:2px; background:var(--surface-3); border:1.5px solid var(--border-strong); border-radius:12px; padding:3px 6px 3px 3px; }
+.tp-step{ width:38px; height:38px; border:0; border-radius:9px; background:transparent; color:var(--tx2); font-size:24px; font-weight:700; line-height:1; cursor:pointer; transition:.12s; }
+.tp-step:hover{ background:var(--ac); color:#fff; }
+.tp-hr{ min-width:34px; text-align:center; font-size:21px; font-weight:800; color:var(--tx); font-variant-numeric:tabular-nums; }
+.tp-unit{ font-size:12px; font-weight:700; color:var(--tx3); margin-left:-2px; }
 </style>
 </head>
 <body>
@@ -1355,36 +1358,53 @@ function compute(clients, reports, staff){
       incentiveTotal, penaltyTotal, isLeader, allowance, teamMembers, teamSize:teamMembers.length };
   });
 
-  // 리포트가 아직 없는 직원 = 기록 대기. 팀장은 월급+수당 기준으로 표시(본인 성과 대기).
+  // 리포트가 아직 없는 일반 직원 = 기록 대기. (팀장은 아래 팀-정산 패스에서 일괄 처리)
   staff.forEach(s=>{
     if(byBooster[s.name]) return;                 // 본인이 사냥 리포트가 있으면 위에서 처리됨
-    const allowance = Number(s.allowance)||0;
-    const isLeader = allowance>0;
-    const teamMembers = isLeader ? staff.filter(x=>x.leader===s.name).map(m=>m.name) : [];
+    if(Number(s.allowance)>0) return;             // 팀장은 아래에서 팀 성과로 정산
     const base = Number(s.rate)||0;
-    if(isLeader){
-      // 팀장 미플레이: 본인 사냥 기록 없음 → 월급+수당 기준, 가감 없음(성과 대기). 본인이 사냥 리포트 올리면 위 일급 로직으로 정산됨.
-      const monthBasePay = base + allowance;
-      results.push({ booster:s.name, baseRate:base, sessionRows:[], dayRows:[],
-        weekPct:null, weekGain:0, weekQuota:0, weekActualPay:monthBasePay, weekBasePay:monthBasePay,
-        monthClampedPay:monthBasePay, monthBasePay, monthClampedPct:null, latestDay:null,
-        incentiveTotal:0, penaltyTotal:0, isLeader:true, allowance,
-        teamSize:teamMembers.length, teamMembers });
-    } else {
-      results.push({ booster:s.name, baseRate:base, sessionRows:[], dayRows:[],
-        weekPct:null, weekGain:0, weekQuota:0, weekActualPay:0, weekBasePay:0,
-        monthClampedPay:0, monthBasePay:0, monthClampedPct:null, latestDay:null,
-        incentiveTotal:0, penaltyTotal:0, noData:true });
-    }
+    results.push({ booster:s.name, baseRate:base, sessionRows:[], dayRows:[],
+      weekPct:null, weekGain:0, weekQuota:0, weekActualPay:0, weekBasePay:0,
+      monthClampedPay:0, monthBasePay:0, monthClampedPct:null, latestDay:null,
+      incentiveTotal:0, penaltyTotal:0, noData:true });
   });
 
-  // 팀장 표시용 팀 평균 성과 (정산엔 미사용 — 팀 리더보드/참고용)
-  results.forEach(p=>{
-    if(p.isLeader){
-      const memPcts = results.filter(x=>(p.teamMembers||[]).includes(x.booster) && x.weekPct!=null).map(x=>x.weekPct);
-      p.teamAvg = memPcts.length ? memPcts.reduce((a,b)=>a+b,0)/memPcts.length : null;
-      p.teamReported = memPcts.length;
-    }
+  // ── 팀장 정산: 본인 플레이가 아니라 "팀원들의 성과"를 일급 방식으로 월급에 반영 ──
+  //  · 팀원이 그날 기준 초과 → 리더 일급 +, 미달 → 리더 일급 −  (팀 평균 성과% 기준)
+  //  · 리더 일급 = (월급 + 리더수당) ÷ 30.  월 누적 = 월급+수당 ± Σ일급가감 (70~200% 클램프)
+  staff.filter(s=>Number(s.allowance)>0).forEach(ls=>{
+    const rate = Number(ls.rate)||0, allowance = Number(ls.allowance)||0;
+    const teamMembers = staff.filter(x=>x.leader===ls.name).map(m=>m.name);
+    const memberResults = results.filter(p=>teamMembers.includes(p.booster));
+    // 팀원들의 일자별 성과%(채점된 날만) 수집 → 그날 팀 평균
+    const dayMap = {};
+    memberResults.forEach(p=>(p.dayRows||[]).forEach(d=>{ if(d.counted && d.dayPct!=null){ (dayMap[d.date]=dayMap[d.date]||[]).push(d.dayPct); } }));
+    const dailyBase = (rate + allowance)/30;       // 리더 일급 (월급+수당)
+    let incentiveTotal=0, penaltyTotal=0;
+    const dayRows = Object.keys(dayMap).sort().map(date=>{
+      const avgPct = dayMap[date].reduce((a,b)=>a+b,0)/dayMap[date].length;
+      const ratio = avgPct/100;
+      const incentive = dailyBase*Math.max(0, ratio-1), penalty = dailyBase*Math.max(0, 1-ratio);
+      incentiveTotal += incentive; penaltyTotal += penalty;
+      return { date, dayPct:avgPct, payPct:avgPct, counted:true, hours:0, dead:0, gain:0, quota:0, diff:null,
+        basePay:dailyBase, incentive, penalty, actualPay:dailyBase+incentive-penalty, protected:false, noStd:false,
+        verdict: avgPct>=100?{key:'vPass',cls:'v-pass'}:verdict((avgPct-100)/100) };
+    });
+    const allPcts = Object.values(dayMap).reduce((a,b)=>a.concat(b),[]);
+    const teamAvg = allPcts.length ? allPcts.reduce((a,b)=>a+b,0)/allPcts.length : null;
+    const teamReported = memberResults.filter(p=>p.weekPct!=null).length;
+    const monthBasePay = rate + allowance;
+    const monthRaw = monthBasePay + incentiveTotal - penaltyTotal;
+    const monthClampedPay = Math.min(monthBasePay*MONTH_MAX/100, Math.max(monthBasePay*MONTH_MIN/100, monthRaw));
+    const monthClampedPct = monthBasePay>0 ? Math.min(MONTH_MAX, Math.max(MONTH_MIN, monthRaw/monthBasePay*100)) : null;
+    const latestDay = dayRows.length?dayRows[dayRows.length-1]:null;
+    const leaderResult = { booster:ls.name, baseRate:rate, sessionRows:[], dayRows,
+      weekPct:teamAvg, weekGain:0, weekQuota:0, weekActualPay:monthRaw, weekBasePay:monthBasePay,
+      monthClampedPay, monthBasePay, monthClampedPct, latestDay,
+      incentiveTotal, penaltyTotal, isLeader:true, allowance, teamSize:teamMembers.length, teamMembers,
+      teamAvg, teamReported };
+    const idx = results.findIndex(p=>p.booster===ls.name);
+    if(idx>=0) results[idx]=leaderResult; else results.push(leaderResult);
   });
   return results;
 }
@@ -2052,35 +2072,40 @@ function pickStaffCombo(n){ rpDraft.booster=n; const tr=document.getElementById(
   const th=document.getElementById('rp-thread'); if(th) th.value=rpThreadVal();
   closeStaffPicker(); updateReportPreview(); }
 if(!window._staffPickerDoc){ window._staffPickerDoc=true; document.addEventListener('click',e=>{ const c=document.getElementById('rp-staff-combo'); if(c && !c.contains(e.target)) closeStaffPicker(); }); }
-// ── 시간 토글 피커 (네이티브 time 로케일 문제 회피 + 언어별 오전/오후) ──
+// ── 시간 피커 (큰 버튼식 · 30분 단위 · 언어별 오전/오후) ──
 // 숨은 input(id)에 "HH:MM"(24h) 저장 → 기존 .value 읽기 그대로 호환
 function timeToggleHtml(id, def, cb){
   def = def || '00:00';
-  const parts=String(def).split(':'); const H=Number(parts[0])||0, M=Number(parts[1])||0;
+  const parts=String(def).split(':'); const H=Number(parts[0])||0; let M=Number(parts[1])||0;
+  M = (M>=30)?30:0;                                  // 30분 단위로 스냅
   const isPM = H>=12; let h12 = H%12; if(h12===0) h12=12; const mm=String(M).padStart(2,'0');
   const amL = lang==='en'?'AM':'오전', pmL = lang==='en'?'PM':'오후';
-  const hOpts = Array.from({length:12},(_,i)=>i+1).map(h=>`<option value="${h}"${h===h12?' selected':''}>${h}</option>`).join('');
-  const mOpts = ['00','05','10','15','20','25','30','35','40','45','50','55'].map(m=>`<option value="${m}"${m===mm?' selected':''}>${m}</option>`).join('');
   return `<div class="tpick" data-cb="${cb||''}">
-    <input type="hidden" id="${id}" value="${def}">
-    <div class="tp-ampm">
-      <button type="button" class="tp-ap${!isPM?' on':''}" data-ap="0" onclick="tpAp('${id}',0)">${amL}</button>
-      <button type="button" class="tp-ap${isPM?' on':''}" data-ap="1" onclick="tpAp('${id}',1)">${pmL}</button>
+    <input type="hidden" id="${id}" value="${String(H).padStart(2,'0')}:${mm}">
+    <div class="tp-row">
+      <button type="button" class="tp-btn tp-ap${!isPM?' on':''}" data-ap="0" onclick="tpAp('${id}',0)">${amL}</button>
+      <button type="button" class="tp-btn tp-ap${isPM?' on':''}" data-ap="1" onclick="tpAp('${id}',1)">${pmL}</button>
+      <div class="tp-hwrap">
+        <button type="button" class="tp-step" onclick="tpHour('${id}',-1)">‹</button>
+        <span class="tp-hr" id="${id}-h">${h12}</span>
+        <button type="button" class="tp-step" onclick="tpHour('${id}',1)">›</button>
+        <span class="tp-unit">${lang==='en'?'h':'시'}</span>
+      </div>
+      <button type="button" class="tp-btn tp-mn${mm==='00'?' on':''}" data-m="00" onclick="tpMin('${id}','00')">00</button>
+      <button type="button" class="tp-btn tp-mn${mm==='30'?' on':''}" data-m="30" onclick="tpMin('${id}','30')">30</button>
+      <span class="tp-unit">${lang==='en'?'min':'분'}</span>
     </div>
-    <select class="tp-h" onchange="tpSync('${id}')">${hOpts}</select>
-    <span class="tp-sep">:</span>
-    <select class="tp-m" onchange="tpSync('${id}')">${mOpts}</select>
   </div>`;
 }
-function tpAp(id, pm){
-  const w=document.getElementById(id).closest('.tpick'); if(!w) return;
-  w.querySelectorAll('.tp-ap').forEach(b=>b.classList.toggle('on', Number(b.dataset.ap)===pm));
-  tpSync(id);
-}
+function tpWrap(id){ const hid=document.getElementById(id); return hid&&hid.closest('.tpick'); }
+function tpAp(id, pm){ const w=tpWrap(id); if(!w) return; w.querySelectorAll('[data-ap]').forEach(b=>b.classList.toggle('on', Number(b.dataset.ap)===pm)); tpSync(id); }
+function tpMin(id, m){ const w=tpWrap(id); if(!w) return; w.querySelectorAll('[data-m]').forEach(b=>b.classList.toggle('on', b.dataset.m===m)); tpSync(id); }
+function tpHour(id, d){ const s=document.getElementById(id+'-h'); if(!s) return; let h=Number(s.textContent)||12; h+=d; if(h>12)h=1; if(h<1)h=12; s.textContent=h; tpSync(id); }
 function tpSync(id){
-  const hid=document.getElementById(id), w=hid&&hid.closest('.tpick'); if(!w) return;
-  const onAp=w.querySelector('.tp-ap.on'); const pm = onAp?Number(onAp.dataset.ap):0;
-  let h=Number(w.querySelector('.tp-h').value)||12; const m=w.querySelector('.tp-m').value||'00';
+  const w=tpWrap(id); if(!w) return; const hid=document.getElementById(id);
+  const onAp=w.querySelector('[data-ap].on'); const pm=onAp?Number(onAp.dataset.ap):0;
+  let h=Number(document.getElementById(id+'-h').textContent)||12;
+  const onM=w.querySelector('[data-m].on'); const m=onM?onM.dataset.m:'00';
   if(pm && h!==12) h+=12; if(!pm && h===12) h=0;
   hid.value=String(h).padStart(2,'0')+':'+m;
   const cb=w.dataset.cb; if(cb && typeof window[cb]==='function') window[cb]();
@@ -2131,24 +2156,24 @@ function renderReport(){
   const fAdena=`<label class="rep-f sm"><span>${t('rpAdena')}</span><input id="rp-adena" type="text" inputmode="numeric" class="input" placeholder="예: 1124440" oninput="rpAdenaFmt(this);rpGainPv()"></label>`;
   const fDrop=`<label class="rep-f sm"><span>${t('rpDrop')}</span><input id="rp-drop" type="number" class="input" value="0"></label>`;
   const fNote=`<label class="rep-f wide"><span>${t('rpNote')}</span><input id="rp-note" type="text" class="input" placeholder="…"></label>`;
-  const fPrevExp=`<label class="rep-f sm"><span>${t('rpPrevExpL')}</span><input id="rp-prev-exp" type="number" step="1" class="input" placeholder="${t('rpAutoEdit')}" oninput="rpPrevExpPv()"><div id="rp-prev-exp-pv" class="rp-mini muted"></div></label>`;
+  const fPrevExp=`<label class="rep-f sm"><span>${t('rpPrevExpL')}</span><input id="rp-prev-exp" type="text" inputmode="numeric" maxlength="4" class="input" placeholder="${t('rpAutoEdit')}" oninput="rpExpLimit(this);rpPrevExpPv()"><div id="rp-prev-exp-pv" class="rp-mini muted"></div></label>`;
   const fPrevAdena=`<label class="rep-f sm"><span>${t('rpPrevAdenaL')}</span><input id="rp-prev-adena" type="text" inputmode="numeric" class="input" placeholder="${t('rpAutoEdit')}" oninput="rpAdenaFmt(this);rpGainPv()"></label>`;
   if(reportType==='checkin'){
     hint=t('rpHintCheckin'); submitLbl=t('rpDoCheckin'); submitFn='submitCheckin()';
-    typed=`<div class="rep-f sm"><span>${t('rpStartTime')}</span>${timeToggleHtml('rp-start','21:00','')}</div>
-      <div class="rep-f sm"><span>${t('rpEndLabel')}</span>${timeToggleHtml('rp-end-ci','09:00','')}</div>
+    typed=`<div class="rep-f wide"><span>${t('rpStartTime')}</span>${timeToggleHtml('rp-start','21:00','')}</div>
+      <div class="rep-f wide"><span>${t('rpEndLabel')}</span>${timeToggleHtml('rp-end-ci','09:00','')}</div>
       <label class="rep-f sm"><span>${t('rpStartLv')}</span><input id="rp-lv" type="number" class="input"></label>
-      <label class="rep-f sm"><span>${t('rpStartExp')}</span><input id="rp-exp" type="number" step="1" class="input" placeholder="예: 2323" oninput="rpExpPv();rpGainPv()"><div id="rp-exp-pv" class="rp-mini muted"></div></label>
+      <label class="rep-f sm"><span>${t('rpStartExp')}</span><input id="rp-exp" type="text" inputmode="numeric" maxlength="4" class="input" placeholder="예: 2323" oninput="rpExpLimit(this);rpExpPv();rpGainPv()"><div id="rp-exp-pv" class="rp-mini muted"></div></label>
       ${fAdena}<label class="rep-f sm"><span>${t('rpRedPotion')}</span><input id="rp-potion" type="number" class="input" value="0"></label>${fNote}`;
   } else if(reportType==='status'){
     hint=t('rpHintStatus'); submitLbl=t('rpDoStatus'); submitFn='submitStatus()';
-    typed=`<label class="rep-f sm"><span>${t('rpCurExp')}</span><input id="rp-exp" type="number" step="1" class="input" placeholder="예: 2323" oninput="rpExpPv();rpGainPv()"><div id="rp-exp-pv" class="rp-mini muted"></div></label>
+    typed=`<label class="rep-f sm"><span>${t('rpCurExp')}</span><input id="rp-exp" type="text" inputmode="numeric" maxlength="4" class="input" placeholder="예: 2323" oninput="rpExpLimit(this);rpExpPv();rpGainPv()"><div id="rp-exp-pv" class="rp-mini muted"></div></label>
       ${fAdena}<label class="rep-f sm"><span>${t('rpRedPotion')}</span><input id="rp-potion" type="number" class="input" value="0"></label>
       ${fDrop}<label class="rep-f sm"><span>${t('rpDead')}</span><input id="rp-dead" type="number" class="input" value="0"></label>${fNote}`;
   } else {
     hint=t('rpHintCheckout'); submitLbl=t('rpDoCheckout'); submitFn='submitCheckout()';
-    typed=`<div class="rep-f sm"><span>${t('rpEndTime')}</span>${timeToggleHtml('rp-end','09:00','updateReportPreview')}</div>
-      <label class="rep-f sm"><span>${t('rpEndExp')}</span><input id="rp-exp" type="number" step="1" class="input" placeholder="예: 2323" oninput="rpExpPv();updateReportPreview();rpGainPv()"><div id="rp-exp-pv" class="rp-mini muted"></div></label>
+    typed=`<div class="rep-f wide"><span>${t('rpEndTime')}</span>${timeToggleHtml('rp-end','09:00','updateReportPreview')}</div>
+      <label class="rep-f sm"><span>${t('rpEndExp')}</span><input id="rp-exp" type="text" inputmode="numeric" maxlength="4" class="input" placeholder="예: 2323" oninput="rpExpLimit(this);rpExpPv();updateReportPreview();rpGainPv()"><div id="rp-exp-pv" class="rp-mini muted"></div></label>
       ${fAdena}<label class="rep-f sm"><span>${t('rpRedPotion')}</span><input id="rp-potion" type="number" class="input" value="0"></label>
       ${fDrop}<label class="rep-f sm"><span>${t('rpDeadTot')}</span><input id="rp-dead" type="number" class="input" value="0"></label>${fNote}`;
   }
@@ -2241,6 +2266,7 @@ function rpShotPaste(e){ const items=(e.clipboardData||{}).items||[]; for(const 
 function rpShotSet(f){ rpShot=f; const img=document.getElementById('rp-shot-img'), pv=document.getElementById('rp-shot-preview'), em=document.getElementById('rp-shot-empty'); if(img) img.src=URL.createObjectURL(f); if(pv) pv.hidden=false; if(em) em.hidden=true; }
 function rpShotClear(e){ if(e) e.stopPropagation(); rpShot=null; const inp=document.getElementById('rp-shot-input'); if(inp) inp.value=''; const pv=document.getElementById('rp-shot-preview'), em=document.getElementById('rp-shot-empty'); if(pv) pv.hidden=true; if(em) em.hidden=false; }
 // === EXP 입력 미리보기 (2323 → 23.23%) ===
+function rpExpLimit(el){ el.value=(el.value||'').replace(/[^\d]/g,'').slice(0,4); }   // 숫자만 앞 4자리
 function rpExpPv(){ const e=document.getElementById('rp-exp'), pv=document.getElementById('rp-exp-pv'); if(!e||!pv) return; const v=Number(e.value); pv.textContent=(e.value!==''&&!isNaN(v))?('= '+(v/100).toFixed(2)+'%'):''; }
 // 현재값 입력 시 직전값 대비 증가량 실시간 표시
 function rpGainPv(){
