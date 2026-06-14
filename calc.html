@@ -791,6 +791,15 @@ table.tbl.tbl-rec td.rec-staff { font-weight:600; color:var(--tx); }
 .role-logout:hover { color:var(--tx2); }
 body.role-player [data-sec="section-staff"] { display:none !important; }
 body.role-player #section-staff { display:none !important; }
+.stepper-row-4{ grid-template-columns:repeat(4,1fr); }
+@media (max-width:560px){ .stepper-row-4{ grid-template-columns:repeat(2,1fr); } }
+.rp-mini{ font-size:12px; margin-top:4px; min-height:14px; }
+.rp-shot-zone{ border:1.5px dashed var(--border); border-radius:12px; padding:18px 14px; text-align:center; cursor:pointer; transition:border-color .15s, background .15s; background:var(--surface); margin-bottom:6px; }
+.rp-shot-zone:hover{ border-color:var(--accent); }
+.rp-shot-empty{ font-size:13px; }
+.rp-shot-preview{ position:relative; display:inline-block; }
+.rp-shot-preview img{ max-width:100%; max-height:220px; border-radius:8px; display:block; }
+.rp-shot-x{ position:absolute; top:6px; right:6px; width:26px; height:26px; border:none; border-radius:50%; background:rgba(0,0,0,.6); color:#fff; cursor:pointer; font-size:15px; line-height:1; }
 </style>
 </head>
 <body>
@@ -985,14 +994,15 @@ async function saveReport(r) {
     const enClass=(JOB_T[r.classJob]&&JOB_T[r.classJob].en)||r.classJob||'';
     const fields={
       clientNo:r.no, nickname:r.client, clientNoLabel:(r.no!=null?r.no+' ':'')+(r.client||''),
-      pc:r.pc, lv:r.lvAfter, class:enClass,
-      weapon:(r.weapon!=null&&r.weapon!=='')?('+'+r.weapon):'', armor:(r.armor!=null&&r.armor!=='')?('+'+r.armor):'', ac:'',
+      pc:r.pc, lv:r.lvAfter, class:enClass, threadId:r.threadId,
+      weapon:(r.weapon!=null&&r.weapon!=='')?('+'+r.weapon):'', armor:(r.armor!=null&&r.armor!=='')?('+'+r.armor):'', ac:(r.ac!=null&&r.ac!=='')?r.ac:'',
       playStart:r.start||'', playEnd:r.end||'', map:r.map||'',
       exp:r.expAfter, prevExp:r.expBefore, prevLv:r.lvBefore,
       adena:r.adena, prevAdena:r.adena,
       potion:r.potion, drop:r.drop, dead:r.dead, note:r.note, date:r.date
     };
     const fd=new FormData(); fd.append('type',type); fd.append('fields',JSON.stringify(fields));
+    if(rpShot){ fd.append('screenshot', rpShot, (rpShot.name||'screenshot.png')); }
     const res=await fetch('/api/report',{method:'POST',body:fd});
     if(!res.ok){ let msg=res.status; try{const e=await res.json(); msg=e.error||msg;}catch(_){ } console.error('Discord 전송 실패:',msg); return {ok:false,error:msg}; }
     return {ok:true};
@@ -1446,10 +1456,11 @@ function editFields(){
     </div>
     <div class="field"><label class="flabel">${t('clientName')}</label><input class="input" value="${esc(b.name)}" oninput="editBuf.name=this.value" placeholder="${t('phClient')}"></div>
     <div class="field"><label class="flabel">${t('job')}</label><select class="input" onchange="editBuf.job=this.value">${jobOpts}</select></div>
-    <div class="stepper-row">
+    <div class="stepper-row stepper-row-4">
       ${stepCell(t('level'),'level','')}
       ${stepCell(t('wpnShort'),'sword','+')}
       ${stepCell(t('armShort'),'armor','+')}
+      ${stepCell('AC','ac','')}
     </div>
     <div class="field" style="margin-top:12px; margin-bottom:0;">
       <label class="flabel">${t('perMapTarget')}</label>
@@ -1467,7 +1478,8 @@ function stepCell(label,field,prefix){
     </div></div>`;
 }
 function bump(field,delta){
-  let v=Math.max(0, Math.round(Number(editBuf[field])+delta));
+  let v=Math.round(Number(editBuf[field])+delta);
+  if(field!=='ac') v=Math.max(0,v);
   editBuf[field]=v;
   const inp=document.getElementById('inp-'+field);
   if(inp) inp.value=v;
@@ -1477,7 +1489,7 @@ function removeMap(i){ editBuf.maps.splice(i,1); renderEditBody(); }
 function autofillEn(i,val){ const p=MAP_PRESETS.find(x=>x.ko===val); if(!p) return; editBuf.maps[i].en=p.en; const el=document.getElementById('map-en-'+i); if(el) el.value=p.en; }
 function autofillKo(i,val){ const p=MAP_PRESETS.find(x=>x.en===val); if(!p) return; editBuf.maps[i].ko=p.ko; const el=document.getElementById('map-ko-'+i); if(el) el.value=p.ko; }
 
-function startEdit(id){ editingId=id; editBuf=JSON.parse(JSON.stringify(clientCache.find(x=>x.id===id))); renderEditModal(); }
+function startEdit(id){ editingId=id; editBuf=JSON.parse(JSON.stringify(clientCache.find(x=>x.id===id))); if(editBuf&&editBuf.ac==null)editBuf.ac=''; renderEditModal(); }
 function cancelEdit(){ closeModal(); }
 async function saveEdit(){
   if(!editBuf.name.trim()){ alert(t('alertName')); return; }
@@ -1492,7 +1504,7 @@ async function saveEdit(){
 function addClient(){
   const id='new_'+Date.now(); editingId=id;
   const nextNo=Math.max(0,...clientCache.map(c=>Number(c.no)||0))+1;
-  editBuf={ id, no:nextNo, name:'', pc:'', level:1, sword:0, armor:0, job:'기사', maps:[{ko:'',en:'',level:33,target:0.8}] };
+  editBuf={ id, no:nextNo, name:'', pc:'', level:1, sword:0, armor:0, ac:'', job:'기사', maps:[{ko:'',en:'',level:33,target:0.8}] };
   renderEditModal();
 }
 async function deleteClient(){
@@ -1921,6 +1933,7 @@ function renderIndivLB(host){
    ============================================================ */
 let reportType='checkin';
 let rpDraft={};
+let rpShot=null;
 function setReportType(tp){ reportType=tp; renderReport(); }
 function staffTriggerHtml(){
   const n=rpDraft.booster;
@@ -2011,7 +2024,7 @@ function renderReport(){
   const tabs=[['checkin','rtCheckin',''],['status','rtStatus','rtStatusSub'],['checkout','rtCheckout','']]
     .map(([k,lbl,sub])=>`<button class="rep-tab${reportType===k?' active':''}" onclick="setReportType('${k}')">${t(lbl)}${sub?` <span class="rep-tab-sub">(${t(sub)})</span>`:''}</button>`).join('');
   let typed='', hint='', submitLbl='', submitFn='';
-  const fAdena=`<label class="rep-f sm"><span>${t('rpAdena')}</span><input id="rp-adena" type="number" step="0.001" class="input" placeholder="0"></label>`;
+  const fAdena=`<label class="rep-f sm"><span>${t('rpAdena')}</span><input id="rp-adena" type="text" inputmode="numeric" class="input" placeholder="예: 1124440" oninput="rpAdenaFmt(this)"></label>`;
   const fDrop=`<label class="rep-f sm"><span>${t('rpDrop')}</span><input id="rp-drop" type="number" class="input" value="0"></label>`;
   const fNote=`<label class="rep-f wide"><span>${t('rpNote')}</span><input id="rp-note" type="text" class="input" placeholder="…"></label>`;
   if(reportType==='checkin'){
@@ -2019,20 +2032,19 @@ function renderReport(){
     typed=`<label class="rep-f sm"><span>${t('rpStartTime')}</span><input id="rp-start" type="time" class="input" value="21:00"></label>
       <label class="rep-f sm"><span>종료 시각 · End</span><input id="rp-end-ci" type="time" class="input" value="09:00"></label>
       <label class="rep-f sm"><span>${t('rpStartLv')}</span><input id="rp-lv" type="number" class="input"></label>
-      <label class="rep-f sm"><span>${t('rpStartExp')}</span><input id="rp-exp" type="number" step="0.01" class="input" placeholder="0.00"></label>
+      <label class="rep-f sm"><span>${t('rpStartExp')}</span><input id="rp-exp" type="number" step="1" class="input" placeholder="예: 2323" oninput="rpExpPv()"><div id="rp-exp-pv" class="rp-mini muted"></div></label>
       ${fAdena}<label class="rep-f sm"><span>${t('rpRedPotion')}</span><input id="rp-potion" type="number" class="input" value="0"></label>${fNote}`;
   } else if(reportType==='status'){
     hint=t('rpHintStatus'); submitLbl=t('rpDoStatus'); submitFn='submitStatus()';
-    typed=`<label class="rep-f sm"><span>${t('rpTime')}</span><input id="rp-time" type="time" class="input" value="${nowT}"></label>
-      <label class="rep-f sm"><span>${t('rpCurLv')}</span><input id="rp-lv" type="number" class="input"></label>
-      <label class="rep-f sm"><span>${t('rpCurExp')}</span><input id="rp-exp" type="number" step="0.01" class="input" placeholder="0.00"></label>
+    typed=`<label class="rep-f sm"><span>${t('rpCurLv')}</span><input id="rp-lv" type="number" class="input"></label>
+      <label class="rep-f sm"><span>${t('rpCurExp')}</span><input id="rp-exp" type="number" step="1" class="input" placeholder="예: 2323" oninput="rpExpPv()"><div id="rp-exp-pv" class="rp-mini muted"></div></label>
       ${fAdena}<label class="rep-f sm"><span>${t('rpRedPotion')}</span><input id="rp-potion" type="number" class="input" value="0"></label>
       ${fDrop}<label class="rep-f sm"><span>${t('rpDead')}</span><input id="rp-dead" type="number" class="input" value="0"></label>${fNote}`;
   } else {
     hint=t('rpHintCheckout'); submitLbl=t('rpDoCheckout'); submitFn='submitCheckout()';
     typed=`<label class="rep-f sm"><span>${t('rpEndTime')}</span><input id="rp-end" type="time" class="input" value="09:00" onchange="updateReportPreview()"></label>
       <label class="rep-f sm"><span>${t('rpEndLv')}</span><input id="rp-lv" type="number" class="input" onchange="updateReportPreview()"></label>
-      <label class="rep-f sm"><span>${t('rpEndExp')}</span><input id="rp-exp" type="number" step="0.01" class="input" placeholder="0.00" oninput="updateReportPreview()"></label>
+      <label class="rep-f sm"><span>${t('rpEndExp')}</span><input id="rp-exp" type="number" step="1" class="input" placeholder="예: 2323" oninput="rpExpPv();updateReportPreview()"><div id="rp-exp-pv" class="rp-mini muted"></div></label>
       ${fAdena}<label class="rep-f sm"><span>${t('rpRedPotion')}</span><input id="rp-potion" type="number" class="input" value="0"></label>
       ${fDrop}<label class="rep-f sm"><span>${t('rpDeadTot')}</span><input id="rp-dead" type="number" class="input" value="0"></label>${fNote}`;
   }
@@ -2066,6 +2078,12 @@ function renderReport(){
       </div>
       <div class="rep-pick-label">${t('rpDetails')}</div>
       <div class="rep-grid">${typed}</div>
+      <div class="rep-pick-label" style="margin-top:4px;">📸 스크린샷 · Screenshot</div>
+      <div id="rp-shot-zone" class="rp-shot-zone" onclick="rpShotPick()" onpaste="rpShotPaste(event)" tabindex="0">
+        <input type="file" id="rp-shot-input" accept="image/*" hidden onchange="rpShotOn(event)">
+        <div id="rp-shot-empty" class="rp-shot-empty muted">클릭하거나 Ctrl+V로 붙여넣기 · Click or paste</div>
+        <div id="rp-shot-preview" class="rp-shot-preview" hidden><img id="rp-shot-img" alt=""><button type="button" class="rp-shot-x" onclick="rpShotClear(event)">×</button></div>
+      </div>
       <div class="rep-foot">
         <div id="rp-preview" class="rep-preview"></div>
         <button class="btn btn-primary rep-submit" onclick="${submitFn}">${submitLbl}</button>
@@ -2086,7 +2104,7 @@ function updateReportPreview(){
   const booster=rpDraft.booster, map=rpDraft.map||'';
   const date=document.getElementById('rp-date')?.value||'';
   const lv=Number(document.getElementById('rp-lv')?.value)||0;
-  const endExp=Number(document.getElementById('rp-exp')?.value)||0;
+  const endExp=(Number(document.getElementById('rp-exp')?.value)||0)/100;
   const end=document.getElementById('rp-end')?.value||'';
   if(!c){ el.innerHTML=''; return; }
   if(map==='TEST'){ el.innerHTML=`<span class="rep-pv-txt" style="color:var(--ye);">🧪 ${t('mapTestNote')}</span>`; return; }
@@ -2103,29 +2121,39 @@ function updateReportPreview(){
   const pct=perH/mm.target*100, cls=pct>=100?'pos':'neg';
   el.innerHTML=`<span class="rep-pv-txt">${t('rpPreview')}: <b class="${cls}">${pct.toFixed(0)}%</b> <span class="muted">(+${gained.toFixed(2)}% / ${hrs}${t('rpHours')} · ${src})</span></span>`;
 }
+// === 스크린샷 첨부 ===
+function rpShotPick(){ document.getElementById('rp-shot-input')?.click(); }
+function rpShotOn(e){ const f=e.target.files&&e.target.files[0]; if(f) rpShotSet(f); }
+function rpShotPaste(e){ const items=(e.clipboardData||{}).items||[]; for(const it of items){ if(it.type&&it.type.indexOf('image')===0){ const f=it.getAsFile(); if(f){ rpShotSet(f); e.preventDefault(); break; } } } }
+function rpShotSet(f){ rpShot=f; const img=document.getElementById('rp-shot-img'), pv=document.getElementById('rp-shot-preview'), em=document.getElementById('rp-shot-empty'); if(img) img.src=URL.createObjectURL(f); if(pv) pv.hidden=false; if(em) em.hidden=true; }
+function rpShotClear(e){ if(e) e.stopPropagation(); rpShot=null; const inp=document.getElementById('rp-shot-input'); if(inp) inp.value=''; const pv=document.getElementById('rp-shot-preview'), em=document.getElementById('rp-shot-empty'); if(pv) pv.hidden=true; if(em) em.hidden=false; }
+// === EXP 입력 미리보기 (2323 → 23.23%) ===
+function rpExpPv(){ const e=document.getElementById('rp-exp'), pv=document.getElementById('rp-exp-pv'); if(!e||!pv) return; const v=Number(e.value); pv.textContent=(e.value!==''&&!isNaN(v))?('= '+(v/100).toFixed(2)+'%'):''; }
+// === 아덴 입력 라이브 포맷 (1124440 → 1.124.440) ===
+function rpAdenaFmt(el){ const d=(el.value||'').replace(/[^\d]/g,''); el.value=d?Number(d).toLocaleString('en-US'):''; }
 function rpCommon(){
   const c=MOCK_CLIENTS.find(x=>x.id===rpDraft.clientId);
   const gv=id=>{const e=document.getElementById(id); return e?Number(e.value)||0:0;};
   return { booster:rpDraft.booster, c, map:rpDraft.map||'',
     date:document.getElementById('rp-date')?.value||new Date().toISOString().slice(0,10),
-    lv:gv('rp-lv'), exp:gv('rp-exp'), dead:gv('rp-dead'), potion:gv('rp-potion'), adena:gv('rp-adena'), drop:gv('rp-drop'),
+    lv:gv('rp-lv'), exp:gv('rp-exp')/100, dead:gv('rp-dead'), potion:gv('rp-potion'), adena:Number((document.getElementById('rp-adena')?.value||'').replace(/[^\d]/g,''))||0, drop:gv('rp-drop'),
     note:document.getElementById('rp-note')?.value||'' };
 }
-async function afterSubmit(msg){ await renderDashboard(); renderReport(); showToast(msg); }
+async function afterSubmit(msg){ rpShot=null; await renderDashboard(); renderReport(); showToast(msg); }
 async function submitCheckin(){
   const f=rpCommon(); if(!f.booster||!f.c){ showToast(t('rpNeed')); return; }
   const lv=f.lv||f.c.level;
   const r=await saveReport({ id:'rpt-'+Date.now(), tag:'checkin', booster:f.booster, client:f.c.name, no:f.c.no, pc:f.c.pc, threadId:commitThread(f.booster),
-    weapon:f.c.sword, armor:f.c.armor, classJob:f.c.job,
+    weapon:f.c.sword, armor:f.c.armor, ac:f.c.ac, classJob:f.c.job,
     date:f.date, map:f.map, start:document.getElementById('rp-start')?.value||'', end:document.getElementById('rp-end-ci')?.value||'',
     lvBefore:lv, expBefore:f.exp, lvAfter:lv, expAfter:f.exp, adena:f.adena, dead:0, potion:f.potion, drop:0, note:f.note });
   afterSubmit(r.ok ? t('rpCheckinOk') : ('⚠ Discord 전송 실패: '+(r.error||'')));
 }
 async function submitStatus(){
   const f=rpCommon(); if(!f.booster||!f.c){ showToast(t('rpNeed')); return; }
-  const lv=f.lv||f.c.level; const tm=document.getElementById('rp-time')?.value||'';
+  const lv=f.lv||f.c.level; const tm=new Date().toTimeString().slice(0,5);
   const r=await saveReport({ id:'rpt-'+Date.now(), tag:'status', booster:f.booster, client:f.c.name, no:f.c.no, pc:f.c.pc, threadId:commitThread(f.booster),
-    weapon:f.c.sword, armor:f.c.armor, classJob:f.c.job,
+    weapon:f.c.sword, armor:f.c.armor, ac:f.c.ac, classJob:f.c.job,
     date:f.date, map:f.map, start:tm, end:tm,
     lvBefore:lv, expBefore:f.exp, lvAfter:lv, expAfter:f.exp, adena:f.adena, dead:f.dead, potion:f.potion, drop:f.drop, note:f.note });
   afterSubmit(r.ok ? t('rpStatusOk') : ('⚠ Discord 전송 실패: '+(r.error||'')));
@@ -2138,7 +2166,7 @@ async function submitCheckout(){
   const startLv=ci?Number(ci.lvBefore):lv, startExp=ci?Number(ci.expBefore):0;
   const start=ci?ci.start:'21:00';
   const r=await saveReport({ id:'rpt-'+Date.now(), tag:'checkout', booster:f.booster, client:f.c.name, no:f.c.no, pc:f.c.pc, threadId:commitThread(f.booster),
-    weapon:f.c.sword, armor:f.c.armor, classJob:f.c.job,
+    weapon:f.c.sword, armor:f.c.armor, ac:f.c.ac, classJob:f.c.job,
     date:f.date, map:f.map, start, end:document.getElementById('rp-end')?.value||'09:00',
     lvBefore:startLv, expBefore:startExp, lvAfter:lv, expAfter:f.exp, adena:f.adena, dead:f.dead, potion:f.potion, drop:f.drop, note:f.note });
   afterSubmit(r.ok ? t('rpCheckoutOk') : ('⚠ Discord 전송 실패: '+(r.error||'')));
