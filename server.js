@@ -135,9 +135,6 @@ SCREENSHOT      : ${f.hasScreenshot ? 'O' : 'X'}`;
 }
 
 function buildHourly(f) {
-  const levelDiff = (Number(f.lv) - Number(f.prevLv)) || 0;
-  const expGained = (levelDiff * 100 + Number(f.exp) - Number(f.prevExp));
-  const adenaGained = Number(f.adena) - Number(f.prevAdena);
   const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10).replace(/-/g, '.');
 
   return `${C.cyan}SESSION REPORT · Every 1 hour${C.reset}
@@ -146,22 +143,19 @@ DATE            : ${f.date ? String(f.date).replace(/-/g, '.') : today}
 PC              : ${f.pc}
 CLIENT No.      : ${f.clientNoLabel}
 CLIENT NICKNAME : ${f.nickname}
-LV              : ${f.lv}
 Class           : ${f.class || '-'}
 Weapon          : ${f.weapon || '-'}
 Armor           : ${f.armor || '-'}
 AC              : ${f.ac || '-'}
 MAP             : ${f.map}
-EXP             : ${fmtExp(f.prevExp)}% → ${fmtExp(f.exp)}%
-EXP GAINED      : ${fmtExpSigned(expGained)}%
-ADENA           : ${fmtAdena(f.prevAdena)} → ${fmtAdena(f.adena)}
-ADENA GAINED    : ${adenaGained >= 0 ? '+' : ''}${fmtAdenaSigned(adenaGained)}
+EXP             : ${fmtExp(f.exp)}%
+ADENA           : ${fmtAdena(f.adena)}
 RED POTION USE  : ${f.potion || 0}
 DROP            : ${f.drop || 0}
 DEAD            : ${f.dead || 0}
 NOTE            : ${f.note || '-'}
 SCREENSHOT      : ${f.hasScreenshot ? '1' : '0'}
-PLAY TIME       : ${f.playStart} ~ ${f.playEnd} (korean time)`;
+TIME            : ${f.playStart} (korea time)`;
 }
 
 function buildCheckout(f) {
@@ -832,7 +826,9 @@ async function renderActiveSession(res, clientDisplayName, latestLog) {
   const levelStart = checkInLog.level;
   const levelNow   = lastLog.level;
 
-  const levelDiff = (levelNow != null && levelStart != null) ? (levelNow - levelStart) : 0;
+  let levelDiff = (levelNow != null && levelStart != null) ? (levelNow - levelStart) : 0;
+  // 시간 리포트엔 레벨이 없어 levelNow=null → 현재 EXP가 시작보다 낮으면 레벨업(1회)으로 보정
+  if (levelNow == null && expNow != null && expStart != null && expNow < expStart) levelDiff = Math.max(levelDiff, 1);
   const expGained = (expNow != null && expStart != null) ? (levelDiff * 100 + expNow - expStart).toFixed(4) : null;
   const adenaGained = (adenaNow != null && adenaStart != null) ? adenaNow - adenaStart : null;
 
