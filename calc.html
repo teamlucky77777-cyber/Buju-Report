@@ -948,6 +948,7 @@ const MAP_PRESETS = [
   {ko:'에바 왕국',           en:'Eva Kingdom'},
   {ko:'오크 숲',             en:'Orc Forest'},
   {ko:'축복의 땅 (ATS ZONE)', en:'Blessed Lands (ATS Zone)'},
+  {ko:'상아탑',              en:'Ivory Tower'},
 ];
 
 // 직원: name(=리포트의 booster와 일치), rate(월급), protectedUntil(보호 종료일), shift(참고)
@@ -2046,29 +2047,17 @@ function clientGridHtml(){
   return MOCK_CLIENTS.map(c=>`<button class="rep-pick rep-pick-c${rpDraft.clientId===c.id?' active':''}" onclick="pickClient('${esc(c.id)}')">
     <span class="rp-c-pc">PC${c.pc}</span><span class="rp-c-name">${esc(c.name)}</span><span class="rp-c-lv">Lv${c.level} · ${esc(c.job||'')}</span></button>`).join('');
 }
-const STANDARD_MAPS = [
-  {ko:'말하는 섬 던전', en:'Talking Island Dungeon'},
-  {ko:'요정 숲 던전', en:'Elf Forest Dungeon'},
-  {ko:'글루디오 던전', en:'Gludio Dungeon'},
-  {ko:'사막 던전', en:'Desert Dungeon'},
-  {ko:'개미굴', en:'Ant Cave'},
-  {ko:'기란 던전', en:'Giran Dungeon'},
-  {ko:'용의 계곡 던전', en:'Dragon Valley Dungeon'},
-  {ko:'에바 왕국', en:"Eva's Kingdom"},
-  {ko:'오크 숲', en:'Orc Forest'},
-  {ko:'축복의 땅 (ATS)', en:'Blessed Lands (ATS)'},
-  {ko:'상아탑', en:'Ivory Tower'},
-  {ko:'기타', en:'Etc'},
-];
 function mapGridHtml(){
   const c=MOCK_CLIENTS.find(x=>x.id===rpDraft.clientId);
   if(!c) return `<div class="rp-pick-empty muted">${t('rpPickClientFirst')}</div>`;
   const out=[]; const stdZones=new Set();
-  // 사냥터 전체 목록 (모든 클라 공통) — 클릭만
-  STANDARD_MAPS.forEach(m=>{ stdZones.add(zoneKey(m.en)); out.push(`<button class="rep-pick rep-pick-m${rpDraft.map===m.en?' active':''}" onclick="pickMap('${esc(m.en)}')">${esc(m.ko)}</button>`); });
+  // 사냥터 전체 목록 = 기준과 동일한 MAP_PRESETS (영어 모드면 영어, 한글 모드면 한글로 표시)
+  MAP_PRESETS.forEach(m=>{ stdZones.add(zoneKey(m.en)); out.push(`<button class="rep-pick rep-pick-m${rpDraft.map===m.en?' active':''}" onclick="pickMap('${esc(m.en)}')">${esc(lang==='en'?m.en:m.ko)}</button>`); });
   // 표준 목록에 없는 클라 전용 사냥터만 추가
   const seen=new Set();
-  (c.maps||[]).forEach(m=>{ const key=m.en||m.ko; const zk=zoneKey(key); if(!stdZones.has(zk)&&!seen.has(zk)){ seen.add(zk); out.push(`<button class="rep-pick rep-pick-m${rpDraft.map===key?' active':''}" onclick="pickMap('${esc(key)}')">${esc(m.ko||m.en)}</button>`); } });
+  (c.maps||[]).forEach(m=>{ const key=m.en||m.ko; const zk=zoneKey(key); if(!stdZones.has(zk)&&!seen.has(zk)){ seen.add(zk); out.push(`<button class="rep-pick rep-pick-m${rpDraft.map===key?' active':''}" onclick="pickMap('${esc(key)}')">${esc(lang==='en'?(m.en||m.ko):(m.ko||m.en))}</button>`); } });
+  // 기타(기준 없음) + 테스트
+  out.push(`<button class="rep-pick rep-pick-m${rpDraft.map==='Etc'?' active':''}" onclick="pickMap('Etc')">${lang==='en'?'Etc':'기타'}</button>`);
   out.push(`<button class="rep-pick rep-pick-m rep-pick-test${rpDraft.map==='TEST'?' active':''}" onclick="pickMap('TEST')">🧪 ${t('mapTest')}</button>`);
   return out.join('');
 }
