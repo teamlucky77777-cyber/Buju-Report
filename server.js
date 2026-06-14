@@ -141,6 +141,9 @@ SCREENSHOT      : ${f.hasScreenshot ? 'O' : 'X'}`;
 }
 
 function buildHourly(f) {
+  const levelDiff = (Number(f.lv) - Number(f.prevLv)) || 0;
+  const expGained = (levelDiff * 100 + Number(f.exp) - Number(f.prevExp));
+  const adenaGained = Number(f.adena) - Number(f.prevAdena);
   const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10).replace(/-/g, '.');
 
   return `${C.cyan}SESSION REPORT · Every 1 hour${C.reset}
@@ -155,8 +158,10 @@ Weapon          : ${f.weapon || '-'}
 Armor           : ${f.armor || '-'}
 AC              : ${fmtAC(f.ac)}
 MAP             : ${f.map}
-EXP             : ${fmtExp(f.exp)}%
-ADENA           : ${fmtAdena(f.adena)}
+EXP             : ${fmtExp(f.prevExp)}% → ${fmtExp(f.exp)}%
+EXP GAINED      : ${fmtExpSigned(expGained)}%
+ADENA           : ${fmtAdena(f.prevAdena)} → ${fmtAdena(f.adena)}
+ADENA GAINED    : ${adenaGained >= 0 ? '+' : ''}${fmtAdenaSigned(adenaGained)}
 RED POTION USE  : ${f.potion || 0}
 DROP            : ${f.drop || 0}
 DEAD            : ${f.dead || 0}
