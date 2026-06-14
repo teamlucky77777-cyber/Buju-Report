@@ -45,7 +45,7 @@ app.get('/health', (req, res) => res.send('OK'));
 function fmtAdena(n) {
   if (n == null || n === '') return '0';
   const num = Math.round(Number(n));
-  return String(Math.abs(num)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  return String(Math.abs(num)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
 function fmtAdenaSigned(n) {
