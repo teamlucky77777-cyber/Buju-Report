@@ -149,6 +149,7 @@ DATE            : ${f.date ? String(f.date).replace(/-/g, '.') : today}
 PC              : ${f.pc}
 CLIENT No.      : ${f.clientNoLabel}
 CLIENT NICKNAME : ${f.nickname}
+LV              : ${f.lv}
 Class           : ${f.class || '-'}
 Weapon          : ${f.weapon || '-'}
 Armor           : ${f.armor || '-'}
@@ -833,8 +834,10 @@ async function renderActiveSession(res, clientDisplayName, latestLog) {
   const levelNow   = lastLog.level;
 
   let levelDiff = (levelNow != null && levelStart != null) ? (levelNow - levelStart) : 0;
-  // 시간 리포트엔 레벨이 없어 levelNow=null → 현재 EXP가 시작보다 낮으면 레벨업(1회)으로 보정
-  if (levelNow == null && expNow != null && expStart != null && expNow < expStart) levelDiff = Math.max(levelDiff, 1);
+  // 레벨이 시작 이상(또는 미상)인데 획득이 음수면(레벨업 미반영) 레벨업으로 보정. 레벨다운(죽음)은 제외.
+  if (expNow != null && expStart != null && (levelNow == null || levelNow >= levelStart) && (levelDiff*100 + expNow - expStart) < 0) {
+    levelDiff += Math.ceil((expStart - expNow - levelDiff*100) / 100);
+  }
   const expGained = (expNow != null && expStart != null) ? (levelDiff * 100 + expNow - expStart).toFixed(4) : null;
   const adenaGained = (adenaNow != null && adenaStart != null) ? adenaNow - adenaStart : null;
 
