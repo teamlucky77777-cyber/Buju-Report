@@ -1229,8 +1229,14 @@ function findMap(clients,r){
   const z=zoneKey(r.map); const lv=Number(r.lvAfter!=null?r.lvAfter:r.lv);
   const cand=c.maps.filter(m=>zoneKey(m.en||m.ko)===z);
   if(!cand.length) return null;
-  // 레벨 정보가 있는 맵은 정확히 일치할 때만, 레벨 없는 맵은 와일드카드
-  return cand.find(m=>m.level==null||m.level===''||Number(m.level)===lv) || null;
+  // 레벨 없는 맵 = 와일드카드 (바로 사용)
+  const wild=cand.find(m=>m.level==null||m.level==='');
+  if(wild) return wild;
+  // 레벨 있는 맵: 세션 레벨 이하 중 가장 높은 레벨(기준이 위 레벨로 이어짐). 없으면 가장 낮은 레벨.
+  const leveled=cand.filter(m=>isFinite(Number(m.level))).sort((a,b)=>Number(a.level)-Number(b.level));
+  if(!leveled.length) return null;
+  const below=leveled.filter(m=>Number(m.level)<=lv);
+  return below.length ? below[below.length-1] : leveled[0];
 }
 function verdict(d){ if(d>=0) return {key:'vPass',cls:'v-pass'}; if(d>-BIG_MISS_PER_HOUR) return {key:'vUnder',cls:'v-under'}; return {key:'vBig',cls:'v-big'}; }
 const f2=n=>n.toFixed(2);
