@@ -794,6 +794,9 @@ body.role-player #section-staff { display:none !important; }
 .stepper-row-4{ grid-template-columns:repeat(4,1fr); }
 @media (max-width:560px){ .stepper-row-4{ grid-template-columns:repeat(2,1fr); } }
 .rp-mini{ font-size:12px; margin-top:4px; min-height:14px; }
+.rep-gain-pv:empty{ display:none; }
+.rep-gain-row{ display:inline-flex; flex-wrap:wrap; gap:6px 14px; align-items:center; padding:8px 12px; margin-top:6px; border-radius:10px; background:rgba(255,255,255,0.04); border:1px solid rgba(255,255,255,0.08); font-size:13px; }
+.rep-gain-row .gl{ color:rgba(255,255,255,0.5); font-size:12px; letter-spacing:.02em; }
 .rp-shot-zone{ border:1.5px dashed var(--border); border-radius:12px; padding:18px 14px; text-align:center; cursor:pointer; transition:border-color .15s, background .15s; background:var(--surface); margin-bottom:6px; }
 .rp-shot-zone:hover{ border-color:var(--accent); }
 .rp-shot-empty{ font-size:13px; }
@@ -1278,13 +1281,13 @@ function compute(clients, reports, staff){
         verdict:!hasStd?{key:'vNoStd',cls:'v-skip'}:prot?{key:'vProtected',cls:'v-skip'}:verdict(diff) };
     });
 
-    // rate = 월 기본급(고정). 근무시간 비율로 일별 배분.
-    //  · 스탠다드 초과분 = 인센티브(매일 정산 → 주 지급)
-    //  · 스탠다드 미달분 = 차감(월말 1회)
+    // 일급 = 월급(rate) ÷ 30. 근무한 하루마다 일급을 기준으로
+    //  · 스탠다드 초과 → 일급의 + (인센티브)
+    //  · 스탠다드 미달 → 일급의 - (차감)
     const monthBase = rate;
     let weekActualPay=0, weekBasePay=0, incentiveTotal=0, penaltyTotal=0;
     dayRows.forEach(d=>{
-      d.basePay = totalHours>0 ? monthBase*(d.hours/totalHours) : 0;
+      d.basePay = monthBase/30;                   // 일급 = 월급 ÷ 30 (하루 1일분 고정)
       const ratio = d.payPct/100;                 // 보호/기준없음 = 1.0 (가감 없음)
       d.incentive = d.counted ? d.basePay*Math.max(0, ratio-1) : 0;
       d.penalty   = d.counted ? d.basePay*Math.max(0, 1-ratio) : 0;
@@ -2061,28 +2064,28 @@ function renderReport(){
   const tabs=[['checkin','rtCheckin',''],['status','rtStatus','rtStatusSub'],['checkout','rtCheckout','']]
     .map(([k,lbl,sub])=>`<button class="rep-tab${reportType===k?' active':''}" onclick="setReportType('${k}')">${t(lbl)}${sub?` <span class="rep-tab-sub">(${t(sub)})</span>`:''}</button>`).join('');
   let typed='', hint='', submitLbl='', submitFn='';
-  const fAdena=`<label class="rep-f sm"><span>${t('rpAdena')}</span><input id="rp-adena" type="text" inputmode="numeric" class="input" placeholder="예: 1124440" oninput="rpAdenaFmt(this)"></label>`;
+  const fAdena=`<label class="rep-f sm"><span>${t('rpAdena')}</span><input id="rp-adena" type="text" inputmode="numeric" class="input" placeholder="예: 1124440" oninput="rpAdenaFmt(this);rpGainPv()"></label>`;
   const fDrop=`<label class="rep-f sm"><span>${t('rpDrop')}</span><input id="rp-drop" type="number" class="input" value="0"></label>`;
   const fNote=`<label class="rep-f wide"><span>${t('rpNote')}</span><input id="rp-note" type="text" class="input" placeholder="…"></label>`;
   const fPrevExp=`<label class="rep-f sm"><span>이전 EXP · Prev</span><input id="rp-prev-exp" type="number" step="1" class="input" placeholder="자동 (수정가능)" oninput="rpPrevExpPv()"><div id="rp-prev-exp-pv" class="rp-mini muted"></div></label>`;
-  const fPrevAdena=`<label class="rep-f sm"><span>이전 아덴 · Prev</span><input id="rp-prev-adena" type="text" inputmode="numeric" class="input" placeholder="자동 (수정가능)" oninput="rpAdenaFmt(this)"></label>`;
+  const fPrevAdena=`<label class="rep-f sm"><span>이전 아덴 · Prev</span><input id="rp-prev-adena" type="text" inputmode="numeric" class="input" placeholder="자동 (수정가능)" oninput="rpAdenaFmt(this);rpGainPv()"></label>`;
   if(reportType==='checkin'){
     hint=t('rpHintCheckin'); submitLbl=t('rpDoCheckin'); submitFn='submitCheckin()';
     typed=`<label class="rep-f sm"><span>${t('rpStartTime')}</span><input id="rp-start" type="time" class="input" value="21:00"></label>
       <label class="rep-f sm"><span>종료 시각 · End</span><input id="rp-end-ci" type="time" class="input" value="09:00"></label>
       <label class="rep-f sm"><span>${t('rpStartLv')}</span><input id="rp-lv" type="number" class="input"></label>
-      <label class="rep-f sm"><span>${t('rpStartExp')}</span><input id="rp-exp" type="number" step="1" class="input" placeholder="예: 2323" oninput="rpExpPv()"><div id="rp-exp-pv" class="rp-mini muted"></div></label>
+      <label class="rep-f sm"><span>${t('rpStartExp')}</span><input id="rp-exp" type="number" step="1" class="input" placeholder="예: 2323" oninput="rpExpPv();rpGainPv()"><div id="rp-exp-pv" class="rp-mini muted"></div></label>
       ${fAdena}<label class="rep-f sm"><span>${t('rpRedPotion')}</span><input id="rp-potion" type="number" class="input" value="0"></label>${fNote}`;
   } else if(reportType==='status'){
     hint=t('rpHintStatus'); submitLbl=t('rpDoStatus'); submitFn='submitStatus()';
-    typed=`<label class="rep-f sm"><span>${t('rpCurExp')}</span><input id="rp-exp" type="number" step="1" class="input" placeholder="예: 2323" oninput="rpExpPv()"><div id="rp-exp-pv" class="rp-mini muted"></div></label>
+    typed=`<label class="rep-f sm"><span>${t('rpCurExp')}</span><input id="rp-exp" type="number" step="1" class="input" placeholder="예: 2323" oninput="rpExpPv();rpGainPv()"><div id="rp-exp-pv" class="rp-mini muted"></div></label>
       ${fAdena}<label class="rep-f sm"><span>${t('rpRedPotion')}</span><input id="rp-potion" type="number" class="input" value="0"></label>
       ${fDrop}<label class="rep-f sm"><span>${t('rpDead')}</span><input id="rp-dead" type="number" class="input" value="0"></label>${fNote}`;
   } else {
     hint=t('rpHintCheckout'); submitLbl=t('rpDoCheckout'); submitFn='submitCheckout()';
     typed=`<label class="rep-f sm"><span>${t('rpEndTime')}</span><input id="rp-end" type="time" class="input" value="09:00" onchange="updateReportPreview()"></label>
-      <label class="rep-f sm"><span>${t('rpEndLv')}</span><input id="rp-lv" type="number" class="input" onchange="updateReportPreview()"></label>
-      <label class="rep-f sm"><span>${t('rpEndExp')}</span><input id="rp-exp" type="number" step="1" class="input" placeholder="예: 2323" oninput="rpExpPv();updateReportPreview()"><div id="rp-exp-pv" class="rp-mini muted"></div></label>
+      <label class="rep-f sm"><span>${t('rpEndLv')}</span><input id="rp-lv" type="number" class="input" onchange="updateReportPreview();rpGainPv()"></label>
+      <label class="rep-f sm"><span>${t('rpEndExp')}</span><input id="rp-exp" type="number" step="1" class="input" placeholder="예: 2323" oninput="rpExpPv();updateReportPreview();rpGainPv()"><div id="rp-exp-pv" class="rp-mini muted"></div></label>
       ${fAdena}<label class="rep-f sm"><span>${t('rpRedPotion')}</span><input id="rp-potion" type="number" class="input" value="0"></label>
       ${fDrop}<label class="rep-f sm"><span>${t('rpDeadTot')}</span><input id="rp-dead" type="number" class="input" value="0"></label>${fNote}`;
   }
@@ -2116,6 +2119,7 @@ function renderReport(){
       </div>
       <div class="rep-pick-label">${t('rpDetails')}</div>
       <div class="rep-grid">${typed}</div>
+      <div id="rp-gain-pv" class="rep-gain-pv"></div>
       <div class="rep-pick-label" style="margin-top:4px;">📸 스크린샷 · Screenshot</div>
       <div id="rp-shot-zone" class="rp-shot-zone" onclick="rpShotPick()" onpaste="rpShotPaste(event)" tabindex="0">
         <input type="file" id="rp-shot-input" accept="image/*" hidden onchange="rpShotOn(event)">
@@ -2174,6 +2178,24 @@ function rpShotSet(f){ rpShot=f; const img=document.getElementById('rp-shot-img'
 function rpShotClear(e){ if(e) e.stopPropagation(); rpShot=null; const inp=document.getElementById('rp-shot-input'); if(inp) inp.value=''; const pv=document.getElementById('rp-shot-preview'), em=document.getElementById('rp-shot-empty'); if(pv) pv.hidden=true; if(em) em.hidden=false; }
 // === EXP 입력 미리보기 (2323 → 23.23%) ===
 function rpExpPv(){ const e=document.getElementById('rp-exp'), pv=document.getElementById('rp-exp-pv'); if(!e||!pv) return; const v=Number(e.value); pv.textContent=(e.value!==''&&!isNaN(v))?('= '+(v/100).toFixed(2)+'%'):''; }
+// 현재값 입력 시 직전값 대비 증가량 실시간 표시
+function rpGainPv(){
+  const el=document.getElementById('rp-gain-pv'); if(!el) return;
+  if(reportType!=='status'&&reportType!=='checkout'){ el.innerHTML=''; return; }
+  const c=MOCK_CLIENTS.find(x=>x.id===rpDraft.clientId);
+  const expRaw=document.getElementById('rp-exp')?.value, adRaw=document.getElementById('rp-adena')?.value;
+  const curExp=(Number(expRaw)||0)/100;
+  const curAdena=Number((adRaw||'').replace(/[^\d]/g,''))||0;
+  const lvEl=document.getElementById('rp-lv');
+  const curLv=(lvEl&&lvEl.value!=='')?Number(lvEl.value):(c?Number(c.level):0);
+  const pExp=(rpDraft.prevExp!=null)?Number(rpDraft.prevExp):null;
+  const pAdena=(rpDraft.prevAdena!=null)?Number(rpDraft.prevAdena):null;
+  const pLv=(rpDraft.prevLv!=null)?Number(rpDraft.prevLv):curLv;
+  const parts=[];
+  if(pExp!=null && expRaw!==''&&expRaw!=null){ const g=(curLv-pLv)*100+(curExp-pExp); parts.push(`<span class="gl">EXP</span> <b class="${g>=0?'pos':'neg'}">${g>=0?'+':''}${g.toFixed(2)}%</b>`); }
+  if(pAdena!=null && adRaw!==''&&adRaw!=null){ const g=curAdena-pAdena; parts.push(`<span class="gl">아덴</span> <b class="${g>=0?'pos':'neg'}">${g>=0?'+':''}${g.toLocaleString('en-US')}</b>`); }
+  el.innerHTML = parts.length ? `<span class="rep-gain-row"><span class="gl">↑ 증가량 Gain</span> ${parts.join('')}</span>` : '';
+}
 // === 아덴 입력 라이브 포맷 (1124440 → 1.124.440) ===
 function rpAdenaFmt(el){ const d=(el.value||'').replace(/[^\d]/g,''); el.value=d?Number(d).toLocaleString('en-US'):''; }
 function rpPrevExpPv(){ const e=document.getElementById('rp-prev-exp'), pv=document.getElementById('rp-prev-exp-pv'); if(!e||!pv) return; const v=Number(e.value); pv.textContent=(e.value!==''&&!isNaN(v))?('= '+(v/100).toFixed(2)+'%'):''; }
@@ -2202,6 +2224,7 @@ async function loadPrevForReport(){
     }
   }catch(e){}
   updateReportPreview();
+  rpGainPv();
 }
 function rpCommon(){
   const c=MOCK_CLIENTS.find(x=>x.id===rpDraft.clientId);
