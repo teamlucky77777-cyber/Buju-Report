@@ -804,16 +804,9 @@ body.role-player #section-staff { display:none !important; }
 .rp-shot-preview{ position:relative; display:inline-block; }
 .rp-shot-preview img{ max-width:100%; max-height:220px; border-radius:8px; display:block; }
 .rp-shot-x{ position:absolute; top:6px; right:6px; width:26px; height:26px; border:none; border-radius:50%; background:rgba(0,0,0,.6); color:#fff; cursor:pointer; font-size:15px; line-height:1; }
-.tpick{ width:100%; }
-.tp-row{ display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
-.tp-btn{ flex:0 0 auto; min-width:56px; height:46px; padding:0 18px; border:1.5px solid var(--border-strong); border-radius:12px; background:var(--surface-3); color:var(--tx2); font-size:15px; font-weight:700; cursor:pointer; transition:.14s; }
-.tp-btn:hover{ border-color:var(--ac); color:var(--tx); }
-.tp-btn.on{ background:var(--ac); border-color:var(--ac); color:#fff; box-shadow:0 2px 10px -3px var(--ac); }
-.tp-hwrap{ display:flex; align-items:center; gap:2px; background:var(--surface-3); border:1.5px solid var(--border-strong); border-radius:12px; padding:3px 6px 3px 3px; }
-.tp-step{ width:38px; height:38px; border:0; border-radius:9px; background:transparent; color:var(--tx2); font-size:24px; font-weight:700; line-height:1; cursor:pointer; transition:.12s; }
-.tp-step:hover{ background:var(--ac); color:#fff; }
-.tp-hr{ min-width:34px; text-align:center; font-size:21px; font-weight:800; color:var(--tx); font-variant-numeric:tabular-nums; }
-.tp-unit{ font-size:12px; font-weight:700; color:var(--tx3); margin-left:-2px; }
+.tp-select{ width:100%; height:46px; padding:0 40px 0 15px; border:1.5px solid var(--border-strong); border-radius:12px; background-color:var(--surface-3); background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%23999999' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 14px center; color:var(--tx); font-size:16px; font-weight:700; font-family:inherit; cursor:pointer; appearance:none; -webkit-appearance:none; -moz-appearance:none; transition:border-color .14s, box-shadow .14s; }
+.tp-select:hover{ border-color:var(--ac); }
+.tp-select:focus{ outline:none; border-color:var(--ac); box-shadow:0 0 0 3px var(--ac-bg); }
 </style>
 </head>
 <body>
@@ -2078,43 +2071,23 @@ function pickStaffCombo(n){ rpDraft.booster=n; const tr=document.getElementById(
   const th=document.getElementById('rp-thread'); if(th) th.value=rpThreadVal();
   closeStaffPicker(); updateReportPreview(); }
 if(!window._staffPickerDoc){ window._staffPickerDoc=true; document.addEventListener('click',e=>{ const c=document.getElementById('rp-staff-combo'); if(c && !c.contains(e.target)) closeStaffPicker(); }); }
-// ── 시간 피커 (큰 버튼식 · 30분 단위 · 언어별 오전/오후) ──
-// 숨은 input(id)에 "HH:MM"(24h) 저장 → 기존 .value 읽기 그대로 호환
+// ── 시간 선택 (깔끔한 단일 드롭다운 · 30분 단위 · 언어별 오전/오후) ──
+// <select id>의 .value = "HH:MM"(24h) → 기존 읽기 그대로 호환
+function fmtTimeLabel(h, m){
+  const isPM = h>=12; let h12 = h%12; if(h12===0) h12=12; const mm=String(m).padStart(2,'0');
+  return lang==='en' ? `${h12}:${mm} ${isPM?'PM':'AM'}` : `${isPM?'오후':'오전'} ${h12}:${mm}`;
+}
 function timeToggleHtml(id, def, cb){
   def = def || '00:00';
   const parts=String(def).split(':'); const H=Number(parts[0])||0; let M=Number(parts[1])||0;
-  M = (M>=30)?30:0;                                  // 30분 단위로 스냅
-  const isPM = H>=12; let h12 = H%12; if(h12===0) h12=12; const mm=String(M).padStart(2,'0');
-  const amL = lang==='en'?'AM':'오전', pmL = lang==='en'?'PM':'오후';
-  return `<div class="tpick" data-cb="${cb||''}">
-    <input type="hidden" id="${id}" value="${String(H).padStart(2,'0')}:${mm}">
-    <div class="tp-row">
-      <button type="button" class="tp-btn tp-ap${!isPM?' on':''}" data-ap="0" onclick="tpAp('${id}',0)">${amL}</button>
-      <button type="button" class="tp-btn tp-ap${isPM?' on':''}" data-ap="1" onclick="tpAp('${id}',1)">${pmL}</button>
-      <div class="tp-hwrap">
-        <button type="button" class="tp-step" onclick="tpHour('${id}',-1)">‹</button>
-        <span class="tp-hr" id="${id}-h">${h12}</span>
-        <button type="button" class="tp-step" onclick="tpHour('${id}',1)">›</button>
-        <span class="tp-unit">${lang==='en'?'h':'시'}</span>
-      </div>
-      <button type="button" class="tp-btn tp-mn${mm==='00'?' on':''}" data-m="00" onclick="tpMin('${id}','00')">00</button>
-      <button type="button" class="tp-btn tp-mn${mm==='30'?' on':''}" data-m="30" onclick="tpMin('${id}','30')">30</button>
-      <span class="tp-unit">${lang==='en'?'min':'분'}</span>
-    </div>
-  </div>`;
-}
-function tpWrap(id){ const hid=document.getElementById(id); return hid&&hid.closest('.tpick'); }
-function tpAp(id, pm){ const w=tpWrap(id); if(!w) return; w.querySelectorAll('[data-ap]').forEach(b=>b.classList.toggle('on', Number(b.dataset.ap)===pm)); tpSync(id); }
-function tpMin(id, m){ const w=tpWrap(id); if(!w) return; w.querySelectorAll('[data-m]').forEach(b=>b.classList.toggle('on', b.dataset.m===m)); tpSync(id); }
-function tpHour(id, d){ const s=document.getElementById(id+'-h'); if(!s) return; let h=Number(s.textContent)||12; h+=d; if(h>12)h=1; if(h<1)h=12; s.textContent=h; tpSync(id); }
-function tpSync(id){
-  const w=tpWrap(id); if(!w) return; const hid=document.getElementById(id);
-  const onAp=w.querySelector('[data-ap].on'); const pm=onAp?Number(onAp.dataset.ap):0;
-  let h=Number(document.getElementById(id+'-h').textContent)||12;
-  const onM=w.querySelector('[data-m].on'); const m=onM?onM.dataset.m:'00';
-  if(pm && h!==12) h+=12; if(!pm && h===12) h=0;
-  hid.value=String(h).padStart(2,'0')+':'+m;
-  const cb=w.dataset.cb; if(cb && typeof window[cb]==='function') window[cb]();
+  M = (M>=30)?30:0;                                   // 30분 단위로 스냅
+  const sel = String(H).padStart(2,'0')+':'+String(M).padStart(2,'0');
+  let opts='';
+  for(let h=0;h<24;h++){ for(const m of [0,30]){
+    const val = String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');
+    opts += `<option value="${val}"${val===sel?' selected':''}>${fmtTimeLabel(h,m)}</option>`;
+  } }
+  return `<select class="tp-select" id="${id}"${cb?` onchange="${cb}()"`:''}>${opts}</select>`;
 }
 function clientGridHtml(){
   return MOCK_CLIENTS.map(c=>`<button class="rep-pick rep-pick-c${rpDraft.clientId===c.id?' active':''}" onclick="pickClient('${esc(c.id)}')">
@@ -2166,8 +2139,8 @@ function renderReport(){
   const fPrevAdena=`<label class="rep-f sm"><span>${t('rpPrevAdenaL')}</span><input id="rp-prev-adena" type="text" inputmode="numeric" class="input" placeholder="${t('rpAutoEdit')}" oninput="rpAdenaFmt(this);rpGainPv()"></label>`;
   if(reportType==='checkin'){
     hint=t('rpHintCheckin'); submitLbl=t('rpDoCheckin'); submitFn='submitCheckin()';
-    typed=`<div class="rep-f wide"><span>${t('rpStartTime')}</span>${timeToggleHtml('rp-start','21:00','')}</div>
-      <div class="rep-f wide"><span>${t('rpEndLabel')}</span>${timeToggleHtml('rp-end-ci','09:00','')}</div>
+    typed=`<div class="rep-f sm"><span>${t('rpStartTime')}</span>${timeToggleHtml('rp-start','21:00','')}</div>
+      <div class="rep-f sm"><span>${t('rpEndLabel')}</span>${timeToggleHtml('rp-end-ci','09:00','')}</div>
       <label class="rep-f sm"><span>${t('rpStartLv')}</span><input id="rp-lv" type="number" class="input"></label>
       <label class="rep-f sm"><span>${t('rpStartExp')}</span><input id="rp-exp" type="text" inputmode="numeric" maxlength="4" class="input" placeholder="예: 2323" oninput="rpExpLimit(this);rpExpPv();rpGainPv()"><div id="rp-exp-pv" class="rp-mini muted"></div></label>
       ${fAdena}<label class="rep-f sm"><span>${t('rpRedPotion')}</span><input id="rp-potion" type="number" class="input" value="0"></label>${fNote}`;
@@ -2178,7 +2151,7 @@ function renderReport(){
       ${fDrop}<label class="rep-f sm"><span>${t('rpDead')}</span><input id="rp-dead" type="number" class="input" value="0"></label>${fNote}`;
   } else {
     hint=t('rpHintCheckout'); submitLbl=t('rpDoCheckout'); submitFn='submitCheckout()';
-    typed=`<div class="rep-f wide"><span>${t('rpEndTime')}</span>${timeToggleHtml('rp-end','09:00','updateReportPreview')}</div>
+    typed=`<div class="rep-f sm"><span>${t('rpEndTime')}</span>${timeToggleHtml('rp-end','09:00','updateReportPreview')}</div>
       <label class="rep-f sm"><span>${t('rpEndExp')}</span><input id="rp-exp" type="text" inputmode="numeric" maxlength="4" class="input" placeholder="예: 2323" oninput="rpExpLimit(this);rpExpPv();updateReportPreview();rpGainPv()"><div id="rp-exp-pv" class="rp-mini muted"></div></label>
       ${fAdena}<label class="rep-f sm"><span>${t('rpRedPotion')}</span><input id="rp-potion" type="number" class="input" value="0"></label>
       ${fDrop}<label class="rep-f sm"><span>${t('rpDeadTot')}</span><input id="rp-dead" type="number" class="input" value="0"></label>${fNote}`;
