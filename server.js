@@ -54,6 +54,12 @@ function fmtAdenaSigned(n) {
   return fmtAdena(num);
 }
 
+// 방어력(AC): 항상 음수로 표시 (-60). 미설정/0은 '-'
+function fmtAC(v) {
+  const n = Number(v);
+  return (v != null && v !== '' && !isNaN(n) && n !== 0) ? ('-' + Math.abs(n)) : '-';
+}
+
 function fmtExp(n) {
   if (n == null || n === '') return '0.00';
   // 반올림 없이 소수점 2자리로 잘라냄 (예: 23.2345 → 23.23)
@@ -124,7 +130,7 @@ LV              : ${f.lv}
 Class           : ${f.class || '-'}
 Weapon          : ${f.weapon || '-'}
 Armor           : ${f.armor || '-'}
-AC              : ${f.ac || '-'}
+AC              : ${fmtAC(f.ac)}
 PLAY TIME       : ${f.playStart} ~ ${f.playEnd} (korea time)
 MAP             : ${f.map}
 EXP             : ${fmtExp(f.exp)}%
@@ -146,7 +152,7 @@ CLIENT NICKNAME : ${f.nickname}
 Class           : ${f.class || '-'}
 Weapon          : ${f.weapon || '-'}
 Armor           : ${f.armor || '-'}
-AC              : ${f.ac || '-'}
+AC              : ${fmtAC(f.ac)}
 MAP             : ${f.map}
 EXP             : ${fmtExp(f.exp)}%
 ADENA           : ${fmtAdena(f.adena)}
@@ -179,7 +185,7 @@ LV              : ${f.lv}
 Class           : ${f.class || '-'}
 Weapon          : ${f.weapon || '-'}
 Armor           : ${f.armor || '-'}
-AC              : ${f.ac || '-'}
+AC              : ${fmtAC(f.ac)}
 PLAY TIME       : ${f.playStart} ~ ${f.playEnd} (korea time)
 MAP             : ${f.map}
 EXP             : ${fmtExp(f.prevExp)}% → ${fmtExp(f.exp)}%
