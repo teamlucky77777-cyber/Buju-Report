@@ -986,17 +986,18 @@ async function _putData(key, value){
     setSyncStatus('ok'); return j.updated_at||null;
   }catch(e){ setSyncStatus('fail'); return null; }
 }
-let _syncTs={clients:undefined, staff:undefined};
+let _syncTs={clients:undefined, staff:undefined, reports:undefined};
 // 서버에서 최신 데이터를 가져와 메모리 갱신. 비어있으면 현재값으로 시드. 변경되면 true 반환.
 async function syncFromServer(){
   let changed=false, ok=true;
   try{
-    const [rc,rs]=await Promise.all([fetch('/api/calc-data/clients'),fetch('/api/calc-data/staff')]);
-    const jc=await rc.json().catch(()=>({error:'parse'})), js=await rs.json().catch(()=>({error:'parse'}));
-    if(!rc.ok||!rs.ok||jc.error||js.error){ ok=false; }
+    const [rc,rs,rr]=await Promise.all([fetch('/api/calc-data/clients'),fetch('/api/calc-data/staff'),fetch('/api/calc-data/reports')]);
+    const jc=await rc.json().catch(()=>({error:'parse'})), js=await rs.json().catch(()=>({error:'parse'})), jr=await rr.json().catch(()=>({error:'parse'}));
+    if(!rc.ok||!rs.ok||!rr.ok||jc.error||js.error||jr.error){ ok=false; }
     else {
       if(jc.updated_at!==_syncTs.clients){ _syncTs.clients=jc.updated_at; if(jc.value&&jc.value.length!=null){ MOCK_CLIENTS=jc.value; } else { _syncTs.clients=await _putData('clients',MOCK_CLIENTS); } changed=true; }
       if(js.updated_at!==_syncTs.staff){ _syncTs.staff=js.updated_at; if(js.value&&js.value.length!=null){ MOCK_STAFF=js.value; } else { _syncTs.staff=await _putData('staff',MOCK_STAFF); } changed=true; }
+      if(jr.updated_at!==_syncTs.reports){ _syncTs.reports=jr.updated_at; if(jr.value&&jr.value.length!=null){ MOCK_REPORTS=jr.value; } else { _syncTs.reports=await _putData('reports',MOCK_REPORTS); } changed=true; }
     }
   }catch(e){ ok=false; }
   setSyncStatus(ok?'ok':'fail');
@@ -1020,6 +1021,7 @@ async function loadReports() {
 }
 async function saveReport(r) {
   MOCK_REPORTS.push(r);
+  const _ts=await _putData('reports', MOCK_REPORTS); if(_ts)_syncTs.reports=_ts;   // 리포트도 Supabase에 영구 저장
   // Discord/카톡 전송: 기존 /api/report 파이프라인 사용 (→ Discord → 봇 → Supabase → /kakao)
   try {
     const typeMap={ checkin:'checkin', status:'hourly', checkout:'checkout' };
@@ -1042,8 +1044,8 @@ async function saveReport(r) {
   } catch(err){ console.error('Discord 전송 오류:',err); return {ok:false,error:'네트워크 오류'}; }
 }
 async function removeReport(id) {
-  // TODO(친구): await supabase.from('reports').delete().eq('id', id)
   MOCK_REPORTS = MOCK_REPORTS.filter(x => x.id !== id);
+  const _ts=await _putData('reports', MOCK_REPORTS); if(_ts)_syncTs.reports=_ts;   // 삭제도 영구 반영
 }
 async function loadStaff() {
   return JSON.parse(JSON.stringify(MOCK_STAFF));
