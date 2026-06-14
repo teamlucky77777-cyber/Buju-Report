@@ -1284,8 +1284,8 @@ function findMap(clients,r){
   return below.length ? below[below.length-1] : leveled[0];
 }
 function verdict(d){ if(d>=0) return {key:'vPass',cls:'v-pass'}; if(d>-BIG_MISS_PER_HOUR) return {key:'vUnder',cls:'v-under'}; return {key:'vBig',cls:'v-big'}; }
-const f2=n=>n.toFixed(2);
-const sgn=n=>(n>=0?'+':'')+n.toFixed(2);
+const f2=n=>(Number(n)||0).toFixed(2);
+const sgn=n=>{const x=Number(n)||0; return (x>=0?'+':'')+x.toFixed(2);};
 
 function compute(clients, reports, staff){
   const byBooster={};
@@ -1871,6 +1871,7 @@ function renderRecords(){
   if(!perfCache || !perfCache.length){ host.innerHTML=`<div class="empty">${t('noReports')}</div>`; return; }
   const dRows=[], sRows=[];
   perfCache.forEach(p=>{
+    if(p.isLeader) return;                            // 팀장은 본인 사냥 기록 아님(팀 기반 정산) → 기록 테이블 제외
     p.dayRows.forEach(d=>dRows.push(Object.assign({booster:p.booster}, d)));
     p.sessionRows.forEach(s=>sRows.push(Object.assign({booster:p.booster}, s)));
   });
