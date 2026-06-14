@@ -218,6 +218,23 @@ async function resolveClientByNumber(num) {
 }
 
 // ---------- 라우트 ----------
+// ── 계산기 공용 데이터 (clients/staff 등) — Supabase 영구 저장 + 동기화 ──
+app.get('/api/calc-data/:key', async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('calc_data').select('value, updated_at').eq('key', req.params.key).maybeSingle();
+    if (error) throw error;
+    res.json({ value: data ? data.value : null, updated_at: data ? data.updated_at : null });
+  } catch (err) { console.error('[/api/calc-data GET]', err); res.status(500).json({ error: err.message }); }
+});
+app.put('/api/calc-data/:key', async (req, res) => {
+  try {
+    const now = new Date().toISOString();
+    const { error } = await supabase.from('calc_data').upsert({ key: req.params.key, value: req.body.value, updated_at: now });
+    if (error) throw error;
+    res.json({ ok: true, updated_at: now });
+  } catch (err) { console.error('[/api/calc-data PUT]', err); res.status(500).json({ error: err.message }); }
+});
+
 app.get('/api/clients', async (req, res) => {
   const { data, error } = await supabase
     .from('clients')
