@@ -358,8 +358,11 @@ app.post('/api/report', upload.single('screenshot'), async (req, res) => {
     const fields = JSON.parse(req.body.fields);
     fields.hasScreenshot = !!req.file;
 
-    // clientNo → 캐릭터 이름 조회
-    if (fields.clientNo) {
+    // clientNo → 캐릭터 이름 (계산기는 nickname 직접 전달, 구 폼은 백엔드 조회)
+    if (fields.nickname) {
+      // 계산기: 닉네임이 이미 있음 → 그대로 사용 (백엔드 조회 불필요)
+      if (!fields.clientNoLabel) fields.clientNoLabel = fields.clientNo ? String(fields.clientNo) : fields.nickname;
+    } else if (fields.clientNo) {
       const client = await resolveClientByNumber(fields.clientNo);
       if (!client) {
         return res.status(400).json({ error: `번호 ${fields.clientNo}에 등록된 캐릭터가 없습니다. Supabase clients 테이블 확인 필요.` });
