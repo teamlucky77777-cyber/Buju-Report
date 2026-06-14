@@ -1613,8 +1613,8 @@ let perfCache=[], selectedBooster=null, empFilter='', period='week', recFilter='
 const SITE_PW = 'player7';     // ← 접속 비밀번호 (여기서 수정). 맞으면 전부 공개.
 let userRole = null;           // 'admin' (전원 동일 — 월급 포함 전체 공개)
 function doLogin(){
-  const v=(document.getElementById('login-pw')||{}).value||'';
-  if(v!==SITE_PW){ const e=document.getElementById('login-err'); if(e) e.textContent=t('loginErr'); return; }
+  const v=((document.getElementById('login-pw')||{}).value||'').trim();
+  if(v.toLowerCase()!==String(SITE_PW).toLowerCase()){ const e=document.getElementById('login-err'); if(e) e.textContent=t('loginErr'); return; }
   userRole='admin';   // 전원 전체 공개 (월급 포함)
   const g=document.getElementById('login-gate'); if(g) g.setAttribute('hidden','');
   applyRole();
