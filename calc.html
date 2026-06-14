@@ -972,19 +972,34 @@ let MOCK_REPORTS = [];
 MOCK_REPORTS.forEach((r,i)=>{ if(!r.id) r.id='seed-'+i; });
 
 // ── Supabase 영구 저장 (서버 /api/calc-data 경유) + 실시간 동기화 ──
+function setSyncStatus(state){
+  let el=document.getElementById('sync-status');
+  if(!el){ el=document.createElement('div'); el.id='sync-status'; el.style.cssText='position:fixed;right:14px;bottom:14px;z-index:99999;font-size:11.5px;font-weight:700;padding:6px 12px;border-radius:999px;letter-spacing:.02em;transition:.3s;pointer-events:none;backdrop-filter:blur(8px);'; document.body.appendChild(el); }
+  if(state==='ok'){ el.textContent='✦ '+(lang==='en'?'Synced':'동기화됨'); el.style.background='rgba(46,180,110,.14)'; el.style.color='#3ec77f'; el.style.border='1px solid rgba(62,199,127,.28)'; }
+  else { el.textContent='⚠ '+(lang==='en'?'Not saved — check setup':'저장 안 됨 — 설정 확인'); el.style.background='rgba(210,60,60,.16)'; el.style.color='#ff6b6b'; el.style.border='1px solid rgba(255,107,107,.32)'; }
+}
 async function _putData(key, value){
-  try{ const r=await fetch('/api/calc-data/'+key,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({value})}); const j=await r.json(); return j.updated_at||null; }catch(e){ return null; }
+  try{
+    const r=await fetch('/api/calc-data/'+key,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({value})});
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok || j.error){ setSyncStatus('fail'); return null; }
+    setSyncStatus('ok'); return j.updated_at||null;
+  }catch(e){ setSyncStatus('fail'); return null; }
 }
 let _syncTs={clients:undefined, staff:undefined};
 // 서버에서 최신 데이터를 가져와 메모리 갱신. 비어있으면 현재값으로 시드. 변경되면 true 반환.
 async function syncFromServer(){
-  let changed=false;
+  let changed=false, ok=true;
   try{
     const [rc,rs]=await Promise.all([fetch('/api/calc-data/clients'),fetch('/api/calc-data/staff')]);
-    const jc=await rc.json(), js=await rs.json();
-    if(jc.updated_at!==_syncTs.clients){ _syncTs.clients=jc.updated_at; if(jc.value&&jc.value.length!=null){ MOCK_CLIENTS=jc.value; } else { _syncTs.clients=await _putData('clients',MOCK_CLIENTS); } changed=true; }
-    if(js.updated_at!==_syncTs.staff){ _syncTs.staff=js.updated_at; if(js.value&&js.value.length!=null){ MOCK_STAFF=js.value; } else { _syncTs.staff=await _putData('staff',MOCK_STAFF); } changed=true; }
-  }catch(e){}
+    const jc=await rc.json().catch(()=>({error:'parse'})), js=await rs.json().catch(()=>({error:'parse'}));
+    if(!rc.ok||!rs.ok||jc.error||js.error){ ok=false; }
+    else {
+      if(jc.updated_at!==_syncTs.clients){ _syncTs.clients=jc.updated_at; if(jc.value&&jc.value.length!=null){ MOCK_CLIENTS=jc.value; } else { _syncTs.clients=await _putData('clients',MOCK_CLIENTS); } changed=true; }
+      if(js.updated_at!==_syncTs.staff){ _syncTs.staff=js.updated_at; if(js.value&&js.value.length!=null){ MOCK_STAFF=js.value; } else { _syncTs.staff=await _putData('staff',MOCK_STAFF); } changed=true; }
+    }
+  }catch(e){ ok=false; }
+  setSyncStatus(ok?'ok':'fail');
   return changed;
 }
 async function loadClients() {
@@ -1299,9 +1314,14 @@ function compute(clients, reports, staff){
     //  · 스탠다드 초과 → 일급의 + (인센티브)
     //  · 스탠다드 미달 → 일급의 - (차감)
     const monthBase = rate;
+    // 리더 여부 + 수당 (리더도 본인 일급+스탠다드로 정산, 수당은 월급에 합산)
+    const _sr = staff.find(x=>x.name===booster) || {};
+    const allowance = Number(_sr.allowance)||0;
+    const isLeader = allowance>0;
+    const teamMembers = isLeader ? staff.filter(x=>x.leader===booster).map(m=>m.name) : [];
     let weekActualPay=0, weekBasePay=0, incentiveTotal=0, penaltyTotal=0;
     dayRows.forEach(d=>{
-      d.basePay = monthBase/30;                   // 일급 = 월급 ÷ 30 (하루 1일분 고정)
+      d.basePay = monthBase/30;                   // 일급 = 월급 ÷ 30 (하루 1일분)
       const ratio = d.payPct/100;                 // 보호/기준없음 = 1.0 (가감 없음)
       d.incentive = d.counted ? d.basePay*Math.max(0, ratio-1) : 0;
       d.penalty   = d.counted ? d.basePay*Math.max(0, 1-ratio) : 0;
@@ -1311,49 +1331,48 @@ function compute(clients, reports, staff){
     });
 
     const weekPct=(anyCounted&&weekQuota>0)?weekGain/weekQuota*100:null;
-    // 월 = 데모에선 이번 주 데이터와 동일. 실제로는 한 달치 합산. 70~200% 클램프 적용.
-    const monthBasePay=weekBasePay, monthRaw=weekActualPay;
+    // 표시 기준 = 전체 월급(+리더 수당). 일급 단위 ± 가감을 월급에 반영. 70~200% 클램프.
+    const monthBasePay = monthBase + allowance;
+    const monthRaw = monthBase + allowance + incentiveTotal - penaltyTotal;
     const monthClampedPay=Math.min(monthBasePay*MONTH_MAX/100, Math.max(monthBasePay*MONTH_MIN/100, monthRaw));
     const monthClampedPct=monthBasePay>0?Math.min(MONTH_MAX,Math.max(MONTH_MIN, monthRaw/monthBasePay*100)):null;
     const latestDay=dayRows.length?dayRows[dayRows.length-1]:null;
 
     return { booster, baseRate:rate, sessionRows, dayRows, weekPct, weekGain, weekQuota,
       weekActualPay, weekBasePay, monthClampedPay, monthBasePay, monthClampedPct, latestDay,
-      incentiveTotal, penaltyTotal };
+      incentiveTotal, penaltyTotal, isLeader, allowance, teamMembers, teamSize:teamMembers.length };
   });
 
-  // 리포트가 아직 없는 일반 직원 = 기록 대기 / 팀장은 별도(아래) 처리
-  const leaders=[];
+  // 리포트가 아직 없는 직원 = 기록 대기. 팀장은 월급+수당 기준으로 표시(본인 성과 대기).
   staff.forEach(s=>{
-    if(byBooster[s.name]) return;                 // 본인이 사냥 리포트가 있으면 일반 처리됨
-    if(Number(s.allowance)>0){ leaders.push(s); return; }
-    results.push({ booster:s.name, baseRate:Number(s.rate)||0, sessionRows:[], dayRows:[],
-      weekPct:null, weekGain:0, weekQuota:0, weekActualPay:0, weekBasePay:0,
-      monthClampedPay:0, monthBasePay:0, monthClampedPct:null, latestDay:null,
-      incentiveTotal:0, penaltyTotal:0, noData:true });
+    if(byBooster[s.name]) return;                 // 본인이 사냥 리포트가 있으면 위에서 처리됨
+    const allowance = Number(s.allowance)||0;
+    const isLeader = allowance>0;
+    const teamMembers = isLeader ? staff.filter(x=>x.leader===s.name).map(m=>m.name) : [];
+    const base = Number(s.rate)||0;
+    if(isLeader){
+      // 팀장 미플레이: 본인 사냥 기록 없음 → 월급+수당 기준, 가감 없음(성과 대기). 본인이 사냥 리포트 올리면 위 일급 로직으로 정산됨.
+      const monthBasePay = base + allowance;
+      results.push({ booster:s.name, baseRate:base, sessionRows:[], dayRows:[],
+        weekPct:null, weekGain:0, weekQuota:0, weekActualPay:monthBasePay, weekBasePay:monthBasePay,
+        monthClampedPay:monthBasePay, monthBasePay, monthClampedPct:null, latestDay:null,
+        incentiveTotal:0, penaltyTotal:0, isLeader:true, allowance,
+        teamSize:teamMembers.length, teamMembers });
+    } else {
+      results.push({ booster:s.name, baseRate:base, sessionRows:[], dayRows:[],
+        weekPct:null, weekGain:0, weekQuota:0, weekActualPay:0, weekBasePay:0,
+        monthClampedPay:0, monthBasePay:0, monthClampedPct:null, latestDay:null,
+        incentiveTotal:0, penaltyTotal:0, noData:true });
+    }
   });
 
-  // 팀장: 팀원 평균 성과로 정산. 기본급+수당(300K)은 고정 기준.
-  //  · 팀 미달 → 수당 차감 (최대 −수당, 0까지)
-  //  · 팀 초과 → 인센티브 (최대 MAX_LEADER_INCENTIVE = 1.2jt, 팀 200%에서 최대)
-  leaders.forEach(s=>{
-    const team = staff.filter(x=>x.leader===s.name);
-    const perfs = results.filter(p=>team.some(m=>m.name===p.booster) && p.weekPct!=null).map(p=>p.weekPct);
-    const teamAvg = perfs.length ? perfs.reduce((a,b)=>a+b,0)/perfs.length : null;
-    const allowance = Number(s.allowance)||0;
-    let inc=0, pen=0;
-    if(teamAvg!=null){
-      if(teamAvg>=100) inc = MAX_LEADER_INCENTIVE * Math.min(1, (teamAvg-100)/100);
-      else             pen = MAX_LEADER_PENALTY   * Math.min(1, (100-teamAvg)/100);
+  // 팀장 표시용 팀 평균 성과 (정산엔 미사용 — 팀 리더보드/참고용)
+  results.forEach(p=>{
+    if(p.isLeader){
+      const memPcts = results.filter(x=>(p.teamMembers||[]).includes(x.booster) && x.weekPct!=null).map(x=>x.weekPct);
+      p.teamAvg = memPcts.length ? memPcts.reduce((a,b)=>a+b,0)/memPcts.length : null;
+      p.teamReported = memPcts.length;
     }
-    const base = Number(s.rate)||0;
-    const monthBasePay = base + allowance;        // 기본급 + 수당(100% 기준)
-    const net = base + allowance + inc - pen;
-    results.push({ booster:s.name, baseRate:base, sessionRows:[], dayRows:[],
-      weekPct:teamAvg, weekGain:0, weekQuota:0, weekActualPay:net, weekBasePay:monthBasePay,
-      monthClampedPay:net, monthBasePay, monthClampedPct:teamAvg, latestDay:null,
-      incentiveTotal:inc, penaltyTotal:pen, isLeader:true, allowance, teamSize:team.length,
-      teamAvg, teamMembers:team.map(m=>m.name), teamReported:perfs.length });
   });
   return results;
 }
@@ -1677,7 +1696,7 @@ function empGlanceCard(p){
     </div>`;
   }
   if(p.isLeader){
-    const pct=p.teamAvg;
+    const pct=p.weekPct;
     const pcls=pct==null?'neu':(pct>=100?'pos':'neg');
     const perf=pct==null?'—':((pct>=100?'▲ ':'▼ ')+pct.toFixed(0)+'%');
     const strip=pct==null?'var(--ac)':(pct>=100?'var(--success)':'var(--danger)');
@@ -1688,7 +1707,7 @@ function empGlanceCard(p){
           <span class="glance-left">${avatarHtml(p.booster)}<span class="glance-name">${esc(p.booster)}</span><span class="role-badge">👑 ${t('roleLeader')}</span></span>
           <span class="glance-right"><span class="glance-perf ${pcls}">${perf}</span><span class="glance-chev">▸</span></span>
         </div>
-        <div class="glance-meta"><span class="meta-chip">${t('ldTeam')} · ${p.teamSize}</span><span class="meta-chip">${t('ldTeamAvg')} ${pct==null?'—':pct.toFixed(0)+'%'}</span></div>
+        <div class="glance-meta"><span class="meta-chip">${t('ldTeam')} · ${p.teamSize}</span><span class="meta-chip">${t('ldTeamAvg')} ${p.teamAvg==null?'—':p.teamAvg.toFixed(0)+'%'}</span></div>
         <div class="glance-stats">
           <div><div class="gs-label">${t('gBase')}</div><div class="gs-val">${money(p.monthBasePay)}</div></div>
           <div><div class="gs-label">${t('gIncentive')}</div><div class="gs-val ${p.incentiveTotal>0?'pos':''}">+${money(p.incentiveTotal)}</div></div>
@@ -1738,7 +1757,6 @@ function empGlanceCard(p){
 function onEmpFilter(v){ empFilter=v; renderDashboardUI(); }
 function setPeriod(v){ period=v; renderDashboardUI(); }
 function leaderDetailHtml(p){
-  const pct=p.teamAvg;
   const cls=p.incentiveTotal>0?'pos':(p.penaltyTotal>0?'neg':'neu');
   const members=(p.teamMembers||[]).map(name=>{
     const mp=perfCache.find(x=>x.booster===name); const mpct=mp?mp.weekPct:null;
@@ -1750,15 +1768,14 @@ function leaderDetailHtml(p){
       <span class="ud-delta ${mc}">${mpct==null?t('pending'):mpct.toFixed(0)+'%'}</span>
     </div>`;
   }).join('');
-  const tail=p.incentiveTotal>0?` · +${money(p.incentiveTotal)}`:(p.penaltyTotal>0?` · −${money(p.penaltyTotal)}`:'');
   return `<div class="udash">
     <div class="ud-buckets">
       <div class="udb"><div class="udb-l">${t('uBaseFixed')}</div><div class="udb-v">${money(p.baseRate)}</div></div>
       <div class="udb"><div class="udb-l">${t('ldAllowance')}</div><div class="udb-v">${money(p.allowance)}</div></div>
-      <div class="udb ${cls==='pos'?'pos':(cls==='neg'?'neg':'')}"><div class="udb-l">${t('ldTeamAvg')}</div><div class="udb-v">${pct==null?'—':pct.toFixed(0)+'%'}</div></div>
+      <div class="udb ${p.incentiveTotal>0?'pos':''}"><div class="udb-l">${t('gIncentive')}</div><div class="udb-v">+${money(p.incentiveTotal)}</div></div>
+      <div class="udb ${p.penaltyTotal>0?'neg':''}"><div class="udb-l">${t('gPenalty')}</div><div class="udb-v">−${money(p.penaltyTotal)}</div></div>
       <div class="udb net ${cls}"><div class="udb-l">${t('uNet')}</div><div class="udb-v">${money(p.monthClampedPay)}</div></div>
     </div>
-    <div class="ud-msg ${cls}" style="margin-top:10px;">${pct==null?t('ldNoTeam'):t('ldBasis')}${tail}</div>
     <div class="ud-list-title">👥 ${t('ldMembers')} (${p.teamSize})</div>
     <div class="ud-list">${members}</div>
   </div>`;
