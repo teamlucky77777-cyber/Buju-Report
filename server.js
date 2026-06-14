@@ -28,6 +28,11 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 
+// 관리자/리더보드 계산기 페이지
+app.get('/calc', (req, res) => {
+  res.sendFile(path.join(__dirname, 'calc.html'));
+});
+
 // 헬스체크 (UptimeRobot 핑 / 깨우기용)
 app.get('/health', (req, res) => res.send('OK'));
 
@@ -108,14 +113,20 @@ function effectiveHours(playStart, playEnd) {
 
 // ---------- 양식 빌더 ----------
 function buildCheckin(f) {
+  const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10).replace(/-/g, '.');
   return `${C.green}CHECK IN REPORT${C.reset}
 ────────────────────────────
+DATE            : ${f.date ? String(f.date).replace(/-/g, '.') : today}
 PC              : ${f.pc}
 CLIENT No.      : ${f.clientNoLabel}
 CLIENT NICKNAME : ${f.nickname}
+LV              : ${f.lv}
+Class           : ${f.class || '-'}
+Weapon          : ${f.weapon || '-'}
+Armor           : ${f.armor || '-'}
+AC              : ${f.ac || '-'}
 PLAY TIME       : ${f.playStart} ~ ${f.playEnd} (korea time)
 MAP             : ${f.map}
-LV              : ${f.lv}
 EXP             : ${fmtExp(f.exp)}%
 ADENA           : ${fmtAdena(f.adena)}
 RED POTION      : ${f.potion || 0}
@@ -127,14 +138,20 @@ function buildHourly(f) {
   const levelDiff = (Number(f.lv) - Number(f.prevLv)) || 0;
   const expGained = (levelDiff * 100 + Number(f.exp) - Number(f.prevExp));
   const adenaGained = Number(f.adena) - Number(f.prevAdena);
+  const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10).replace(/-/g, '.');
 
   return `${C.cyan}SESSION REPORT · Every 1 hour${C.reset}
 ────────────────────────────
+DATE            : ${f.date ? String(f.date).replace(/-/g, '.') : today}
 PC              : ${f.pc}
 CLIENT No.      : ${f.clientNoLabel}
 CLIENT NICKNAME : ${f.nickname}
-MAP             : ${f.map}
 LV              : ${f.lv}
+Class           : ${f.class || '-'}
+Weapon          : ${f.weapon || '-'}
+Armor           : ${f.armor || '-'}
+AC              : ${f.ac || '-'}
+MAP             : ${f.map}
 EXP             : ${fmtExp(f.prevExp)}% → ${fmtExp(f.exp)}%
 EXP GAINED      : ${fmtExpSigned(expGained)}%
 ADENA           : ${fmtAdena(f.prevAdena)} → ${fmtAdena(f.adena)}
@@ -151,7 +168,7 @@ function buildCheckout(f) {
   const levelDiff = (Number(f.lv) - Number(f.prevLv)) || 0;
   const expGained = (levelDiff * 100 + Number(f.exp) - Number(f.prevExp));
   const adenaGained = Number(f.adena) - Number(f.prevAdena);
-  const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10).replace(/-/g, '.');
   const effHrs = effectiveHours(f.playStart, f.playEnd);
   const expPerHr = effHrs ? expGained / effHrs : null;
   const adenaPerHr = effHrs ? adenaGained / effHrs : null;
@@ -160,13 +177,17 @@ function buildCheckout(f) {
 
   return `${C.yellow}CHECK OUT REPORT · Shift End${C.reset}
 ────────────────────────────
+DATE            : ${today}
 PC              : ${f.pc}
 CLIENT No.      : ${f.clientNoLabel}
 CLIENT NICKNAME : ${f.nickname}
-DATE            : ${today}
+LV              : ${f.lv}
+Class           : ${f.class || '-'}
+Weapon          : ${f.weapon || '-'}
+Armor           : ${f.armor || '-'}
+AC              : ${f.ac || '-'}
 PLAY TIME       : ${f.playStart} ~ ${f.playEnd} (korea time)
 MAP             : ${f.map}
-LV              : ${f.lv}
 EXP             : ${fmtExp(f.prevExp)}% → ${fmtExp(f.exp)}%
 EXP GAINED      : ${fmtExpSigned(expGained)}%
 EXP / HOUR      : ${expPerHrStr}
