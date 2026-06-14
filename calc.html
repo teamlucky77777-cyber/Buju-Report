@@ -1064,7 +1064,7 @@ const T={
   weapon:{ko:'검 (무기)',en:'Weapon'},
   armor:{ko:'방 (방어구)',en:'Armor'},
   wpnShort:{ko:'검',en:'Wpn'},
-  armShort:{ko:'방',en:'Arm'},
+  armShort:{ko:'방어구',en:'Armor'},
   perMapTarget:{ko:'맵별 시간당 목표 (한/영 이름 + %)',en:'Per-map hourly target (KO/EN name + %)'},
   addMap:{ko:'+ 맵 추가',en:'+ Add map'},
   save:{ko:'저장',en:'Save'},
@@ -1108,7 +1108,7 @@ const T={
   loginTitle:{ko:'성과 계산기',en:'Performance Calc'}, loginSub:{ko:'비밀번호를 입력하세요',en:'Enter your password'}, loginPw:{ko:'비밀번호',en:'Password'}, loginGo:{ko:'들어가기',en:'Enter'}, loginErr:{ko:'비밀번호가 올바르지 않아요.',en:'Wrong password.'}, logout:{ko:'로그아웃',en:'Log out'},
   rpPickClientFirst:{ko:'클라이언트를 먼저 선택',en:'Pick a client first'},
   rpDetails:{ko:'세부 입력',en:'Details'}, rpAdena:{ko:'아데나',en:'Adena'}, rpDrop:{ko:'드롭',en:'Drop'}, rpRedPotion:{ko:'빨간 물약',en:'Red potion'},
-  eqSword:{ko:'검',en:'Sword'}, eqArmor:{ko:'방',en:'Armor'},
+  eqSword:{ko:'검',en:'Sword'}, eqArmor:{ko:'방어구',en:'Armor'}, eqAC:{ko:'방어력',en:'AC'},
   rpSearch:{ko:'이름 검색…',en:'Search name…'}, rpPickStaff:{ko:'직원 선택',en:'Select booster'}, rpNoMatch:{ko:'일치하는 직원 없음',en:'No match'},
   rpThread:{ko:'Discord 스레드',en:'Discord thread'},
   mapTest:{ko:'기타·테스트 (정산 제외)',en:'Other·Test (excluded)'},
@@ -1194,7 +1194,16 @@ function targetColor(v){ const t=Math.max(0,Math.min(1,(Number(v)-0.6)/0.8)); re
    계산 로직
    ============================================================ */
 function toMin(hhmm){ const [h,m]=String(hhmm).split(':').map(Number); return h*60+(m||0); }
-function sessionHours(r){ let m=toMin(r.end)-toMin(r.start); if(m<=0)m+=1440; return m/60; }
+function ovMin(s,e,bs,be){ return Math.max(0, Math.min(e,be)-Math.max(s,bs)); }
+function sessionHours(r){
+  const S=toMin(r.start), E=toMin(r.end);
+  if(!isFinite(S)||!isFinite(E)) return 0;
+  let span=E-S; if(span<=0)span+=1440;            // 자정 넘김
+  let brk=0;                                       // 휴식: 15:00~16:00, 05:00~06:00 (당일+다음날)
+  for(const [bs,be] of [[900,960],[300,360]]){ brk+=ovMin(S,S+span,bs,be)+ovMin(S,S+span,bs+1440,be+1440); }
+  const eff=span-brk;
+  return eff>0?eff/60:0;
+}
 function gainedPct(r){ return (r.lvAfter-r.lvBefore)*100 + (r.expAfter-r.expBefore); }
 function isProtectedDate(startStr,dateStr){
   if(!startStr) return false;
@@ -1229,8 +1238,9 @@ const sgn=n=>(n>=0?'+':'')+n.toFixed(2);
 
 function compute(clients, reports, staff){
   const byBooster={};
-  // 정산은 체크아웃(또는 태그 없는 시프트 합계)만 집계. 체크인/현황은 기록·모니터링용.
-  reports.filter(r=>!r.tag || r.tag==='checkout').forEach(r=>(byBooster[r.booster]=byBooster[r.booster]||[]).push(r));
+  const isTestMap=r=>String(r.map||'').toUpperCase()==='TEST';
+  // 정산은 체크아웃(또는 태그 없는 시프트 합계)만 집계. 체크인/현황은 기록·모니터링용. 기타·테스트 맵 제외.
+  reports.filter(r=>(!r.tag || r.tag==='checkout') && !isTestMap(r)).forEach(r=>(byBooster[r.booster]=byBooster[r.booster]||[]).push(r));
 
   const results = Object.keys(byBooster).map(booster=>{
     const sm=staffByName(staff,booster); const rate=sm?(Number(sm.rate)||0):0; const protectedUntil=sm?sm.protectedUntil:null;
@@ -1460,7 +1470,7 @@ function editFields(){
       ${stepCell(t('level'),'level','')}
       ${stepCell(t('wpnShort'),'sword','+')}
       ${stepCell(t('armShort'),'armor','+')}
-      ${stepCell('AC','ac','')}
+      ${stepCell(t('eqAC'),'ac','')}
     </div>
     <div class="field" style="margin-top:12px; margin-bottom:0;">
       <label class="flabel">${t('perMapTarget')}</label>
@@ -1495,6 +1505,7 @@ async function saveEdit(){
   if(!editBuf.name.trim()){ alert(t('alertName')); return; }
   const clean={...editBuf, name:editBuf.name.trim(),
     no:(editBuf.no===''||editBuf.no==null)?'':Number(editBuf.no),
+    ac:(editBuf.ac===''||editBuf.ac==null||Number(editBuf.ac)===0)?'':(-Math.abs(Number(editBuf.ac)||0)),
     maps:(editBuf.maps||[])
       .filter(m=>(m.ko&&m.ko.trim())||(m.en&&m.en.trim()))
       .map(m=>({ ko:(m.ko||'').trim(), en:(m.en||'').trim(), level:(m.level===''||m.level==null)?'':Number(m.level), target:Number(m.target)||0 })) };
@@ -2003,11 +2014,12 @@ function mapGridHtml(){
 }
 function jobInfoHtml(){
   const c=MOCK_CLIENTS.find(x=>x.id===rpDraft.clientId); if(!c) return '';
+  const acStr=(c.ac!=null&&c.ac!==''&&Number(c.ac)!==0)?('-'+Math.abs(Number(c.ac))):'-';
   return `<div class="rp-cardinfo">
     <span class="rp-chip">🎯 Lv ${c.level}</span>
-    <span class="rp-chip">🧙 ${esc(c.job||'-')}</span>
     <span class="rp-chip">⚔️ ${t('eqSword')} +${c.sword??'-'}</span>
-    <span class="rp-chip">🛡️ ${t('eqArmor')} +${c.armor??'-'}</span></div>`;
+    <span class="rp-chip">🛡️ ${t('eqArmor')} +${c.armor??'-'}</span>
+    <span class="rp-chip">🔻 ${t('eqAC')} ${acStr}</span></div>`;
 }
 function pickClient(id){ rpDraft.clientId=id; rpDraft.map='';
   const cg=document.getElementById('rp-client-grid'); if(cg)cg.innerHTML=clientGridHtml();
