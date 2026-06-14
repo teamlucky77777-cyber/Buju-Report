@@ -971,18 +971,33 @@ let MOCK_STAFF = [
 let MOCK_REPORTS = [];
 MOCK_REPORTS.forEach((r,i)=>{ if(!r.id) r.id='seed-'+i; });
 
+// ── Supabase 영구 저장 (서버 /api/calc-data 경유) + 실시간 동기화 ──
+async function _putData(key, value){
+  try{ const r=await fetch('/api/calc-data/'+key,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({value})}); const j=await r.json(); return j.updated_at||null; }catch(e){ return null; }
+}
+let _syncTs={clients:undefined, staff:undefined};
+// 서버에서 최신 데이터를 가져와 메모리 갱신. 비어있으면 현재값으로 시드. 변경되면 true 반환.
+async function syncFromServer(){
+  let changed=false;
+  try{
+    const [rc,rs]=await Promise.all([fetch('/api/calc-data/clients'),fetch('/api/calc-data/staff')]);
+    const jc=await rc.json(), js=await rs.json();
+    if(jc.updated_at!==_syncTs.clients){ _syncTs.clients=jc.updated_at; if(jc.value&&jc.value.length!=null){ MOCK_CLIENTS=jc.value; } else { _syncTs.clients=await _putData('clients',MOCK_CLIENTS); } changed=true; }
+    if(js.updated_at!==_syncTs.staff){ _syncTs.staff=js.updated_at; if(js.value&&js.value.length!=null){ MOCK_STAFF=js.value; } else { _syncTs.staff=await _putData('staff',MOCK_STAFF); } changed=true; }
+  }catch(e){}
+  return changed;
+}
 async function loadClients() {
-  // TODO(친구): return (await supabase.from('clients').select('*')).data;
   return JSON.parse(JSON.stringify(MOCK_CLIENTS));
 }
 async function saveClient(c) {
-  // TODO(친구): supabase.from('clients').upsert(c)
   const i = MOCK_CLIENTS.findIndex(x => x.id === c.id);
   if (i >= 0) MOCK_CLIENTS[i] = c; else MOCK_CLIENTS.push(c);
+  const ts = await _putData('clients', MOCK_CLIENTS); if(ts)_syncTs.clients=ts;
 }
 async function removeClient(id) {
-  // TODO(친구): supabase.from('clients').delete().eq('id', id)
   MOCK_CLIENTS = MOCK_CLIENTS.filter(x => x.id !== id);
+  const ts = await _putData('clients', MOCK_CLIENTS); if(ts)_syncTs.clients=ts;
 }
 async function loadReports() {
   // TODO(친구): return (await supabase.from('reports').select('*')).data;
@@ -1016,17 +1031,16 @@ async function removeReport(id) {
   MOCK_REPORTS = MOCK_REPORTS.filter(x => x.id !== id);
 }
 async function loadStaff() {
-  // TODO(친구): return (await supabase.from('staff').select('*')).data;
   return JSON.parse(JSON.stringify(MOCK_STAFF));
 }
 async function saveStaff(s) {
-  // TODO(친구): supabase.from('staff').upsert(s)
   const i = MOCK_STAFF.findIndex(x => x.id === s.id);
   if (i >= 0) MOCK_STAFF[i] = s; else MOCK_STAFF.push(s);
+  const ts = await _putData('staff', MOCK_STAFF); if(ts)_syncTs.staff=ts;
 }
 async function removeStaff(id) {
-  // TODO(친구): supabase.from('staff').delete().eq('id', id)
   MOCK_STAFF = MOCK_STAFF.filter(x => x.id !== id);
+  const ts = await _putData('staff', MOCK_STAFF); if(ts)_syncTs.staff=ts;
 }
 
 /* ============================================================
@@ -2373,7 +2387,16 @@ function buildDatalists(){
 document.addEventListener('keydown', e=>{
   if(e.key==='Escape'){ const o=document.getElementById('edit-modal'); if(o && o.classList.contains('open')) cancelEdit(); }
 });
-(async function init(){ applyStaticText(); buildDatalists(); await renderStandards(); await renderStaff(); await renderDashboard(); renderReport(); })();
+function startSyncPolling(){
+  setInterval(async ()=>{
+    if(editingId) return;                                   // 클라 편집 중 건너뜀
+    const ae=document.activeElement;
+    if(ae && (ae.tagName==='INPUT'||ae.tagName==='SELECT'||ae.tagName==='TEXTAREA')) return; // 입력 중 건너뜀
+    const changed=await syncFromServer();
+    if(changed){ await renderStandards(); await renderStaff(); await renderDashboard(); }
+  }, 8000);
+}
+(async function init(){ applyStaticText(); buildDatalists(); await syncFromServer(); await renderStandards(); await renderStaff(); await renderDashboard(); renderReport(); startSyncPolling(); })();
 </script>
 </body>
 </html>
