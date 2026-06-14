@@ -777,6 +777,7 @@ table.tbl.tbl-rec td.rec-staff { font-weight:600; color:var(--tx); }
 .login-gate[hidden] { display:none; }
 .login-box { width:320px; max-width:90vw; background:var(--bg-c); border:1px solid var(--br2); border-radius:20px; padding:34px 28px 28px; text-align:center; box-shadow:0 30px 80px rgba(0,0,0,.6); }
 .login-logo { font-size:12px; font-weight:800; color:var(--ac); letter-spacing:.12em; }
+.login-lang { margin:0 auto 18px; }
 .login-title { font-size:23px; font-weight:800; color:var(--tx); margin:8px 0 4px; letter-spacing:-.02em; }
 .login-sub { font-size:12.5px; color:var(--tx3); margin-bottom:22px; }
 .login-input { width:100%; padding:13px 16px; background:var(--bg-i); border:1px solid var(--br); border-radius:12px; color:var(--tx); font-size:15px; text-align:center; outline:none; box-sizing:border-box; letter-spacing:.08em; transition:border-color .15s; }
@@ -899,6 +900,10 @@ body.role-player #section-staff { display:none !important; }
 <div id="toast" class="toast"></div>
 <div id="login-gate" class="login-gate">
   <div class="login-box">
+    <div class="seg-group login-lang">
+      <button class="seg active" id="login-seg-ko" onclick="setLang('ko')">한국어</button>
+      <button class="seg" id="login-seg-en" onclick="setLang('en')">EN</button>
+    </div>
     <div class="login-logo">🎯 LUCKY7 · BUJU</div>
     <div class="login-title" id="login-title">성과 계산기</div>
     <div class="login-sub" id="login-sub">비밀번호를 입력하세요</div>
@@ -1152,7 +1157,7 @@ const T={
   rpFromCheckin:{ko:'체크인 기준',en:'from check-in'}, rpNoCheckin:{ko:'체크인 없음 — 종료값만으로 정산',en:'no check-in — settle from end only'},
   rpNeedCheckout:{ko:'직원·클라이언트·종료 EXP를 입력해주세요.',en:'Fill booster, client and end EXP.'},
   recAll:{ko:'전체',en:'All'},
-  loginTitle:{ko:'성과 계산기',en:'Performance Calc'}, loginSub:{ko:'비밀번호를 입력하세요',en:'Enter your password'}, loginPw:{ko:'비밀번호',en:'Password'}, loginGo:{ko:'들어가기',en:'Enter'}, loginErr:{ko:'비밀번호가 올바르지 않아요.',en:'Wrong password.'}, logout:{ko:'로그아웃',en:'Log out'},
+  loginTitle:{ko:'성과 계산기',en:'Performance Calculator'}, loginSub:{ko:'비밀번호를 입력하세요',en:'Enter your password'}, loginPw:{ko:'비밀번호',en:'Password'}, loginGo:{ko:'들어가기',en:'Log in'}, loginErr:{ko:'비밀번호가 올바르지 않아요.',en:'Wrong password.'}, logout:{ko:'로그아웃',en:'Log out'},
   rpPickClientFirst:{ko:'클라이언트를 먼저 선택',en:'Pick a client first'},
   rpDetails:{ko:'세부 입력',en:'Details'}, rpAdena:{ko:'아데나',en:'Adena'}, rpDrop:{ko:'드롭',en:'Drop'}, rpRedPotion:{ko:'빨간 물약',en:'Red potion'},
   eqSword:{ko:'검',en:'Sword'}, eqArmor:{ko:'방어구',en:'Armor'}, eqAC:{ko:'방어력',en:'AC'},
@@ -1442,8 +1447,9 @@ function applyStaticText(){
 }
 async function setLang(l){
   lang=l;
-  document.getElementById('seg-ko').classList.toggle('active', l==='ko');
-  document.getElementById('seg-en').classList.toggle('active', l==='en');
+  try{ localStorage.setItem('buju_lang', l); }catch(e){}
+  ['seg-ko','login-seg-ko'].forEach(id=>{ const e=document.getElementById(id); if(e) e.classList.toggle('active', l==='ko'); });
+  ['seg-en','login-seg-en'].forEach(id=>{ const e=document.getElementById(id); if(e) e.classList.toggle('active', l==='en'); });
   applyStaticText();
   await renderStandards(); await renderStaff(); await renderDashboard(); renderReport();
 }
@@ -2280,8 +2286,8 @@ function rpGainPv(){
   const pAdena=(rpDraft.prevAdena!=null)?Number(rpDraft.prevAdena):null;
   const parts=[];
   if(pExp!=null && expRaw!==''&&expRaw!=null){ const lvUp=(curExp<pExp)?1:0; const g=lvUp*100+(curExp-pExp); parts.push(`<span class="gl">EXP</span> <b class="${g>=0?'pos':'neg'}">${g>=0?'+':''}${g.toFixed(2)}%</b>`); }
-  if(pAdena!=null && adRaw!==''&&adRaw!=null){ const g=curAdena-pAdena; parts.push(`<span class="gl">아덴</span> <b class="${g>=0?'pos':'neg'}">${g>=0?'+':''}${g.toLocaleString('en-US')}</b>`); }
-  el.innerHTML = parts.length ? `<span class="rep-gain-row"><span class="gl">↑ 증가량 Gain</span> ${parts.join('')}</span>` : '';
+  if(pAdena!=null && adRaw!==''&&adRaw!=null){ const g=curAdena-pAdena; parts.push(`<span class="gl">${lang==='en'?'Adena':'아덴'}</span> <b class="${g>=0?'pos':'neg'}">${g>=0?'+':''}${g.toLocaleString('en-US')}</b>`); }
+  el.innerHTML = parts.length ? `<span class="rep-gain-row"><span class="gl">↑ ${lang==='en'?'Gain':'증가량'}</span> ${parts.join('')}</span>` : '';
 }
 // === 아덴 입력 라이브 포맷 (1124440 → 1.124.440) ===
 function rpAdenaFmt(el){ const d=(el.value||'').replace(/[^\d]/g,''); el.value=d?Number(d).toLocaleString('en-US'):''; }
@@ -2472,7 +2478,11 @@ function startSyncPolling(){
     if(changed){ await renderStandards(); await renderStaff(); await renderDashboard(); }
   }, 8000);
 }
-(async function init(){ applyStaticText(); buildDatalists(); await syncFromServer(); await renderStandards(); await renderStaff(); await renderDashboard(); renderReport(); startSyncPolling(); })();
+(async function init(){
+  try{ const sv=localStorage.getItem('buju_lang'); if(sv==='en'||sv==='ko') lang=sv; }catch(e){}
+  ['seg-ko','login-seg-ko'].forEach(id=>{ const e=document.getElementById(id); if(e) e.classList.toggle('active', lang==='ko'); });
+  ['seg-en','login-seg-en'].forEach(id=>{ const e=document.getElementById(id); if(e) e.classList.toggle('active', lang==='en'); });
+  applyStaticText(); buildDatalists(); await syncFromServer(); await renderStandards(); await renderStaff(); await renderDashboard(); renderReport(); startSyncPolling(); })();
 </script>
 </body>
 </html>
