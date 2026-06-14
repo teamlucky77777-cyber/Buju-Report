@@ -803,6 +803,13 @@ body.role-player #section-staff { display:none !important; }
 .rp-shot-preview{ position:relative; display:inline-block; }
 .rp-shot-preview img{ max-width:100%; max-height:220px; border-radius:8px; display:block; }
 .rp-shot-x{ position:absolute; top:6px; right:6px; width:26px; height:26px; border:none; border-radius:50%; background:rgba(0,0,0,.6); color:#fff; cursor:pointer; font-size:15px; line-height:1; }
+.tpick{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.tp-ampm{ display:inline-flex; background:var(--surface-3); border:1px solid var(--border-strong); border-radius:9px; padding:2px; }
+.tp-ap{ border:0; background:transparent; color:var(--tx2); font-size:12px; font-weight:700; padding:5px 10px; border-radius:7px; cursor:pointer; transition:.15s; }
+.tp-ap.on{ background:var(--ac); color:#fff; }
+.tp-h, .tp-m{ background:var(--surface-3); border:1px solid var(--border-strong); border-radius:9px; color:var(--tx); font-size:14px; font-weight:600; padding:7px 9px; cursor:pointer; }
+.tp-h:focus, .tp-m:focus{ outline:none; border-color:var(--ac); }
+.tp-sep{ color:var(--tx2); font-weight:800; }
 </style>
 </head>
 <body>
@@ -1129,6 +1136,8 @@ const T={
   rtStatusSub:{ko:'1시간',en:'hourly'},
   rpStartTime:{ko:'시작 시각',en:'Start'}, rpEndTime:{ko:'종료 시각',en:'End'}, rpTime:{ko:'시각',en:'Time'},
   rpStartLv:{ko:'시작 레벨',en:'Start level'}, rpStartExp:{ko:'시작 EXP %',en:'Start EXP %'},
+  rpScreenshot:{ko:'스크린샷',en:'Screenshot'}, rpShotHint:{ko:'클릭하거나 Ctrl+V로 붙여넣기',en:'Click or paste (Ctrl+V)'},
+  rpEndLabel:{ko:'종료 시각',en:'End time'}, rpPrevExpL:{ko:'이전 EXP',en:'Prev EXP'}, rpPrevAdenaL:{ko:'이전 아덴',en:'Prev Adena'}, rpAutoEdit:{ko:'자동 (수정가능)',en:'Auto (editable)'},
   rpCurLv:{ko:'현재 레벨',en:'Current level'}, rpCurExp:{ko:'현재 EXP %',en:'Current EXP %'},
   rpEndLv:{ko:'종료 레벨',en:'End level'}, rpEndExp:{ko:'종료 EXP %',en:'End EXP %'},
   rpDeadTot:{ko:'총 죽음',en:'Total deaths'}, rpPotionTot:{ko:'총 물약',en:'Total potions'},
@@ -1324,7 +1333,7 @@ function compute(clients, reports, staff){
     const teamMembers = isLeader ? staff.filter(x=>x.leader===booster).map(m=>m.name) : [];
     let weekActualPay=0, weekBasePay=0, incentiveTotal=0, penaltyTotal=0;
     dayRows.forEach(d=>{
-      d.basePay = monthBase/30;                   // 일급 = 월급 ÷ 30 (하루 1일분)
+      d.basePay = (monthBase + allowance)/30;     // 일급 = 월급(+리더 수당) ÷ 30 — 리더도 전체 월급을 일급으로 치환
       const ratio = d.payPct/100;                 // 보호/기준없음 = 1.0 (가감 없음)
       d.incentive = d.counted ? d.basePay*Math.max(0, ratio-1) : 0;
       d.penalty   = d.counted ? d.basePay*Math.max(0, 1-ratio) : 0;
@@ -2043,6 +2052,39 @@ function pickStaffCombo(n){ rpDraft.booster=n; const tr=document.getElementById(
   const th=document.getElementById('rp-thread'); if(th) th.value=rpThreadVal();
   closeStaffPicker(); updateReportPreview(); }
 if(!window._staffPickerDoc){ window._staffPickerDoc=true; document.addEventListener('click',e=>{ const c=document.getElementById('rp-staff-combo'); if(c && !c.contains(e.target)) closeStaffPicker(); }); }
+// ── 시간 토글 피커 (네이티브 time 로케일 문제 회피 + 언어별 오전/오후) ──
+// 숨은 input(id)에 "HH:MM"(24h) 저장 → 기존 .value 읽기 그대로 호환
+function timeToggleHtml(id, def, cb){
+  def = def || '00:00';
+  const parts=String(def).split(':'); const H=Number(parts[0])||0, M=Number(parts[1])||0;
+  const isPM = H>=12; let h12 = H%12; if(h12===0) h12=12; const mm=String(M).padStart(2,'0');
+  const amL = lang==='en'?'AM':'오전', pmL = lang==='en'?'PM':'오후';
+  const hOpts = Array.from({length:12},(_,i)=>i+1).map(h=>`<option value="${h}"${h===h12?' selected':''}>${h}</option>`).join('');
+  const mOpts = ['00','05','10','15','20','25','30','35','40','45','50','55'].map(m=>`<option value="${m}"${m===mm?' selected':''}>${m}</option>`).join('');
+  return `<div class="tpick" data-cb="${cb||''}">
+    <input type="hidden" id="${id}" value="${def}">
+    <div class="tp-ampm">
+      <button type="button" class="tp-ap${!isPM?' on':''}" data-ap="0" onclick="tpAp('${id}',0)">${amL}</button>
+      <button type="button" class="tp-ap${isPM?' on':''}" data-ap="1" onclick="tpAp('${id}',1)">${pmL}</button>
+    </div>
+    <select class="tp-h" onchange="tpSync('${id}')">${hOpts}</select>
+    <span class="tp-sep">:</span>
+    <select class="tp-m" onchange="tpSync('${id}')">${mOpts}</select>
+  </div>`;
+}
+function tpAp(id, pm){
+  const w=document.getElementById(id).closest('.tpick'); if(!w) return;
+  w.querySelectorAll('.tp-ap').forEach(b=>b.classList.toggle('on', Number(b.dataset.ap)===pm));
+  tpSync(id);
+}
+function tpSync(id){
+  const hid=document.getElementById(id), w=hid&&hid.closest('.tpick'); if(!w) return;
+  const onAp=w.querySelector('.tp-ap.on'); const pm = onAp?Number(onAp.dataset.ap):0;
+  let h=Number(w.querySelector('.tp-h').value)||12; const m=w.querySelector('.tp-m').value||'00';
+  if(pm && h!==12) h+=12; if(!pm && h===12) h=0;
+  hid.value=String(h).padStart(2,'0')+':'+m;
+  const cb=w.dataset.cb; if(cb && typeof window[cb]==='function') window[cb]();
+}
 function clientGridHtml(){
   return MOCK_CLIENTS.map(c=>`<button class="rep-pick rep-pick-c${rpDraft.clientId===c.id?' active':''}" onclick="pickClient('${esc(c.id)}')">
     <span class="rp-c-pc">PC${c.pc}</span><span class="rp-c-name">${esc(c.name)}</span><span class="rp-c-lv">Lv${c.level} · ${esc(c.job||'')}</span></button>`).join('');
@@ -2089,12 +2131,12 @@ function renderReport(){
   const fAdena=`<label class="rep-f sm"><span>${t('rpAdena')}</span><input id="rp-adena" type="text" inputmode="numeric" class="input" placeholder="예: 1124440" oninput="rpAdenaFmt(this);rpGainPv()"></label>`;
   const fDrop=`<label class="rep-f sm"><span>${t('rpDrop')}</span><input id="rp-drop" type="number" class="input" value="0"></label>`;
   const fNote=`<label class="rep-f wide"><span>${t('rpNote')}</span><input id="rp-note" type="text" class="input" placeholder="…"></label>`;
-  const fPrevExp=`<label class="rep-f sm"><span>이전 EXP · Prev</span><input id="rp-prev-exp" type="number" step="1" class="input" placeholder="자동 (수정가능)" oninput="rpPrevExpPv()"><div id="rp-prev-exp-pv" class="rp-mini muted"></div></label>`;
-  const fPrevAdena=`<label class="rep-f sm"><span>이전 아덴 · Prev</span><input id="rp-prev-adena" type="text" inputmode="numeric" class="input" placeholder="자동 (수정가능)" oninput="rpAdenaFmt(this);rpGainPv()"></label>`;
+  const fPrevExp=`<label class="rep-f sm"><span>${t('rpPrevExpL')}</span><input id="rp-prev-exp" type="number" step="1" class="input" placeholder="${t('rpAutoEdit')}" oninput="rpPrevExpPv()"><div id="rp-prev-exp-pv" class="rp-mini muted"></div></label>`;
+  const fPrevAdena=`<label class="rep-f sm"><span>${t('rpPrevAdenaL')}</span><input id="rp-prev-adena" type="text" inputmode="numeric" class="input" placeholder="${t('rpAutoEdit')}" oninput="rpAdenaFmt(this);rpGainPv()"></label>`;
   if(reportType==='checkin'){
     hint=t('rpHintCheckin'); submitLbl=t('rpDoCheckin'); submitFn='submitCheckin()';
-    typed=`<label class="rep-f sm"><span>${t('rpStartTime')}</span><input id="rp-start" type="time" class="input" value="21:00"></label>
-      <label class="rep-f sm"><span>종료 시각 · End</span><input id="rp-end-ci" type="time" class="input" value="09:00"></label>
+    typed=`<div class="rep-f sm"><span>${t('rpStartTime')}</span>${timeToggleHtml('rp-start','21:00','')}</div>
+      <div class="rep-f sm"><span>${t('rpEndLabel')}</span>${timeToggleHtml('rp-end-ci','09:00','')}</div>
       <label class="rep-f sm"><span>${t('rpStartLv')}</span><input id="rp-lv" type="number" class="input"></label>
       <label class="rep-f sm"><span>${t('rpStartExp')}</span><input id="rp-exp" type="number" step="1" class="input" placeholder="예: 2323" oninput="rpExpPv();rpGainPv()"><div id="rp-exp-pv" class="rp-mini muted"></div></label>
       ${fAdena}<label class="rep-f sm"><span>${t('rpRedPotion')}</span><input id="rp-potion" type="number" class="input" value="0"></label>${fNote}`;
@@ -2105,8 +2147,7 @@ function renderReport(){
       ${fDrop}<label class="rep-f sm"><span>${t('rpDead')}</span><input id="rp-dead" type="number" class="input" value="0"></label>${fNote}`;
   } else {
     hint=t('rpHintCheckout'); submitLbl=t('rpDoCheckout'); submitFn='submitCheckout()';
-    typed=`<label class="rep-f sm"><span>${t('rpEndTime')}</span><input id="rp-end" type="time" class="input" value="09:00" onchange="updateReportPreview()"></label>
-      <label class="rep-f sm"><span>${t('rpEndLv')}</span><input id="rp-lv" type="number" class="input" onchange="updateReportPreview();rpGainPv()"></label>
+    typed=`<div class="rep-f sm"><span>${t('rpEndTime')}</span>${timeToggleHtml('rp-end','09:00','updateReportPreview')}</div>
       <label class="rep-f sm"><span>${t('rpEndExp')}</span><input id="rp-exp" type="number" step="1" class="input" placeholder="예: 2323" oninput="rpExpPv();updateReportPreview();rpGainPv()"><div id="rp-exp-pv" class="rp-mini muted"></div></label>
       ${fAdena}<label class="rep-f sm"><span>${t('rpRedPotion')}</span><input id="rp-potion" type="number" class="input" value="0"></label>
       ${fDrop}<label class="rep-f sm"><span>${t('rpDeadTot')}</span><input id="rp-dead" type="number" class="input" value="0"></label>${fNote}`;
@@ -2142,10 +2183,10 @@ function renderReport(){
       <div class="rep-pick-label">${t('rpDetails')}</div>
       <div class="rep-grid">${typed}</div>
       <div id="rp-gain-pv" class="rep-gain-pv"></div>
-      <div class="rep-pick-label" style="margin-top:4px;">📸 스크린샷 · Screenshot</div>
+      <div class="rep-pick-label" style="margin-top:4px;">📸 ${t('rpScreenshot')}</div>
       <div id="rp-shot-zone" class="rp-shot-zone" onclick="rpShotPick()" onpaste="rpShotPaste(event)" tabindex="0">
         <input type="file" id="rp-shot-input" accept="image/*" hidden onchange="rpShotOn(event)">
-        <div id="rp-shot-empty" class="rp-shot-empty muted">클릭하거나 Ctrl+V로 붙여넣기 · Click or paste</div>
+        <div id="rp-shot-empty" class="rp-shot-empty muted">${t('rpShotHint')}</div>
         <div id="rp-shot-preview" class="rp-shot-preview" hidden><img id="rp-shot-img" alt=""><button type="button" class="rp-shot-x" onclick="rpShotClear(event)">×</button></div>
       </div>
       <div class="rep-foot">
@@ -2173,20 +2214,21 @@ function updateReportPreview(){
   const c=MOCK_CLIENTS.find(x=>x.id===rpDraft.clientId);
   const booster=rpDraft.booster, map=rpDraft.map||'';
   const date=document.getElementById('rp-date')?.value||'';
-  const lv=Number(document.getElementById('rp-lv')?.value)||0;
   const endExp=(Number(document.getElementById('rp-exp')?.value)||0)/100;
   const end=document.getElementById('rp-end')?.value||'';
   if(!c){ el.innerHTML=''; return; }
   if(map==='TEST'){ el.innerHTML=`<span class="rep-pv-txt" style="color:var(--ye);">🧪 ${t('mapTestNote')}</span>`; return; }
   const ci=latestCheckin(booster,c.name,date);
-  const startLv=(rpDraft.prevLv!=null)?rpDraft.prevLv:(ci?Number(ci.lvBefore):lv);
+  const startLv=(rpDraft.prevLv!=null)?rpDraft.prevLv:(ci?Number(ci.lvBefore):0);
   const startExp=(rpDraft.prevExp!=null)?rpDraft.prevExp:(ci?Number(ci.expBefore):0);
   const start=rpDraft.prevStart||(ci?ci.start:'21:00');
-  const gained=(lv-startLv)*100+(endExp-startExp);
+  const levelUp=(endExp<startExp)?1:0;            // 레벨칸 제거 → 종료 EXP<시작 EXP면 레벨업 1회 자동 반영
+  const lv=startLv+levelUp;
+  const gained=levelUp*100+(endExp-startExp);
   const hrs=sessionHours({start,end});
   const src=ci?t('rpFromCheckin'):t('rpNoCheckin');
   if(!gained||!hrs){ el.innerHTML=`<span class="rep-pv-txt muted">${src}</span>`; return; }
-  const mm=findMap(MOCK_CLIENTS,{client:c.name,pc:c.pc,map,lvAfter:lv});
+  const mm=findMap(MOCK_CLIENTS,{client:c.name,pc:c.pc,map,lvAfter:lv||startLv});
   const perH=gained/hrs;
   if(!mm||!mm.target){ el.innerHTML=`<span class="rep-pv-txt muted">+${gained.toFixed(2)}% · ${perH.toFixed(2)}%/h · ${t('uNoStdDay')} <span class="rep-pv-src">(${src})</span></span>`; return; }
   const pct=perH/mm.target*100, cls=pct>=100?'pos':'neg';
@@ -2208,13 +2250,10 @@ function rpGainPv(){
   const expRaw=document.getElementById('rp-exp')?.value, adRaw=document.getElementById('rp-adena')?.value;
   const curExp=(Number(expRaw)||0)/100;
   const curAdena=Number((adRaw||'').replace(/[^\d]/g,''))||0;
-  const lvEl=document.getElementById('rp-lv');
-  const curLv=(lvEl&&lvEl.value!=='')?Number(lvEl.value):(c?Number(c.level):0);
   const pExp=(rpDraft.prevExp!=null)?Number(rpDraft.prevExp):null;
   const pAdena=(rpDraft.prevAdena!=null)?Number(rpDraft.prevAdena):null;
-  const pLv=(rpDraft.prevLv!=null)?Number(rpDraft.prevLv):curLv;
   const parts=[];
-  if(pExp!=null && expRaw!==''&&expRaw!=null){ const g=(curLv-pLv)*100+(curExp-pExp); parts.push(`<span class="gl">EXP</span> <b class="${g>=0?'pos':'neg'}">${g>=0?'+':''}${g.toFixed(2)}%</b>`); }
+  if(pExp!=null && expRaw!==''&&expRaw!=null){ const lvUp=(curExp<pExp)?1:0; const g=lvUp*100+(curExp-pExp); parts.push(`<span class="gl">EXP</span> <b class="${g>=0?'pos':'neg'}">${g>=0?'+':''}${g.toFixed(2)}%</b>`); }
   if(pAdena!=null && adRaw!==''&&adRaw!=null){ const g=curAdena-pAdena; parts.push(`<span class="gl">아덴</span> <b class="${g>=0?'pos':'neg'}">${g>=0?'+':''}${g.toLocaleString('en-US')}</b>`); }
   el.innerHTML = parts.length ? `<span class="rep-gain-row"><span class="gl">↑ 증가량 Gain</span> ${parts.join('')}</span>` : '';
 }
@@ -2270,10 +2309,12 @@ async function submitCheckin(){
 }
 async function submitStatus(){
   const f=rpCommon(); if(!f.booster||!f.c){ showToast(t('rpNeed')); return; }
-  const lv=f.lv||f.c.level; const tm=new Date().toTimeString().slice(0,5);
+  const tm=new Date().toTimeString().slice(0,5);
   const prevExp=(rpDraft.prevExp!=null)?rpDraft.prevExp:f.exp;
   const prevAdena=(rpDraft.prevAdena!=null)?rpDraft.prevAdena:f.adena;
-  const prevLv=(rpDraft.prevLv!=null)?rpDraft.prevLv:lv;
+  const prevLv=(rpDraft.prevLv!=null)?rpDraft.prevLv:(f.c.level);
+  const lvUp=(f.exp<prevExp)?1:0;                 // EXP로 레벨업 자동 감지
+  const lv=prevLv+lvUp;
   const r=await saveReport({ id:'rpt-'+Date.now(), tag:'status', booster:f.booster, client:f.c.name, no:f.c.no, pc:f.c.pc, threadId:commitThread(f.booster),
     weapon:f.c.sword, armor:f.c.armor, ac:f.c.ac, classJob:f.c.job,
     date:f.date, map:f.map, start:tm, end:tm,
@@ -2284,12 +2325,13 @@ async function submitStatus(){
 async function submitCheckout(){
   const f=rpCommon();
   if(!f.booster||!f.c||!f.exp){ showToast(t('rpNeedCheckout')); return; }
-  const lv=f.lv||f.c.level;
   const ci=latestCheckin(f.booster,f.c.name,f.date);
   const startExp=(rpDraft.prevExp!=null)?rpDraft.prevExp:(ci?Number(ci.expBefore):f.exp);
   const startAdena=(rpDraft.prevAdena!=null)?rpDraft.prevAdena:(ci?Number(ci.adena):f.adena);
-  const startLv=(rpDraft.prevLv!=null)?rpDraft.prevLv:(ci?Number(ci.lvBefore):lv);
+  const startLv=(rpDraft.prevLv!=null)?rpDraft.prevLv:(ci?Number(ci.lvBefore):f.c.level);
   const start=rpDraft.prevStart||(ci?ci.start:'21:00');
+  const levelUp=(f.exp<startExp)?1:0;             // 레벨칸 제거 → EXP로 레벨업 자동 감지
+  const lv=startLv+levelUp;
   const r=await saveReport({ id:'rpt-'+Date.now(), tag:'checkout', booster:f.booster, client:f.c.name, no:f.c.no, pc:f.c.pc, threadId:commitThread(f.booster),
     weapon:f.c.sword, armor:f.c.armor, ac:f.c.ac, classJob:f.c.job,
     date:f.date, map:f.map, start, end:document.getElementById('rp-end')?.value||'09:00',
