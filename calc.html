@@ -1,0 +1,2226 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>성과 계산기 · Performance Calculator</title>
+<!-- BUILD: standard-calc v58 -->
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+:root {
+  /* ===== Lucky7 ERP 디자인 시스템 (라이트) ===== */
+  --bg:#fff; --bg-sb:#f7f6f3; --bg-h:#efefee; --bg-a:#e9e9e7; --bg-c:#fff; --bg-i:#fff;
+  --tx:#37352f; --tx2:#787774; --tx3:#acaba8; --tx4:#acaba8;
+  --br:#e9e9e7; --br2:#d3d1cb;
+  --ac:#a87a1e; --ac-bg:#fbf3df; --ac-strong:#8a6416; --ac-bord:rgba(168,122,30,.35);
+  --gr:#0f7b6c; --gr-bg:#edf3ec; --ok:#0f7b6c; --ok-bg:#edf3ec;
+  --warn:#b5701a; --info:#a87a1e;
+  --re:#e03e3e; --re-bg:#fbe4e4; --ye:#cb912f; --ye-bg:#fdf3d0; --pu:#6940a5; --pu-bg:#f4f0fb;
+  --r-sm:4px; --r-md:8px; --r-lg:12px; --r-full:9999px;
+  --e1:0 1px 2px rgba(15,15,15,.07),0 0 0 1px rgba(15,15,15,.04);
+  --e2:0 2px 4px rgba(15,15,15,.05),0 8px 24px rgba(15,15,15,.07),0 0 0 1px rgba(15,15,15,.04);
+  --e3:0 12px 32px rgba(15,15,15,.16),0 0 0 1px rgba(15,15,15,.06);
+  --ease:cubic-bezier(0.16,1,0.3,1);
+  /* ===== 별칭 (기존 컴포넌트 호환) ===== */
+  --surface:var(--bg-c); --surface-2:var(--bg-i); --surface-3:var(--bg-a);
+  --surface-hover:var(--bg-h); --surface-active:var(--bg-a); --hairline:var(--br);
+  --border:var(--br); --border-strong:var(--br2);
+  --text:var(--tx); --text-secondary:var(--tx2); --text-tertiary:var(--tx3);
+  --accent:var(--ac); --accent-2:var(--ac-strong); --accent-soft:var(--ac-bg); --grad:var(--ac);
+  --success:var(--gr); --success-soft:var(--gr-bg);
+  --warning:var(--warn); --warning-soft:var(--ye-bg);
+  --danger:var(--re); --danger-soft:var(--re-bg);
+  --shadow:var(--e2); --shadow-lg:var(--e3); --shadow-card:var(--e2); --shadow-float:var(--e3);
+  --surface-glass:var(--bg-c); --surface-panel-end:var(--bg-c); --surface-card-end:var(--bg-c);
+  --bg-glow-a:transparent; --bg-glow-b:transparent; --ring:var(--ac-bord); --detail-tint:transparent;
+}
+[data-theme=dark]{
+  --bg:#0e0e0e; --bg-sb:#131313; --bg-h:#1c1c1c; --bg-a:#232323; --bg-c:#161616; --bg-i:#1a1a1a;
+  --tx:#e6e5e2; --tx2:#989792; --tx3:#5f5e5a; --tx4:#5f5e5a;
+  --br:#232322; --br2:#2f2f2d;
+  --ac:#c2a04a; --ac-bg:rgba(194,160,74,.13); --ac-strong:#d4b566; --ac-bord:rgba(194,160,74,.40);
+  --gr:#4d9a8a; --gr-bg:rgba(77,154,138,.12); --ok:#4d9a8a; --ok-bg:rgba(77,154,138,.12);
+  --warn:#d9943a; --info:#c2a04a;
+  --re:#c46a6a; --re-bg:rgba(196,106,106,.12); --ye:#c79c4b; --ye-bg:rgba(199,156,75,.12); --pu:#9a7dc4; --pu-bg:rgba(154,125,196,.12);
+  --e1:0 1px 2px rgba(0,0,0,.30),0 0 0 1px rgba(255,255,255,.04);
+  --e2:0 2px 4px rgba(0,0,0,.35),0 8px 24px rgba(0,0,0,.30),0 0 0 1px rgba(255,255,255,.06);
+  --e3:0 12px 32px rgba(0,0,0,.50),0 0 0 1px rgba(255,255,255,.08);
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Pretendard", system-ui, sans-serif;
+  background: var(--bg); color: var(--text); margin: 0; padding: 0;
+  line-height: 1.5; font-size: 16px; letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
+}
+body { padding: 18px 14px 56px; min-height: 100vh; font-size: 15px; background: var(--bg); }
+.container { max-width: 840px; margin: 0 auto; }
+h1 { font-size: 25px; font-weight: 700; letter-spacing: -0.025em; margin: 0 0 4px; }
+h2 { font-size: 17px; font-weight: 700; margin: 26px 0 5px; letter-spacing: -0.02em; position:relative; padding-left:13px; }
+h2::before { content:''; position:absolute; left:0; top:0.16em; height:0.84em; width:4px; border-radius:2px; background:var(--grad); }
+h3 { font-size: 11px; font-weight: 600; margin: 16px 0 7px; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.07em; }
+.subtitle { color: var(--text-secondary); font-size: 14px; margin: 0 0 8px; line-height: 1.45; }
+.demo-badge { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; color:var(--warning); background:var(--warning-soft); padding:4px 10px; border-radius:999px; }
+.muted { color: var(--text-secondary); font-size: 13px; }
+.tiny { color: var(--text-tertiary); font-size: 12px; }
+.bignum { font-size: 23px; font-weight: 700; letter-spacing: -0.02em; }
+.bignum small { font-size: 13px; font-weight: 600; color: var(--text-secondary); margin-left: 2px; }
+.pos { color: var(--success); } .neg { color: var(--danger); } .neu { color: var(--text-secondary); }
+.chip { display:inline-block; font-size:12px; font-weight:600; padding:3px 9px; border-radius:999px; background:var(--surface-3); color:var(--text-secondary); }
+.btn { border:none; border-radius:11px; padding:10px 16px; font-size:15px; font-weight:600; cursor:pointer; font-family:inherit; transition:transform .12s var(--ease), filter .15s; }
+.btn:active { transform:scale(.97); }
+.btn:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.btn-primary:active { filter:brightness(.92); }
+.btn-primary { background:var(--grad); color:#fff; }
+.btn-ghost { background:var(--surface-3); color:var(--text); }
+.btn-sm { padding:7px 12px; font-size:13px; border-radius:10px; }
+.btn-danger { background:var(--danger-soft); color:var(--danger); }
+.input, select.input { width:100%; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; padding:8px 11px; color:var(--text); font-size:16px; font-family:inherit; outline:none; transition:border-color .12s, box-shadow .12s; }
+.input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+.note { background:var(--accent-soft); border:1px solid var(--ac-bord); border-radius:12px; padding:11px 13px; font-size:13px; color:var(--text-secondary); margin:8px 0 14px; line-height:1.55; }
+
+.lang-toggle { display:flex; align-items:center; gap:10px; margin:14px 0 20px; }
+.seg-group { display:inline-flex; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+.seg { border:none; background:transparent; color:var(--text-secondary); padding:7px 16px; font-size:13px; font-weight:600; cursor:pointer; font-family:inherit; }
+.seg.active { background:var(--accent); color:#fff; }
+
+.std-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(228px,1fr)); gap:10px; align-items:stretch; }
+.std-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px; display:flex; flex-direction:column; gap:9px; transition:border-color .12s, transform .12s; box-shadow:var(--shadow); }
+.std-card:hover { border-color:var(--border-strong); }
+.std-card.editing { border-color:var(--accent); }
+.std-client { font-size:18px; font-weight:700; line-height:1.15; }
+.std-pc { font-size:12px; color:var(--text-tertiary); font-weight:600; margin-top:2px; }
+.std-chips { display:flex; flex-wrap:wrap; gap:5px; }
+.map-list { display:flex; flex-direction:column; border-top:1px solid var(--border); margin-top:2px; }
+.map-row { display:flex; justify-content:space-between; align-items:center; padding:7px 0; border-bottom:1px solid var(--border); font-size:14px; gap:8px; }
+.map-row:last-child { border-bottom:none; }
+.map-row .mname { color:var(--text-secondary); }
+.map-row .mval { font-weight:700; white-space:nowrap; }
+.map-row .mval small { font-size:11px; color:var(--text-tertiary); margin-left:1px; }
+.map-empty { font-size:12px; color:var(--text-tertiary); padding:7px 0; }
+.std-add { display:flex; align-items:center; justify-content:center; min-height:108px; border:1.5px dashed var(--border-strong); border-radius:10px; background:transparent; color:var(--text-secondary); font-size:14px; font-weight:600; cursor:pointer; transition:border-color .12s, color .12s; }
+.std-add:hover { border-color:var(--accent); color:var(--text); }
+.std-add:active { opacity:.6; }
+
+.edit-block { display:flex; flex-direction:column; gap:9px; }
+.f-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.f-row > label { font-size:12px; color:var(--text-tertiary); font-weight:600; }
+.stepper { display:flex; align-items:center; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; overflow:hidden; }
+.stepper button { width:32px; height:32px; border:none; background:transparent; color:var(--text); font-size:18px; font-weight:600; cursor:pointer; }
+.stepper button:active { background:var(--surface-3); }
+.stepper .val { min-width:42px; text-align:center; font-size:15px; font-weight:700; }
+.stepper .step-input { flex:1; min-width:0; width:100%; text-align:center; border:none; background:transparent; color:var(--text); font-size:15px; font-weight:700; outline:none; -moz-appearance:textfield; }
+.stepper .step-input::-webkit-outer-spin-button, .stepper .step-input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+.map-edit-block { display:flex; flex-direction:column; gap:5px; padding:8px; background:var(--surface-2); border:1px solid var(--border); border-radius:10px; }
+.map-edit-block .input { padding:7px 9px; font-size:13px; background:var(--surface); }
+.map-edit-row2 { display:grid; grid-template-columns:1fr 36px; gap:6px; }
+.map-target { text-align:right; }
+.map-x { width:36px; height:34px; border:none; border-radius:8px; background:var(--danger-soft); color:var(--danger); font-size:16px; cursor:pointer; }
+.add-map { background:transparent; border:1px dashed var(--border-strong); color:var(--text-secondary); border-radius:8px; padding:7px; font-size:13px; font-weight:600; cursor:pointer; }
+
+.dash-toolbar { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+.emp-overview { display:flex; flex-direction:column; gap:5px; margin-bottom:14px; }
+.emp-row { display:grid; grid-template-columns:1fr 96px auto; align-items:center; gap:12px; padding:10px 13px; background:var(--surface); border:1px solid var(--border); border-radius:12px; cursor:pointer; transition:border-color .12s, background .12s; }
+.emp-row:hover { border-color:var(--border-strong); }
+.emp-row.selected { border-color:var(--accent); background:var(--accent-soft); }
+.emp-name { font-weight:600; font-size:15px; }
+.emp-mini { width:96px; }
+@media (max-width:480px){ .emp-row{ grid-template-columns:1fr auto; } .emp-mini{ display:none; } }
+
+.pay-strip { display:flex; flex-wrap:wrap; gap:8px; margin:6px 0 4px; }
+.pay-box { flex:1; min-width:88px; background:var(--surface-2); border:1px solid var(--border); border-radius:11px; padding:9px 11px; }
+.pay-box .plabel { font-size:11px; color:var(--text-tertiary); font-weight:600; }
+.pay-box .pval { font-size:16px; font-weight:700; margin-top:2px; }
+
+.scroll-x { overflow-x:auto; -webkit-overflow-scrolling:touch; border:1px solid var(--br); border-radius:10px; }
+table.tbl { width:100%; border-collapse:collapse; font-size:12px; min-width:0; table-layout:fixed; }
+table.tbl th { text-align:left; color:var(--tx3); font-size:10px; font-weight:600; padding:6px 8px; border-bottom:1px solid var(--br2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; text-transform:uppercase; letter-spacing:.03em; }
+table.tbl td { padding:6px 8px; border-bottom:1px solid var(--br); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-variant-numeric:tabular-nums; }
+table.tbl td.num, table.tbl th.num { text-align:right; }
+table.tbl tr:last-child td { border-bottom:none; }
+table.tbl tbody tr { transition:background .1s; }
+table.tbl tbody tr:hover { background:var(--surface-2); }
+.v-pass { color:var(--success); font-weight:600; }
+.v-under { color:var(--warning); font-weight:600; }
+.v-big { color:var(--danger); font-weight:700; }
+.v-skip { color:var(--text-tertiary); }
+
+.emp-card { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:15px; }
+.emp-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:10px; }
+.bar { height:6px; border-radius:3px; background:var(--surface-3); overflow:hidden; margin:10px 0 14px; }
+.bar > i { display:block; height:100%; border-radius:3px; }
+.staff-table { background:var(--surface); border:1px solid var(--border-strong); border-radius:12px; overflow:hidden; max-width:540px; box-shadow:var(--shadow); }
+.staff-head, .staff-line { display:grid; grid-template-columns:1fr 78px 132px 26px; gap:8px; align-items:center; }
+.staff-head { padding:7px 14px; background:var(--bg-a); border-bottom:1px solid var(--br2); }
+.staff-head span { font-size:10.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--tx2); font-weight:700; padding:0 7px; }
+.staff-head span.h-rate { text-align:right; }
+.staff-line { padding:4px 14px; border-bottom:1px solid var(--br2); transition:background .1s; }
+.staff-line:last-of-type { border-bottom:none; }
+.staff-line:hover { background:var(--bg-h); }
+.staff-line .input { background:transparent; border:1px solid transparent; border-radius:7px; padding:5px 7px; font-size:14px; box-shadow:none; }
+.staff-line .s-name { font-weight:600; color:var(--tx); }
+.staff-line .s-rate, .staff-line .s-date { font-variant-numeric:tabular-nums; color:var(--tx); }
+.staff-line .input:hover { background:var(--surface-2); border-color:var(--border); }
+.staff-line .input:focus { background:var(--surface-2); border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-soft); }
+.staff-line .s-rate { text-align:right; }
+.staff-del { width:30px; height:30px; border:none; border-radius:8px; background:transparent; color:var(--text-tertiary); font-size:17px; line-height:1; cursor:pointer; transition:background .12s, color .12s; }
+.staff-del:hover { background:var(--danger-soft); color:var(--danger); }
+.staff-add { padding:11px 14px; text-align:center; color:var(--accent); font-size:14px; font-weight:600; cursor:pointer; transition:background .12s; }
+.staff-add:hover { background:var(--surface-2); }
+@media (max-width:560px){
+  .staff-table { max-width:none; }
+  .staff-head { display:none; }
+  .staff-line { grid-template-columns:1fr 1fr 30px; grid-template-areas:'name name name' 'rate date del'; row-gap:6px; padding:10px 12px; }
+  .staff-line .s-name{ grid-area:name; } .staff-line .s-rate{ grid-area:rate; text-align:left; } .staff-line .s-date{ grid-area:date; } .staff-del{ grid-area:del; justify-self:end; }
+  .staff-line .input { background:var(--surface-2); border-color:var(--border); }
+}
+.calc-box { background:var(--surface-2); border:1px solid var(--border); border-radius:13px; padding:13px; margin:4px 0 12px; }
+.calc-title { font-size:12px; font-weight:600; color:var(--text-secondary); margin-bottom:10px; }
+.cmp-row { display:grid; grid-template-columns:60px 1fr auto; align-items:center; gap:10px; margin-bottom:7px; }
+.cmp-label { font-size:12px; color:var(--text-tertiary); font-weight:600; }
+.cmp-bar { height:13px; border-radius:7px; background:var(--surface-3); overflow:hidden; }
+.cmp-bar > i { display:block; height:100%; border-radius:7px; transition:width .4s var(--ease); }
+.cmp-val { font-size:13px; font-weight:700; white-space:nowrap; }
+.calc-flow { margin-top:11px; padding-top:11px; border-top:1px solid var(--border); }
+.calc-line { display:flex; align-items:baseline; justify-content:space-between; gap:10px; padding:3px 0; }
+.calc-line .calc-eq { font-size:13px; color:var(--text-secondary); }
+.calc-line b { font-weight:700; }
+.bar-mk { position:relative; height:8px; border-radius:4px; background:var(--surface-3); }
+.bar-mk > i { display:block; height:100%; border-radius:4px; transition:width .4s var(--ease); }
+.bar-mk > .mk { position:absolute; top:-2px; bottom:-2px; width:2px; background:var(--text-secondary); border-radius:1px; }
+.scroll-x::-webkit-scrollbar { height:6px; }
+.scroll-x::-webkit-scrollbar-thumb { background:var(--surface-3); border-radius:3px; }
+.scroll-x::-webkit-scrollbar-track { background:transparent; }
+.emp-row:focus-visible, .seg:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.dash-top { display:flex; gap:8px; align-items:center; margin-bottom:12px; }
+.dash-top .input { flex:1; }
+.glance { position:relative; background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; transition:border-color .14s, box-shadow .14s; box-shadow:var(--shadow); }
+.glance::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--strip,var(--border-strong)); }
+.glance:hover { border-color:var(--border-strong); }
+.glance.open { border-color:var(--accent); box-shadow:0 0 0 1px var(--accent), 0 10px 30px var(--accent-soft); }
+.glance-main { padding:14px 16px 14px 18px; cursor:pointer; }
+.glance-top { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.glance-left { display:flex; align-items:center; gap:10px; min-width:0; }
+.avatar { width:34px; height:34px; border-radius:10px; flex:0 0 auto; display:inline-flex; align-items:center; justify-content:center; font-size:13px; font-weight:800; letter-spacing:-.02em; }
+.glance-name { font-size:16px; font-weight:600; letter-spacing:-.01em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.glance-perf { font-size:14px; font-weight:700; white-space:nowrap; }
+.glance-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.gs-label { font-size:11px; color:var(--text-tertiary); font-weight:600; margin-bottom:2px; }
+.gs-val { font-size:15px; font-weight:700; letter-spacing:-.01em; }
+.glance-detail { padding:2px 16px 16px 18px; border-top:1px solid var(--border); }
+@media (prefers-reduced-motion: reduce){ * { transition:none !important; animation:none !important; } }
+
+/* 다듬기 */
+.topbar { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:6px; }
+.topbar-text { min-width:0; }
+.lang-seg { flex:0 0 auto; }
+.lang-seg .seg { padding:6px 13px; }
+.helper { font-size:12.5px; color:var(--text-tertiary); line-height:1.55; margin:2px 0 14px; }
+.helper b { color:var(--text-secondary); font-weight:600; }
+.gs-val, .glance-perf, .cmp-val, .bignum, .calc-line b, .map-row .mval, table.tbl td, .ts-val, .pval { font-variant-numeric:tabular-nums; }
+.team-summary { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:12px; }
+.team-stat { background:var(--surface-2); border:1px solid var(--border); border-radius:12px; padding:10px 12px; }
+.team-stat .ts-label { font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--text-tertiary); font-weight:600; }
+.team-stat .ts-val { font-size:17px; font-weight:700; margin-top:2px; letter-spacing:-.01em; }
+.glance-right { display:flex; align-items:center; }
+.glance-chev { color:var(--text-tertiary); font-size:13px; margin-left:9px; transition:transform .2s var(--ease); }
+.glance.open .glance-chev { transform:rotate(90deg); }
+.spark { display:flex; align-items:flex-end; gap:4px; height:30px; margin:11px 0 13px; position:relative; }
+.spark::before { content:''; position:absolute; left:0; right:0; bottom:62.5%; border-top:1px dashed var(--border-strong); opacity:.7; }
+.spark-bar { width:9px; flex:0 0 9px; border-radius:3px 3px 0 0; transform-origin:bottom; animation:growUp .5s var(--ease) both; }
+.spark-bar.latest { box-shadow:0 0 0 1px var(--bg), 0 -3px 8px -2px currentColor; }
+@keyframes growUp { from { transform:scaleY(0); } to { transform:scaleY(1); } }
+.vp { display:inline-block; padding:2px 9px; border-radius:999px; font-size:11px; font-weight:700; }
+.vp.v-pass { background:var(--success-soft); color:var(--success); }
+.vp.v-under { background:var(--warning-soft); color:var(--warning); }
+.vp.v-big { background:var(--danger-soft); color:var(--danger); }
+.vp.v-skip { background:var(--surface-3); color:var(--text-tertiary); }
+.ts-grad { background:var(--grad); -webkit-background-clip:text; background-clip:text; color:transparent; }
+.result-pill { display:inline-flex; align-items:center; padding:3px 12px; border-radius:999px; font-weight:800; font-size:18px; }
+.result-pill.pos { background:var(--success-soft); color:var(--success); }
+.result-pill.neg { background:var(--danger-soft); color:var(--danger); }
+.glance-detail { animation:expandIn .22s var(--ease); }
+@keyframes expandIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
+.std-card { cursor:pointer; position:relative; }
+.std-edit-hint { position:absolute; top:13px; right:14px; font-size:13px; color:var(--text-tertiary); opacity:0; transition:opacity .12s; }
+.std-card:hover .std-edit-hint { opacity:1; }
+.empty { text-align:center; color:var(--text-tertiary); font-size:14px; padding:26px 16px; border:1px dashed var(--border-strong); border-radius:10px; }
+
+/* 편집 모달 */
+.modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.55); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px); display:flex; align-items:center; justify-content:center; padding:16px; z-index:100; opacity:0; pointer-events:none; transition:opacity .2s; }
+.modal-overlay.open { opacity:1; pointer-events:auto; }
+.modal { background:var(--surface); border:1px solid var(--border-strong); border-radius:12px; width:100%; max-width:460px; max-height:88vh; display:flex; flex-direction:column; overflow:hidden; transform:translateY(10px) scale(.98); transition:transform .2s var(--ease); box-shadow:var(--shadow-lg); }
+.modal-overlay.open .modal { transform:none; }
+.modal-head { display:flex; align-items:center; justify-content:space-between; padding:15px 18px; border-bottom:1px solid var(--border); flex:0 0 auto; }
+.modal-head h3 { margin:0; font-size:16px; font-weight:700; color:var(--text); text-transform:none; letter-spacing:-.01em; }
+.modal-close { width:32px; height:32px; border:none; border-radius:9px; background:var(--surface-3); color:var(--text-secondary); font-size:19px; line-height:1; cursor:pointer; transition:background .12s; }
+.modal-close:hover { background:var(--border-strong); color:var(--text); }
+.modal-body { padding:14px 18px; overflow-y:auto; flex:1 1 auto; }
+.modal-foot { display:flex; gap:8px; align-items:center; padding:12px 18px; border-top:1px solid var(--border); flex:0 0 auto; }
+.field { margin-bottom:10px; }
+.field .flabel { display:block; font-size:11.5px; color:var(--text-tertiary); font-weight:600; margin-bottom:4px; }
+.form-grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.stepper-row { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:2px; }
+.step-cell .stepper { width:100%; margin-top:0; }
+.step-cell .stepper button { width:34px; height:34px; flex:0 0 auto; font-size:16px; }
+.step-cell .stepper .val { flex:1; font-size:14px; }
+.map-edit { display:grid; grid-template-columns:1fr 1fr 54px 74px 28px; gap:6px; align-items:center; margin-bottom:6px; }
+.map-edit .input { padding:6px 8px; font-size:14px; }
+.map-edit input[type=number] { -moz-appearance:textfield; }
+.map-edit input[type=number]::-webkit-outer-spin-button, .map-edit input[type=number]::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+.map-edit .map-x { width:28px; height:32px; font-size:15px; }
+.map-edit-head { display:grid; grid-template-columns:1fr 1fr 54px 74px 28px; gap:6px; margin-bottom:4px; }
+.map-edit-head span { font-size:10px; color:var(--text-tertiary); font-weight:600; }
+.mlv { color:var(--ac); font-weight:700; font-size:11px; background:var(--ac-bg); padding:1px 5px; border-radius:5px; }
+@media (max-width:480px){
+  .modal-overlay { align-items:flex-end; padding:0; }
+  .modal { max-width:none; max-height:92vh; border-radius:12px 20px 0 0; border-bottom:none; transform:translateY(100%); }
+  .modal-body { padding-bottom:20px; }
+}
+
+
+/* ============================================================
+   v23 UI 리프레시: 레이아웃 / 밀도 / 카드 계층 정리
+   ============================================================ */
+:root {
+  --bg-glow-a: transparent;
+  --bg-glow-b: transparent;
+  --surface-glass: var(--bg-c);
+  --surface-hover: var(--bg-h);
+  --surface-active: var(--bg-a);
+  --surface-panel-end: var(--bg-c);
+  --surface-card-end: var(--bg-c);
+  --detail-tint: transparent;
+  --hairline: var(--br);
+  --ring: var(--ac-bord);
+  --shadow-card: var(--e2);
+  --shadow-float: var(--e3);
+}
+html { scroll-behavior:smooth; }
+body {
+  padding: 22px 16px 64px;
+  background: var(--bg);
+}
+.container { max-width:1180px; }
+.hero-card {
+  position:relative;
+  padding:18px 18px 16px;
+  border:1px solid var(--border-strong);
+  border-radius:12px;
+  background:linear-gradient(180deg, var(--surface-glass), var(--surface));
+  box-shadow:var(--shadow-float);
+  overflow:hidden;
+}
+.hero-card::after {
+  content:'';
+  position:absolute;
+  inset:auto -10% -42px 48%;
+  height:90px;
+  background:radial-gradient(circle, var(--accent-soft), transparent 70%);
+  pointer-events:none;
+}
+.topbar { align-items:center; margin-bottom:10px; }
+.eyebrow {
+  display:inline-flex;
+  margin-bottom:6px;
+  color:var(--accent-2);
+  font-size:11px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+h1 { font-size:clamp(27px, 4vw, 42px); line-height:1.02; margin-bottom:7px; }
+.subtitle { max-width:720px; font-size:14.5px; margin-bottom:10px; }
+.demo-badge { border:1px solid var(--warning-soft); }
+.lang-seg { align-self:flex-start; position:relative; z-index:1; }
+.seg-group { box-shadow:inset 0 0 0 1px var(--hairline); }
+.seg { min-height:34px; }
+.quick-nav {
+  position:sticky;
+  top:10px;
+  z-index:20;
+  display:flex;
+  gap:7px;
+  margin:10px 0 14px;
+  padding:6px;
+  background:var(--surface-glass);
+  border:1px solid var(--border);
+  border-radius:10px;
+  backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);
+  box-shadow:var(--shadow-card);
+}
+.quick-link {
+  flex:1;
+  min-height:36px;
+  border:0;
+  border-radius:11px;
+  background:transparent;
+  color:var(--text-secondary);
+  font:700 13px/1 inherit;
+  cursor:pointer;
+  transition:background .14s var(--ease), color .14s var(--ease), transform .12s var(--ease);
+}
+.quick-link:hover { background:var(--surface-hover); color:var(--text); }
+.quick-link:active { transform:scale(.98); background:var(--surface-active); }
+.quick-link:focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+.section-panel {
+  scroll-margin-top:76px;
+  margin-top:14px;
+  padding:16px;
+  border:1px solid var(--border);
+  border-radius:12px;
+  background:linear-gradient(180deg, var(--surface-glass), var(--surface-panel-end));
+  box-shadow:var(--shadow-card);
+}
+.compact-panel { max-width:780px; }
+.section-head {
+  display:flex;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:12px;
+}
+.section-head h2 { margin:0 0 4px; }
+.section-head .muted, .section-head .helper { margin:0; max-width:760px; }
+h2 { font-size:18px; padding-left:14px; }
+h2::before { height:1em; top:.13em; }
+.std-grid { grid-template-columns:repeat(auto-fit, minmax(252px,1fr)); gap:12px; }
+.std-card {
+  min-height:188px;
+  padding:15px;
+  border-radius:10px;
+  background:linear-gradient(180deg, var(--surface), var(--surface-glass));
+  box-shadow:var(--shadow-card);
+}
+.std-card:hover { transform:translateY(-1px); box-shadow:var(--shadow-float); }
+.std-client { padding-right:34px; font-size:19px; }
+.std-pc { display:inline-flex; margin-top:5px; padding:2px 7px; border-radius:999px; background:var(--surface-2); color:var(--text-secondary); }
+.std-chips { gap:6px; }
+.chip { border:1px solid var(--hairline); background:var(--surface-2); }
+.map-list { margin-top:auto; }
+.map-row { min-height:34px; padding:8px 0; }
+.map-row .mname { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.std-add { min-height:188px; background:var(--surface-glass); box-shadow:inset 0 0 0 1px var(--hairline); }
+.staff-table { max-width:none; width:100%; border-radius:10px; }
+.staff-head, .staff-line { grid-template-columns:1.25fr 110px 150px 32px; }
+.staff-line { min-height:46px; }
+.staff-add { border-top:1px solid var(--border); }
+.team-summary { grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+.team-stat {
+  min-height:72px;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  background:linear-gradient(180deg, var(--surface-2), var(--surface));
+  border-color:var(--border-strong);
+}
+.team-stat .ts-val { font-size:clamp(18px, 2.5vw, 24px); }
+.dash-top {
+  position:sticky;
+  top:68px;
+  z-index:10;
+  padding:8px;
+  margin:0 0 12px;
+  border:1px solid var(--border);
+  border-radius:10px;
+  background:var(--surface-glass);
+  backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);
+}
+.period-seg { flex:0 0 auto; }
+.period-seg .seg { padding:7px 11px; }
+.emp-overview { display:grid; grid-template-columns:repeat(auto-fit, minmax(320px,1fr)); gap:12px; }
+.glance { border-radius:12px; background:linear-gradient(180deg, var(--surface), var(--surface-card-end)); }
+.glance:hover { transform:translateY(-1px); box-shadow:var(--shadow-float); }
+.glance-main { padding:15px 16px 15px 19px; }
+.glance-meta { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; }
+.glance-pending { opacity:.62; }
+.meta-chip {
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  padding:3px 8px;
+  border-radius:999px;
+  background:var(--surface-2);
+  border:1px solid var(--hairline);
+  color:var(--text-secondary);
+  font-size:11px;
+  font-weight:700;
+}
+.meta-chip.bad { color:var(--danger); background:var(--danger-soft); border-color:var(--danger-soft); }
+.meta-chip.warn { color:var(--warning); background:var(--warning-soft); border-color:var(--warning-soft); }
+.spark { height:34px; gap:5px; }
+.spark-bar { flex:1 1 9px; min-width:7px; max-width:16px; }
+.glance-stats { padding-top:10px; border-top:1px solid var(--hairline); }
+.gs-label { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.gs-val { font-size:16px; }
+.glance-detail { background:var(--detail-tint); }
+.calc-box { background:linear-gradient(180deg, var(--surface-2), var(--surface)); border-color:var(--border-strong); }
+.calc-line { min-height:28px; }
+.result-pill { font-size:16px; }
+.scroll-x { background:var(--surface); border-color:var(--border-strong); }
+table.tbl { font-size:12.5px; }
+table.tbl th { position:sticky; top:0; z-index:1; background:var(--surface-2); }
+table.tbl td { vertical-align:middle; }
+.input, select.input { min-height:38px; }
+.btn { min-height:38px; }
+.modal { border-radius:12px; }
+.modal-head { background:var(--surface-2); }
+.modal-body { scrollbar-width:thin; }
+@media (min-width:980px){
+  .section-panel { padding:18px; }
+  .std-grid { grid-template-columns:repeat(3, minmax(0,1fr)); }
+}
+@media (max-width:760px){
+  body { padding:12px 10px 42px; }
+  .hero-card { padding:15px; border-radius:12px; }
+  .topbar { align-items:flex-start; }
+  .lang-seg { align-self:flex-start; }
+  .quick-nav { top:6px; margin-bottom:10px; }
+  .quick-link { font-size:12px; min-height:34px; }
+  .section-panel { padding:12px; border-radius:10px; }
+  .team-summary { grid-template-columns:1fr; }
+  .dash-top { top:56px; }
+  .period-seg { width:100%; display:flex; }
+  .period-seg .seg { flex:1; }
+  .emp-overview { grid-template-columns:1fr; }
+}
+@media (max-width:480px){
+  .topbar { flex-direction:column; }
+  .lang-seg { width:100%; }
+  .lang-seg .seg { flex:1; }
+  .quick-nav { overflow-x:auto; }
+  .quick-link { flex:0 0 auto; padding:0 13px; }
+  .std-grid { grid-template-columns:1fr; }
+  .glance-stats { grid-template-columns:1fr; }
+  .dash-top .btn { width:100%; }
+}
+
+/* ===== 노션식 사이드바 셸 ===== */
+html { scroll-behavior:smooth; }
+body { padding:0; background:var(--bg); }
+.app-shell { display:flex; min-height:100vh; max-width:1240px; margin:0 auto; }
+.sidebar { position:sticky; top:0; align-self:flex-start; height:100vh; width:236px; flex:0 0 236px; display:flex; flex-direction:column; gap:16px; padding:18px 8px; border-right:1px solid var(--br); background:var(--bg-sb); }
+.sidebar .brand { padding:4px 12px 6px; }
+.sidebar .eyebrow { display:inline-flex; margin:0 0 4px; color:var(--ac); font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; }
+.sidebar .brand h1 { font-size:18px; line-height:1.15; margin:0; letter-spacing:-0.022em; color:var(--tx); }
+.sidebar .subtitle { display:none; }
+.side-nav { display:flex; flex-direction:column; gap:1px; }
+.nav-item { display:flex; align-items:center; gap:10px; width:100%; text-align:left; padding:7px 12px; margin:1px 0; border:0; border-radius:6px; background:transparent; color:var(--tx2); font:500 13px/1.4 inherit; cursor:pointer; transition:background var(--ease) .12s, color var(--ease) .12s; }
+.nav-item:hover { background:var(--bg-h); color:var(--tx); }
+.nav-item.active { background:var(--ac-bg); color:var(--ac-strong); font-weight:600; }
+.nav-item.active .nav-ico { filter:none; opacity:1; }
+.nav-ico { width:18px; text-align:center; font-size:14px; flex:0 0 auto; opacity:.85; }
+.side-foot { margin-top:auto; display:flex; flex-direction:column; gap:12px; padding:0 12px; }
+.side-foot .lang-seg { display:flex; width:100%; align-self:stretch; }
+.side-foot .lang-seg .seg { flex:1 1 0; min-width:0; text-align:center; padding:7px 0; min-height:32px; }
+.main { flex:1 1 auto; min-width:0; padding:26px 30px 64px; }
+.section-panel { display:none; margin:0; padding:0; border:0; background:none; box-shadow:none; max-width:none; scroll-margin-top:0; }
+.section-panel.active { display:block; animation:secIn .24s var(--ease); }
+@keyframes secIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+.section-head { display:block; margin-bottom:18px; }
+.section-head h2 { font-size:23px; padding-left:0; margin:0 0 5px; }
+.section-head h2::before { display:none; }
+@media (max-width:860px){
+  .app-shell { flex-direction:column; max-width:none; }
+  .sidebar { position:sticky; top:0; z-index:50; flex:none; width:auto; height:auto; flex-direction:row; align-items:center; gap:10px; padding:9px 12px; border-right:0; border-bottom:1px solid var(--border); overflow-x:auto; }
+  .sidebar .brand { display:none; }
+  .side-nav { flex-direction:row; gap:4px; flex:1 1 auto; }
+  .nav-item { white-space:nowrap; padding:8px 12px; }
+  .side-foot { margin:0; flex-direction:row; align-items:center; gap:8px; padding:0; }
+  .side-foot .demo-badge { display:none; }
+  .main { padding:18px 16px 56px; }
+}
+/* ===== 직원 상세: 월급 위기감 대시보드 ===== */
+.udash { padding-top:2px; }
+.ud-head { display:flex; gap:10px; flex-wrap:wrap; }
+.ud-h-base, .ud-h-proj { flex:1 1 160px; min-width:150px; background:var(--bg-i); border:1px solid var(--br); border-radius:10px; padding:11px 13px; }
+.ud-h-proj.neg { background:var(--re-bg); border-color:var(--re-bg); }
+.ud-h-proj.pos { background:var(--gr-bg); border-color:var(--gr-bg); }
+.ud-h-lbl { font-size:10px; text-transform:uppercase; letter-spacing:.05em; color:var(--tx3); font-weight:700; margin-bottom:5px; }
+.ud-h-base-val { font-size:18px; font-weight:700; color:var(--tx); font-variant-numeric:tabular-nums; }
+.ud-h-proj-val { font-size:21px; font-weight:800; font-variant-numeric:tabular-nums; color:var(--tx); letter-spacing:-.01em; }
+.ud-h-proj.neg .ud-h-proj-val { color:var(--re); }
+.ud-h-proj.pos .ud-h-proj-val { color:var(--gr); }
+.ud-h-arrow { font-size:13px; font-weight:700; margin-left:3px; }
+.ud-gauge { margin:15px 2px 2px; }
+.ud-gauge-track { position:relative; height:8px; background:var(--bg-a); border-radius:999px; }
+.ud-gauge-fill { position:absolute; left:0; top:0; height:100%; border-radius:999px; transition:width .5s var(--ease); }
+.ud-gauge-fill.neg { background:var(--re); } .ud-gauge-fill.pos { background:var(--gr); } .ud-gauge-fill.neu { background:var(--tx3); }
+.ud-gauge-100 { position:absolute; top:-3px; width:2px; height:14px; background:var(--tx2); border-radius:1px; }
+.ud-gauge-mark { position:absolute; top:50%; width:13px; height:13px; border-radius:50%; transform:translate(-50%,-50%); border:2px solid var(--bg-c); box-shadow:0 0 0 1px var(--br); }
+.ud-gauge-mark.neg { background:var(--re); } .ud-gauge-mark.pos { background:var(--gr); } .ud-gauge-mark.neu { background:var(--tx3); }
+.ud-gauge-scale { display:flex; font-size:9.5px; color:var(--tx3); margin-top:6px; font-weight:600; }
+.ud-msg { font-size:12.5px; font-weight:600; margin:9px 0 2px; padding:8px 11px; border-radius:8px; line-height:1.4; }
+.ud-msg.neg { background:var(--re-bg); color:var(--re); }
+.ud-msg.pos { background:var(--gr-bg); color:var(--gr); }
+.ud-msg-note { font-weight:500; opacity:.75; font-size:11px; }
+.ud-list-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--tx2); margin:14px 0 7px; }
+.ud-list { display:flex; flex-direction:column; gap:4px; }
+.ud-row { display:flex; align-items:center; gap:10px; padding:7px 11px 7px 13px; background:var(--bg-c); border:1px solid var(--br); border-radius:8px; position:relative; overflow:hidden; }
+.ud-row::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--c); }
+.ud-date { font-size:12.5px; font-weight:700; color:var(--tx); min-width:42px; flex:0 0 auto; font-variant-numeric:tabular-nums; }
+.ud-dead { color:var(--re); font-size:10px; font-weight:600; }
+.ud-perf { font-size:11px; font-weight:700; flex:0 0 auto; min-width:36px; }
+.ud-perf.pos { color:var(--gr); } .ud-perf.neg { color:var(--re); } .ud-perf.neu { color:var(--tx3); }
+.ud-calc { flex:1; min-width:0; font-size:11.5px; color:var(--tx2); font-variant-numeric:tabular-nums; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ud-delta { font-size:13px; font-weight:800; font-variant-numeric:tabular-nums; white-space:nowrap; flex:0 0 auto; }
+.ud-delta.pos { color:var(--gr); } .ud-delta.neg { color:var(--re); } .ud-delta.neu { color:var(--tx3); }
+.ud-net-row { display:flex; justify-content:space-between; align-items:center; padding:9px 13px; border-radius:10px; background:var(--ac-bg); border:1px solid var(--ac-bord); margin-bottom:8px; }
+.ud-net-row.neg { background:var(--re-bg); border-color:var(--re-bg); }
+.ud-net-row.pos { background:var(--gr-bg); border-color:var(--gr-bg); }
+.ud-net-l { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--tx2); }
+.ud-net-v { font-size:18px; font-weight:800; font-variant-numeric:tabular-nums; color:var(--tx); }
+.ud-net-row.neg .ud-net-v { color:var(--re); } .ud-net-row.pos .ud-net-v { color:var(--gr); }
+.ud-net-pct { font-size:12px; font-weight:600; opacity:.7; }
+.ud-gauge { margin:10px 2px; }
+/* ===== 기록 페이지 ===== */
+.rec-block { margin-bottom:26px; }
+.rec-h { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.rec-h h3 { margin:0; font-size:12px; color:var(--tx2); }
+.rec-cnt { color:var(--tx3); font-weight:600; }
+table.tbl.tbl-rec { table-layout:auto; min-width:max-content; font-size:13px; }
+table.tbl.tbl-rec td, table.tbl.tbl-rec th { white-space:nowrap; overflow:visible; text-overflow:clip; padding:7px 11px; }
+table.tbl.tbl-rec td.rec-staff { font-weight:600; color:var(--tx); }
+/* ===== 인센티브 배너 + 급여 버킷 ===== */
+.incentive-banner { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:15px 18px; margin-bottom:12px; border-radius:14px; background:linear-gradient(135deg, var(--gr-bg), var(--bg-c) 80%); border:1px solid var(--gr-bg); }
+.ib-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--gr); }
+.ib-val { font-size:30px; font-weight:800; color:var(--gr); letter-spacing:-.02em; font-variant-numeric:tabular-nums; line-height:1.1; margin-top:3px; }
+.ib-sub { font-size:11px; color:var(--tx3); margin-top:3px; }
+.ib-side { text-align:right; flex:0 0 auto; }
+.ib-pen-label { font-size:10px; color:var(--tx3); font-weight:600; text-transform:uppercase; letter-spacing:.04em; }
+.ib-pen { font-size:16px; font-weight:700; color:var(--re); font-variant-numeric:tabular-nums; margin-top:2px; }
+.ud-buckets { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.udb { background:var(--bg-i); border:1px solid var(--br); border-radius:10px; padding:10px 11px; }
+.udb-l { font-size:9.5px; text-transform:uppercase; letter-spacing:.03em; color:var(--tx3); font-weight:700; margin-bottom:5px; line-height:1.25; }
+.udb-v { font-size:15px; font-weight:700; color:var(--tx); font-variant-numeric:tabular-nums; }
+.udb.pos { background:var(--gr-bg); border-color:var(--gr-bg); } .udb.pos .udb-v { color:var(--gr); }
+.udb.neg { background:var(--re-bg); border-color:var(--re-bg); } .udb.neg .udb-v { color:var(--re); }
+.udb.net { background:var(--ac-bg); border-color:var(--ac-bord); }
+.udb.net.pos .udb-v { color:var(--gr); } .udb.net.neg .udb-v { color:var(--re); }
+.udb-pct { font-size:11px; font-weight:600; opacity:.7; }
+@media (max-width:560px){ .ud-buckets{ grid-template-columns:repeat(2,1fr); } .incentive-banner{ padding:13px 14px; } .ib-val{ font-size:24px; } }
+/* ===== 리더보드 ===== */
+.lb-hero { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:16px 18px; margin-bottom:14px; border-radius:14px; background:linear-gradient(135deg, var(--ac-bg), var(--bg-c) 80%); border:1px solid var(--ac-bord); }
+.lb-hero-lbl { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--ac); }
+.lb-hero-name { font-size:24px; font-weight:800; color:var(--tx); letter-spacing:-.02em; margin-top:3px; }
+.lb-hero-r { text-align:right; flex:0 0 auto; }
+.lb-hero-inc { font-size:24px; font-weight:800; color:var(--gr); font-variant-numeric:tabular-nums; line-height:1.1; }
+.lb-hero-sub { font-size:11px; color:var(--tx3); margin-top:2px; }
+.lb-head { display:grid; grid-template-columns:42px 1fr 100px 100px 100px; gap:8px; padding:0 12px 8px; font-size:10px; text-transform:uppercase; letter-spacing:.04em; color:var(--tx3); font-weight:700; border-bottom:1px solid var(--br2); }
+.lb-head .num { text-align:right; }
+.lb-list { display:flex; flex-direction:column; }
+.lb-row { display:grid; grid-template-columns:42px 1fr 100px 100px 100px; gap:8px; align-items:center; padding:11px 12px; border-bottom:1px solid var(--br); cursor:pointer; transition:background .1s; }
+.lb-row:hover { background:var(--bg-h); }
+.lb-rank { font-size:17px; font-weight:800; text-align:center; color:var(--tx2); font-variant-numeric:tabular-nums; }
+.lb-row.lb-top1 { background:linear-gradient(90deg, var(--ac-bg), transparent 65%); }
+.lb-who { display:flex; align-items:center; gap:9px; min-width:0; }
+.lb-name { font-weight:700; color:var(--tx); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lb-perf { font-size:11px; font-weight:700; flex:0 0 auto; }
+.lb-perf.pos{ color:var(--gr); } .lb-perf.neg{ color:var(--re); } .lb-perf.neu{ color:var(--tx3); }
+.lb-inc, .lb-pen, .lb-net { text-align:right; font-weight:700; font-variant-numeric:tabular-nums; font-size:13px; }
+.lb-inc { color:var(--tx3); } .lb-inc.on { color:var(--gr); }
+.lb-pen { color:var(--tx3); } .lb-pen.on { color:var(--re); }
+.lb-net { color:var(--tx); }
+.lb-row.lb-pending { cursor:default; opacity:.5; }
+.lb-row.lb-pending:hover { background:none; }
+@media (max-width:560px){
+  .lb-head, .lb-row { grid-template-columns:30px 1fr 76px 76px; }
+  .lb-head span:nth-child(5), .lb-net { display:none; }
+  .lb-hero-name, .lb-hero-inc { font-size:20px; }
+}
+.role-badge { flex:0 0 auto; font-size:10px; font-weight:700; color:var(--ac); background:var(--ac-bg); border:1px solid var(--ac-bord); padding:1px 7px; border-radius:var(--r-full); white-space:nowrap; }
+.role-badge.sm { padding:1px 5px; }
+.ud-msg.neu { background:var(--bg-h); color:var(--tx2); }
+.s-name-cell { display:flex; flex-direction:column; gap:2px; justify-content:center; min-width:0; }
+.s-name-row { display:flex; align-items:center; gap:5px; min-width:0; }
+.s-name-row .input { flex:1; min-width:0; }
+.staff-crown { flex:0 0 auto; font-size:12px; }
+.s-allow { font-size:10.5px; color:var(--ac); font-weight:600; padding-left:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.staff-leader { align-items:center; }
+/* ===== 보고 폼 ===== */
+.rep-form { background:var(--bg-c); border:1px solid var(--br); border-radius:14px; padding:14px; }
+.rep-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:9px 10px; }
+.rep-f { display:flex; flex-direction:column; gap:5px; grid-column:span 2; min-width:0; }
+.rep-f.sm { grid-column:span 1; }
+.rep-f.wide { grid-column:span 4; }
+.rep-f > span { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:var(--tx3); }
+.rep-f .input { width:100%; }
+.rep-foot { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:12px; padding-top:11px; border-top:1px solid var(--br); flex-wrap:wrap; }
+.rep-preview { font-size:13px; font-weight:600; color:var(--tx); }
+.rep-preview .pos { color:var(--gr); } .rep-preview .neg { color:var(--re); }
+.rep-submit { flex:0 0 auto; }
+.rep-recent { display:flex; flex-direction:column; gap:5px; }
+.rep-row { display:flex; align-items:center; gap:10px; padding:8px 12px; background:var(--bg-c); border:1px solid var(--br); border-radius:8px; }
+.rep-r-date { font-size:12px; font-weight:700; color:var(--tx); min-width:40px; flex:0 0 auto; font-variant-numeric:tabular-nums; }
+.rep-r-who { font-size:12.5px; font-weight:700; color:var(--ac); flex:0 0 auto; min-width:48px; }
+.rep-r-mid { flex:1; min-width:0; font-size:11.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.rep-r-exp { font-size:13px; font-weight:800; color:var(--gr); font-variant-numeric:tabular-nums; flex:0 0 auto; }
+.rep-r-del { flex:0 0 auto; width:22px; height:22px; border:none; border-radius:6px; background:var(--bg-i); color:var(--tx3); font-size:15px; cursor:pointer; line-height:1; }
+.rep-r-del:hover { background:var(--re-bg); color:var(--re); }
+/* ===== 토스트 ===== */
+.toast { position:fixed; left:50%; bottom:28px; transform:translateX(-50%) translateY(20px); background:var(--ac-strong,var(--ac)); color:#1a1305; font-weight:700; font-size:13.5px; padding:11px 20px; border-radius:var(--r-full); box-shadow:0 8px 28px rgba(0,0,0,.4); opacity:0; pointer-events:none; transition:opacity .2s, transform .2s; z-index:200; }
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+@media (max-width:620px){
+  .rep-grid { grid-template-columns:repeat(2,1fr); }
+  .rep-f, .rep-f.wide { grid-column:span 2; }
+  .rep-f.sm { grid-column:span 1; }
+}
+/* ===== 보고 종류 탭 ===== */
+.rep-tabs { display:flex; gap:6px; margin-bottom:12px; background:var(--bg-i); padding:5px; border-radius:12px; border:1px solid var(--br); }
+.rep-tab { flex:1; padding:9px 8px; border:none; background:transparent; color:var(--tx2); font-size:13px; font-weight:700; border-radius:8px; cursor:pointer; transition:all .12s; white-space:nowrap; }
+.rep-tab:hover { color:var(--tx); }
+.rep-tab.active { background:var(--ac); color:#1a1305; }
+.rep-tab-sub { font-size:10px; font-weight:600; opacity:.7; }
+.rep-hint { font-size:12px; color:var(--tx2); padding:8px 11px; border-radius:8px; background:var(--bg-i); margin-bottom:13px; border-left:3px solid var(--ac); }
+.rep-hint-checkout { border-left-color:var(--gr); }
+.rep-pv-src { font-size:11px; }
+.rep-badge { flex:0 0 auto; font-size:10px; font-weight:800; padding:2px 7px; border-radius:var(--r-full); white-space:nowrap; }
+.rb-in { background:var(--ac-bg); color:var(--ac); }
+.rb-st { background:var(--bg-i); color:var(--tx2); }
+.rb-out { background:var(--gr-bg); color:var(--gr); }
+.rep-r-snap { font-size:11.5px; font-weight:600; flex:0 0 auto; font-variant-numeric:tabular-nums; }
+/* ===== 기록 직원 카드 ===== */
+.rec-cards { display:flex; gap:8px; overflow-x:auto; padding:2px 2px 10px; margin-bottom:6px; -webkit-overflow-scrolling:touch; }
+.rec-card { flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:3px; min-width:70px; padding:9px 11px; background:var(--bg-c); border:1px solid var(--br); border-radius:11px; cursor:pointer; transition:all .12s; position:relative; }
+.rec-card:hover { border-color:var(--ac-bord); }
+.rec-card.active { border-color:var(--ac); background:var(--ac-bg); }
+.rec-card.all { justify-content:center; min-width:58px; }
+.rec-card .avatar { width:30px; height:30px; font-size:12px; }
+.rec-card-name { font-size:12px; font-weight:700; color:var(--tx); white-space:nowrap; }
+.rec-card-pct { font-size:11px; font-weight:700; font-variant-numeric:tabular-nums; }
+.rec-card-pct.pos { color:var(--gr); } .rec-card-pct.neg { color:var(--re); } .rec-card-pct.neu { color:var(--tx3); }
+.rec-card-crown { position:absolute; top:-5px; right:-3px; font-size:12px; }
+/* ===== 팀 리더보드 ===== */
+.lb-toggle { display:flex; gap:5px; background:var(--bg-i); padding:4px; border-radius:10px; margin-bottom:14px; width:max-content; }
+.lb-tg { padding:7px 18px; border:none; background:transparent; color:var(--tx2); font-size:13px; font-weight:700; border-radius:7px; cursor:pointer; }
+.lb-tg.active { background:var(--ac); color:#1a1305; }
+.tlb-vs { display:grid; grid-template-columns:1fr auto 1fr; align-items:stretch; gap:10px; }
+.tlb-vs-mid { display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:900; color:var(--tx3); letter-spacing:.05em; }
+.tlb-card { background:var(--bg-c); border:1px solid var(--br); border-radius:16px; padding:18px 16px; text-align:center; position:relative; }
+.tlb-card.win { border-color:var(--ac); background:linear-gradient(160deg,var(--ac-bg),var(--bg-c) 70%); }
+.tlb-crown { position:absolute; top:-12px; left:50%; transform:translateX(-50%); font-size:22px; }
+.tlb-label { font-size:12px; font-weight:800; text-transform:uppercase; letter-spacing:.04em; color:var(--ac); }
+.tlb-leader { font-size:13px; font-weight:700; color:var(--tx2); margin-top:2px; }
+.tlb-avg { font-size:40px; font-weight:900; letter-spacing:-.03em; margin:8px 0 2px; font-variant-numeric:tabular-nums; }
+.tlb-avg.pos { color:var(--gr); } .tlb-avg.neg { color:var(--re); } .tlb-avg.neu { color:var(--tx3); }
+.tlb-sub { font-size:11px; color:var(--tx3); margin-bottom:12px; }
+.tlb-mems { display:flex; flex-direction:column; gap:4px; border-top:1px solid var(--br); padding-top:10px; }
+.tlb-mem { display:flex; justify-content:space-between; font-size:12px; font-weight:600; color:var(--tx2); }
+.tlb-mem .pos { color:var(--gr); } .tlb-mem .neg { color:var(--re); } .tlb-mem .neu { color:var(--tx3); }
+.tlb-list { display:flex; flex-direction:column; gap:10px; }
+.tlb-row { display:flex; align-items:center; gap:14px; padding:14px 16px; background:var(--bg-c); border:1px solid var(--br); border-radius:14px; }
+.tlb-row.win { border-color:var(--ac); background:var(--ac-bg); }
+.tlb-row-rank { font-size:18px; font-weight:900; min-width:30px; text-align:center; }
+.tlb-row-main { flex:1; min-width:0; }
+.tlb-row-label { font-size:14px; font-weight:800; color:var(--tx); }
+.tlb-row-sub { font-size:11px; color:var(--tx3); margin-top:2px; }
+.tlb-row-avg { font-size:24px; font-weight:900; font-variant-numeric:tabular-nums; }
+.tlb-row-avg.pos { color:var(--gr); } .tlb-row-avg.neg { color:var(--re); } .tlb-row-avg.neu { color:var(--tx3); }
+@media (max-width:560px){ .tlb-avg { font-size:32px; } .rec-card { min-width:64px; } }
+/* ===== 보고 탭 그리드(클릭 선택) ===== */
+.rep-pickwrap { margin-bottom:6px; }
+.rep-pick-label { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--tx3); margin:10px 0 6px; }
+.rep-grid-pick { display:flex; flex-wrap:wrap; gap:6px; }
+.rep-grid-c { display:grid; grid-template-columns:repeat(auto-fill, minmax(108px, 1fr)); gap:6px; max-height:196px; overflow-y:auto; padding-right:2px; }
+.rep-grid-c .rep-pick-c { min-width:0; width:100%; }
+.rep-pick { display:flex; align-items:center; gap:7px; padding:9px 13px; background:var(--bg-i); border:1.5px solid var(--br); border-radius:10px; cursor:pointer; transition:all .12s; color:var(--tx); font-size:13px; font-weight:600; }
+.rep-pick:hover { border-color:var(--ac-bord); }
+.rep-pick.active { border-color:var(--ac); background:var(--ac-bg); color:var(--tx); box-shadow:0 0 0 1px var(--ac) inset; }
+.rep-pick .avatar { width:24px; height:24px; font-size:10px; }
+.rep-pick-c { flex-direction:column; align-items:flex-start; gap:0; min-width:82px; padding:7px 12px; }
+.rp-c-pc { font-size:9.5px; font-weight:800; color:var(--ac); letter-spacing:.03em; }
+.rp-c-name { font-size:13px; font-weight:800; color:var(--tx); }
+.rp-c-lv { font-size:10px; color:var(--tx3); }
+.rep-pick-m { font-size:12.5px; padding:8px 13px; }
+.rep-pick-test { border-style:dashed; color:var(--tx2); }
+.rep-pick-test.active { border-color:var(--ye); background:rgba(220,180,60,.12); color:var(--ye); box-shadow:none; }
+.rp-pick-empty { padding:9px 4px; font-size:12px; }
+.rp-cardinfo { display:flex; flex-wrap:wrap; gap:6px; margin:9px 0 2px; }
+.rp-chip { font-size:11.5px; font-weight:700; color:var(--tx2); background:var(--bg-c); border:1px solid var(--br); padding:3px 10px; border-radius:var(--r-full); }
+.rep-toprow { display:grid; grid-template-columns:1fr 300px; gap:14px; align-items:start; }
+.rep-top-r .combo { max-width:none; }
+.rep-top-r .rep-pick-label { margin-top:0; }
+.rep-thread-hint { font-size:11px; margin-top:5px; line-height:1.4; }
+.rep-top-l .rep-pick-label { margin-top:0; }
+@media (max-width:680px){ .rep-toprow { grid-template-columns:1fr; gap:4px; } }
+/* ===== 직원 검색 피커(combobox) ===== */
+.combo { position:relative; max-width:340px; }
+.combo-trigger { display:flex; align-items:center; gap:9px; width:100%; padding:10px 13px; background:var(--bg-i); border:1.5px solid var(--br); border-radius:11px; cursor:pointer; color:var(--tx); font-size:14px; font-weight:600; text-align:left; transition:border-color .12s; }
+.combo.open .combo-trigger, .combo-trigger:hover { border-color:var(--ac); }
+.combo-trigger .avatar { width:26px; height:26px; font-size:11px; }
+.combo-ph { color:var(--tx3); flex:1; }
+.combo-trig-nm { flex:1; font-weight:700; }
+.combo-trig-pct { font-size:12px; font-weight:800; font-variant-numeric:tabular-nums; }
+.combo-trig-pct.pos { color:var(--gr); } .combo-trig-pct.neg { color:var(--re); } .combo-trig-pct.neu { color:var(--tx3); }
+.combo-caret { color:var(--tx3); font-size:11px; flex:0 0 auto; }
+.combo-panel { position:absolute; top:calc(100% + 6px); left:0; right:0; z-index:60; background:var(--bg-c); border:1px solid var(--br2); border-radius:13px; box-shadow:0 14px 40px rgba(0,0,0,.45); padding:8px; max-height:340px; display:flex; flex-direction:column; }
+.combo-panel[hidden] { display:none; }
+.combo-search-wrap { position:relative; margin-bottom:7px; flex:0 0 auto; }
+.combo-search-ic { position:absolute; left:11px; top:50%; transform:translateY(-50%); font-size:12px; opacity:.6; pointer-events:none; }
+.combo-search { width:100%; padding:9px 12px 9px 32px; background:var(--bg-i); border:1px solid var(--br); border-radius:9px; color:var(--tx); font-size:13px; outline:none; }
+.combo-search:focus { border-color:var(--ac); }
+.combo-list { overflow-y:auto; display:flex; flex-direction:column; gap:1px; }
+.combo-group { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--ac); padding:8px 10px 4px; position:sticky; top:0; background:var(--bg-c); }
+.combo-row { display:flex; align-items:center; gap:9px; padding:8px 10px; border:none; background:transparent; border-radius:8px; cursor:pointer; color:var(--tx); font-size:13.5px; font-weight:600; text-align:left; width:100%; }
+.combo-row:hover { background:var(--bg-h); }
+.combo-row.sel { background:var(--ac-bg); }
+.combo-row .avatar { width:26px; height:26px; font-size:11px; }
+.combo-row-nm { flex:1; font-weight:700; }
+.combo-crown { font-size:11px; }
+.combo-row-pct { font-size:12px; font-weight:800; font-variant-numeric:tabular-nums; }
+.combo-row-pct.pos { color:var(--gr); } .combo-row-pct.neg { color:var(--re); } .combo-row-pct.neu { color:var(--tx3); }
+.combo-check { color:var(--ac); font-weight:900; font-size:13px; margin-left:2px; }
+.combo-empty { padding:14px; text-align:center; font-size:13px; }
+/* ===== 로그인 게이트 / 역할 ===== */
+.login-gate { position:fixed; inset:0; z-index:1000; background:radial-gradient(circle at 50% 30%, #1a1a1c 0%, var(--bg) 70%); display:flex; align-items:center; justify-content:center; padding:20px; }
+.login-gate[hidden] { display:none; }
+.login-box { width:320px; max-width:90vw; background:var(--bg-c); border:1px solid var(--br2); border-radius:20px; padding:34px 28px 28px; text-align:center; box-shadow:0 30px 80px rgba(0,0,0,.6); }
+.login-logo { font-size:12px; font-weight:800; color:var(--ac); letter-spacing:.12em; }
+.login-title { font-size:23px; font-weight:800; color:var(--tx); margin:8px 0 4px; letter-spacing:-.02em; }
+.login-sub { font-size:12.5px; color:var(--tx3); margin-bottom:22px; }
+.login-input { width:100%; padding:13px 16px; background:var(--bg-i); border:1px solid var(--br); border-radius:12px; color:var(--tx); font-size:15px; text-align:center; outline:none; box-sizing:border-box; letter-spacing:.08em; transition:border-color .15s; }
+.login-input:focus { border-color:var(--ac); box-shadow:0 0 0 3px var(--ac-bg); }
+.login-btn { width:100%; margin-top:11px; padding:13px; background:var(--ac); color:#1a1305; border:none; border-radius:12px; font-size:15px; font-weight:800; cursor:pointer; transition:filter .12s; }
+.login-btn:hover { filter:brightness(1.06); }
+.login-btn:active { transform:translateY(1px); }
+.login-err { color:var(--re); font-size:12px; margin-top:12px; min-height:15px; }
+.role-row { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
+.role-pill { font-size:10px; font-weight:800; letter-spacing:.04em; color:var(--ac); background:var(--ac-bg); border:1px solid var(--ac-bord); padding:3px 9px; border-radius:var(--r-full); }
+.role-logout { font-size:11px; font-weight:600; color:var(--tx3); background:transparent; border:none; cursor:pointer; text-decoration:underline; padding:0; }
+.role-logout:hover { color:var(--tx2); }
+body.role-player [data-sec="section-staff"] { display:none !important; }
+body.role-player #section-staff { display:none !important; }
+</style>
+</head>
+<body>
+<div class="app-shell">
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="eyebrow">Lucky7 · Buju Market</span>
+      <h1 id="app-title"></h1>
+      <p class="subtitle" id="app-subtitle"></p>
+    </div>
+    <nav class="side-nav" aria-label="sections">
+      <button class="nav-item active" data-sec="section-standards" onclick="showSection('section-standards')"><span class="nav-ico">🎯</span><span id="nav-standards"></span></button>
+      <button class="nav-item" data-sec="section-staff" onclick="showSection('section-staff')"><span class="nav-ico">💰</span><span id="nav-staff"></span></button>
+      <button class="nav-item" data-sec="section-report" onclick="showSection('section-report')"><span class="nav-ico">📝</span><span id="nav-report"></span></button>
+      <button class="nav-item" data-sec="section-dashboard" onclick="showSection('section-dashboard')"><span class="nav-ico">📈</span><span id="nav-dashboard"></span></button>
+      <button class="nav-item" data-sec="section-leaderboard" onclick="showSection('section-leaderboard')"><span class="nav-ico">🏆</span><span id="nav-leaderboard"></span></button>
+      <button class="nav-item" data-sec="section-records" onclick="showSection('section-records')"><span class="nav-ico">🗂️</span><span id="nav-records"></span></button>
+    </nav>
+    <div class="side-foot">
+      <div class="role-row"><span class="role-pill" id="role-badge">—</span><button class="role-logout" id="role-logout" onclick="logout()"></button></div>
+      <span class="demo-badge" id="app-demo"></span>
+      <div class="seg-group lang-seg" aria-label="language">
+        <button class="seg active" id="seg-ko" onclick="setLang('ko')">한국어</button>
+        <button class="seg" id="seg-en" onclick="setLang('en')">EN</button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <section class="section-panel active" id="section-standards">
+      <div class="section-head">
+        <h2 id="app-sec1"></h2>
+        <p class="muted" id="app-sec1desc"></p>
+      </div>
+      <div class="std-grid" id="standards-grid"></div>
+      <datalist id="map-ko-list"></datalist>
+      <datalist id="map-en-list"></datalist>
+    </section>
+
+    <section class="section-panel" id="section-staff">
+      <div class="section-head">
+        <h2 id="app-sec2"></h2>
+        <p class="muted" id="app-sec2desc"></p>
+      </div>
+      <div id="staff-list"></div>
+    </section>
+
+    <section class="section-panel" id="section-report">
+      <div class="section-head">
+        <h2 id="app-sec6"></h2>
+        <p class="muted" id="app-sec6desc"></p>
+      </div>
+      <div id="report"></div>
+    </section>
+
+    <section class="section-panel" id="section-dashboard">
+      <div class="section-head">
+        <h2 id="app-sec3"></h2>
+        <p class="helper" id="app-note"></p>
+      </div>
+      <div id="dashboard"></div>
+    </section>
+
+    <section class="section-panel" id="section-leaderboard">
+      <div class="section-head">
+        <h2 id="app-sec5"></h2>
+        <p class="muted" id="app-sec5desc"></p>
+      </div>
+      <div id="leaderboard"></div>
+    </section>
+
+    <section class="section-panel" id="section-records">
+      <div class="section-head">
+        <h2 id="app-sec4"></h2>
+        <p class="muted" id="app-sec4desc"></p>
+      </div>
+      <div id="records"></div>
+    </section>
+  </main>
+</div>
+
+<div id="edit-modal" class="modal-overlay" onclick="cancelEdit()"></div>
+
+<div id="toast" class="toast"></div>
+<div id="login-gate" class="login-gate">
+  <div class="login-box">
+    <div class="login-logo">🎯 LUCKY7 · BUJU</div>
+    <div class="login-title" id="login-title">성과 계산기</div>
+    <div class="login-sub" id="login-sub">비밀번호를 입력하세요</div>
+    <input id="login-pw" type="password" class="login-input" placeholder="비밀번호" oninput="var e=document.getElementById('login-err'); if(e)e.textContent='';" onkeydown="if(event.key==='Enter')doLogin()" autofocus>
+    <button class="login-btn" id="login-btn" onclick="doLogin()">들어가기</button>
+    <div id="login-err" class="login-err"></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   친구가 연결할 부분 (지금은 전부 가짜 데이터)
+   TODO(친구): 아래 4개 함수 + 직원 월급(rate)만 실제 데이터로.
+   ============================================================ */
+
+const PROTECTION_DAYS    = 3;
+const MONTH_MIN          = 70;
+const MONTH_MAX          = 200;
+const BIG_MISS_PER_HOUR  = 0.3;   // %/h 스케일(0.7~1.2)에 맞춤: 목표보다 0.3%/h 이상 미달이면 '크게 미달'
+const MAX_LEADER_INCENTIVE = 1200000;   // 팀장 최대 인센티브 (팀 평균 200%에서 도달) → 상한 +1.2jt
+const MAX_LEADER_PENALTY   = 600000;    // 팀장 최대 차감 (팀 평균 0%에서 도달) → 하한 −0.6jt
+const CURRENCY           = 'Rp ';   // 통화 (원하면 '₩', '$' 등으로 바꾸세요)
+
+let MOCK_CLIENTS = [
+  { id:'c-pc1', no:1, name:'지옥도깨비', pc:1, level:34, sword:7, armor:6, job:'기사',
+    maps:[
+      {ko:'오크 숲',           en:'Orc Forest',              level:33, target:0.80},
+      {ko:'사막/기란/글루디오', en:'Desert / Giran / Gludio', level:33, target:0.85},
+      {ko:'오크 숲',           en:'Orc Forest',              level:34, target:0.75},
+      {ko:'사막/기란/글루디오', en:'Desert / Giran / Gludio', level:34, target:0.80},
+      {ko:'오크 숲',           en:'Orc Forest',              level:35, target:0.70},
+      {ko:'용의 계곡 던전',     en:'Dragon Valley Dungeon',   level:35, target:1.20},
+    ] },
+  { id:'c-pc2', no:2, name:'킨카쿠', pc:2, level:33, sword:7, armor:6, job:'기사',
+    maps:[
+      {ko:'오크 숲',           en:'Orc Forest',              level:31, target:1.10},
+      {ko:'오크 숲',           en:'Orc Forest',              level:32, target:0.90},
+      {ko:'사막/기란/글루디오', en:'Desert / Giran / Gludio', level:32, target:1.00},
+      {ko:'오크 숲',           en:'Orc Forest',              level:33, target:0.80},
+      {ko:'개미굴',            en:'Ant Dungeon',             level:33, target:0.80},
+      {ko:'사막/기란/글루디오', en:'Desert / Giran / Gludio', level:33, target:0.85},
+    ] },
+  { id:'c-pc4', no:4, name:'일점커', pc:4, level:36, sword:9, armor:8, job:'요정',
+    maps:[
+      {ko:'축복의 땅 (ATS ZONE)', en:'Blessed Lands (ATS Zone)', level:36, target:0.70},
+    ] },
+];
+
+const MAP_PRESETS = [
+  {ko:'말하는 섬 던전',       en:'Talking Island Dungeon'},
+  {ko:'요정 숲 던전',         en:'Elven Forest Dungeon'},
+  {ko:'글루디오 던전',        en:'Gludio Dungeon'},
+  {ko:'사막 던전',           en:'Desert Dungeon'},
+  {ko:'개미굴',              en:'Ant Cave'},
+  {ko:'기란 던전',           en:'Giran Dungeon'},
+  {ko:'용의 계곡 던전',       en:'Dragon Valley Dungeon'},
+  {ko:'에바 왕국',           en:'Eva Kingdom'},
+  {ko:'오크 숲',             en:'Orc Forest'},
+  {ko:'축복의 땅 (ATS ZONE)', en:'Blessed Lands (ATS Zone)'},
+];
+
+// 직원: name(=리포트의 booster와 일치), rate(월급), protectedUntil(보호 종료일), shift(참고)
+//   leader = 소속 팀장 이름 ('' = 본인이 팀장),  allowance = 리더 수당(팀장만, 팀 성과 연동)
+// 팀: CLAWS=주간팀장, ACE=야간팀장. 성과/기록은 리포트 연동 시 채워짐 (현재 실데이터는 KAIJI만)
+let MOCK_STAFF = [
+  { id:'st-claws', name:'CLAWS', shift:'주간 10h',    rate:3000000, protectedUntil:'',           leader:'',      allowance:300000 },
+  { id:'st-ace',   name:'ACE',   shift:'야간 12h',    rate:4000000, protectedUntil:'2026-05-20', leader:'',      allowance:300000 },
+  { id:'st-sid',   name:'SID',   shift:'야간 12h',    rate:4000000, protectedUntil:'2026-05-18', leader:'ACE'   },
+  { id:'st-kaiji', name:'KAIJI', shift:'야간 12h',    rate:4000000, protectedUntil:'2026-05-15', leader:'ACE'   },
+  { id:'st-prod',  name:'PROD',  shift:'주간 12h',    rate:3500000, protectedUntil:'2026-05-26', leader:'CLAWS' },
+  { id:'st-jeff',  name:'JEFF',  shift:'주간 12h',    rate:3500000, protectedUntil:'2026-06-08', leader:'CLAWS' },
+  { id:'st-bruce', name:'BRUCE', shift:'주간 12h',    rate:3500000, protectedUntil:'2026-06-08', leader:'CLAWS' },
+  { id:'st-vici',  name:'VICI',  shift:'야간 12h',    rate:4000000, protectedUntil:'2026-06-08', leader:'ACE'   },
+  { id:'st-el',    name:'EL',    shift:'8h Shift 3',  rate:3000000, protectedUntil:'2026-06-11', leader:'ACE'   },
+  { id:'st-ron',   name:'RON',   shift:'8h Shift 1',  rate:2500000, protectedUntil:'2026-06-12', leader:'CLAWS' },
+  { id:'st-sil',   name:'SIL',   shift:'8h Shift 3',  rate:3000000, protectedUntil:'2026-06-15', leader:'ACE'   },
+];
+
+// 기록은 '보고' 탭(또는 친구 Supabase 연동)으로 채워집니다. 초기 상태는 비어 있음 — 전원 '기록 대기'.
+let MOCK_REPORTS = [];
+MOCK_REPORTS.forEach((r,i)=>{ if(!r.id) r.id='seed-'+i; });
+
+async function loadClients() {
+  // TODO(친구): return (await supabase.from('clients').select('*')).data;
+  return JSON.parse(JSON.stringify(MOCK_CLIENTS));
+}
+async function saveClient(c) {
+  // TODO(친구): supabase.from('clients').upsert(c)
+  const i = MOCK_CLIENTS.findIndex(x => x.id === c.id);
+  if (i >= 0) MOCK_CLIENTS[i] = c; else MOCK_CLIENTS.push(c);
+}
+async function removeClient(id) {
+  // TODO(친구): supabase.from('clients').delete().eq('id', id)
+  MOCK_CLIENTS = MOCK_CLIENTS.filter(x => x.id !== id);
+}
+async function loadReports() {
+  // TODO(친구): return (await supabase.from('reports').select('*')).data;
+  return MOCK_REPORTS.slice();
+}
+async function saveReport(r) {
+  // TODO(친구): await supabase.from('reports').insert(r)  (필드: booster,client,pc,date,map,start,end,lv_after→lvAfter,exp_before→expBefore,exp_after→expAfter,dead,potion)
+  MOCK_REPORTS.push(r);
+}
+async function removeReport(id) {
+  // TODO(친구): await supabase.from('reports').delete().eq('id', id)
+  MOCK_REPORTS = MOCK_REPORTS.filter(x => x.id !== id);
+}
+async function loadStaff() {
+  // TODO(친구): return (await supabase.from('staff').select('*')).data;
+  return JSON.parse(JSON.stringify(MOCK_STAFF));
+}
+async function saveStaff(s) {
+  // TODO(친구): supabase.from('staff').upsert(s)
+  const i = MOCK_STAFF.findIndex(x => x.id === s.id);
+  if (i >= 0) MOCK_STAFF[i] = s; else MOCK_STAFF.push(s);
+}
+async function removeStaff(id) {
+  // TODO(친구): supabase.from('staff').delete().eq('id', id)
+  MOCK_STAFF = MOCK_STAFF.filter(x => x.id !== id);
+}
+
+/* ============================================================
+   번역
+   ============================================================ */
+let lang='ko';
+const T={
+  title:{ko:'성과 계산기',en:'Performance Calculator'},
+  subtitle:{ko:'리더가 기준을 정하면 → 직원 리포트를 일·주·월 단위로 자동 채점하고 월급을 계산합니다.',en:'Set the standards — staff reports are auto-scored and turned into pay by hour, day, and month.'},
+  demo:{ko:'실사용 준비 — 실제 스탠다드 + KAIJI 실제 기록만. 리포트 연동 시 자동 채워짐',en:'Test data — real staff & salaries (June sample performance). Switches to live once Supabase is connected'},
+  sec1:{ko:'1. 기준 (스탠다드)',en:'1. Standards'},
+  sec1desc:{ko:'클라이언트(PC)별로 레벨·사냥터에 따른 시간당 목표(%/h)를 넣어둡니다. 채점은 세션의 레벨+사냥터를 이 표와 매칭합니다.',en:'Each client card holds 3–4 maps with their targets. Maps store both Korean and English names.'},
+  sec2:{ko:'2. 직원 급여',en:'2. Staff Pay'},
+  sec2desc:{ko:'직원별 월급과 보호 종료일을 정합니다. 성과에 따라 월 70~200%로 자동 조정됩니다.',en:'Set each staff member’s monthly salary and protection-end date. It’s auto-adjusted to 70–200% by performance.'},
+  sec3:{ko:'3. 직원 성과 & 급여',en:'3. Staff Performance & Pay'},
+  sec4:{ko:'4. 기록 & 통계',en:'4. Records & Stats'},
+  sec4desc:{ko:'전 직원의 일별·세션별 기록을 넉넉하게 모아봅니다. 매일 누적되는 통계를 여기서 확인하세요.',en:'All staff daily and session logs in one roomy place. Track the running daily stats here.'},
+  staffName:{ko:'직원 이름 (리포트와 동일)',en:'Staff name (matches reports)'},
+  thName:{ko:'이름',en:'Name'},
+  rateLabel:{ko:'월급',en:'Monthly'},
+  startLabel:{ko:'보호 종료일',en:'Protected until'},
+  addStaff:{ko:'+ 직원 추가',en:'+ Add staff'},
+  delStaffConfirm:{ko:'이 직원을 삭제할까요?',en:'Delete this staff?'},
+  note:{ko:'<b>급여 = 월급(기본급) × 성과%</b> · 월말엔 70~200%로 조정. 직원을 누르면 계산 과정이 보입니다.',
+        en:'<b>Pay = monthly salary (base) × performance%</b> · clamped to 70–200% monthly. Tap a staff member for the breakdown.'},
+  edit:{ko:'수정',en:'Edit'},
+  noName:{ko:'(이름 없음)',en:'(no name)'},
+  noMaps:{ko:'맵이 없습니다. 수정에서 추가하세요.',en:'No maps yet. Add one in edit.'},
+  addClient:{ko:'+ 클라이언트 추가',en:'+ Add client'},
+  clientName:{ko:'클라이언트 이름',en:'Client name'},
+  editClientTitle:{ko:'클라이언트 수정',en:'Edit client'},
+  addClientTitle:{ko:'클라이언트 추가',en:'Add client'},
+  clientNoLabel:{ko:'번호 (클라 No.)',en:'No. (client)'},
+  phNo:{ko:'예: 1',en:'e.g. 1'},
+  pcNum:{ko:'PC 번호',en:'PC number'},
+  job:{ko:'직업',en:'Job'},
+  level:{ko:'레벨',en:'Level'},
+  weapon:{ko:'검 (무기)',en:'Weapon'},
+  armor:{ko:'방 (방어구)',en:'Armor'},
+  wpnShort:{ko:'검',en:'Wpn'},
+  armShort:{ko:'방',en:'Arm'},
+  perMapTarget:{ko:'맵별 시간당 목표 (한/영 이름 + %)',en:'Per-map hourly target (KO/EN name + %)'},
+  addMap:{ko:'+ 맵 추가',en:'+ Add map'},
+  save:{ko:'저장',en:'Save'},
+  cancel:{ko:'취소',en:'Cancel'},
+  delClient:{ko:'클라이언트 삭제',en:'Delete client'},
+  phClient:{ko:'예: 마석도',en:'e.g. Masokdo'},
+  phPc:{ko:'예: 2',en:'e.g. 2'},
+  phKo:{ko:'한국어 맵 이름',en:'Korean map name'},
+  phEn:{ko:'English map name',en:'English map name'},
+  phTarget:{ko:'목표 %/h',en:'Target %/h'},
+  searchStaff:{ko:'직원 이름 검색…',en:'Search staff…'},
+  noResults:{ko:'검색 결과 없음',en:'No results'},
+  noReports:{ko:'아직 리포트가 없어요. 직원이 리포트를 올리면 여기에 성과·급여가 표시됩니다.',en:'No reports yet. Once staff submit reports, performance and pay show up here.'},
+  navStandards:{ko:'기준',en:'Standards'}, navStaff:{ko:'직원 급여',en:'Staff Pay'}, navDashboard:{ko:'성과 대시보드',en:'Dashboard'}, navRecords:{ko:'기록',en:'Records'}, navLeaderboard:{ko:'리더보드',en:'Leaderboard'},
+  navReport:{ko:'보고',en:'Report'},
+  sec6:{ko:'📝 시프트 보고',en:'📝 Shift Report'},
+  sec6desc:{ko:'한 타임 끝나고 결과를 입력하면 대시보드·기록·리더보드에 바로 반영돼요.',en:'Log a finished shift — it updates the dashboard, records, and leaderboard instantly.'},
+  rpBooster:{ko:'직원',en:'Booster'}, rpClient:{ko:'클라이언트 (PC)',en:'Client (PC)'}, rpMap:{ko:'사냥터',en:'Map'},
+  rpDate:{ko:'날짜',en:'Date'}, rpStart:{ko:'시작',en:'Start'}, rpEnd:{ko:'종료',en:'End'},
+  rpLevel:{ko:'레벨',en:'Level'}, rpGained:{ko:'획득 EXP %',en:'EXP gained %'}, rpDead:{ko:'죽음',en:'Deaths'}, rpPotion:{ko:'물약',en:'Potions'}, rpNote:{ko:'메모',en:'Note'},
+  rpSubmit:{ko:'보고 제출',en:'Submit report'}, rpPreview:{ko:'예상 성과',en:'Est. performance'},
+  rpRecent:{ko:'최근 보고',en:'Recent reports'}, rpNone:{ko:'아직 보고가 없어요.',en:'No reports yet.'},
+  rpPick:{ko:'선택',en:'Select'}, rpHours:{ko:'시간',en:'hrs'},
+  rpToastOk:{ko:'보고 저장됨 ✓',en:'Report saved ✓'}, rpNeed:{ko:'직원·클라이언트·획득 EXP를 입력해주세요.',en:'Fill booster, client and EXP gained.'},
+  rpDelOk:{ko:'보고 삭제됨',en:'Report deleted'},
+  rtCheckin:{ko:'체크인',en:'Check-in'}, rtStatus:{ko:'현황 리포트',en:'Status'}, rtCheckout:{ko:'체크아웃',en:'Check-out'},
+  rtStatusSub:{ko:'1시간',en:'hourly'},
+  rpStartTime:{ko:'시작 시각',en:'Start'}, rpEndTime:{ko:'종료 시각',en:'End'}, rpTime:{ko:'시각',en:'Time'},
+  rpStartLv:{ko:'시작 레벨',en:'Start level'}, rpStartExp:{ko:'시작 EXP %',en:'Start EXP %'},
+  rpCurLv:{ko:'현재 레벨',en:'Current level'}, rpCurExp:{ko:'현재 EXP %',en:'Current EXP %'},
+  rpEndLv:{ko:'종료 레벨',en:'End level'}, rpEndExp:{ko:'종료 EXP %',en:'End EXP %'},
+  rpDeadTot:{ko:'총 죽음',en:'Total deaths'}, rpPotionTot:{ko:'총 물약',en:'Total potions'},
+  rpDoCheckin:{ko:'체크인',en:'Check in'}, rpDoStatus:{ko:'현황 보고',en:'Report status'}, rpDoCheckout:{ko:'체크아웃 · 정산',en:'Check out · settle'},
+  rpCheckinOk:{ko:'체크인 완료 ✓',en:'Checked in ✓'}, rpStatusOk:{ko:'현황 보고됨 ✓',en:'Status reported ✓'}, rpCheckoutOk:{ko:'체크아웃 — 정산 반영 ✓',en:'Checked out — settled ✓'},
+  rpHintCheckin:{ko:'시프트 시작 상태를 기록합니다. (급여 정산엔 미반영)',en:'Records shift start. (not counted for pay)'},
+  rpHintStatus:{ko:'중간 현황 스냅샷. (급여 정산엔 미반영)',en:'Mid-shift snapshot. (not counted for pay)'},
+  rpHintCheckout:{ko:'시프트를 마감하고 급여에 반영합니다.',en:'Closes the shift and counts for pay.'},
+  rpFromCheckin:{ko:'체크인 기준',en:'from check-in'}, rpNoCheckin:{ko:'체크인 없음 — 종료값만으로 정산',en:'no check-in — settle from end only'},
+  rpNeedCheckout:{ko:'직원·클라이언트·종료 EXP를 입력해주세요.',en:'Fill booster, client and end EXP.'},
+  recAll:{ko:'전체',en:'All'},
+  loginTitle:{ko:'성과 계산기',en:'Performance Calc'}, loginSub:{ko:'비밀번호를 입력하세요',en:'Enter your password'}, loginPw:{ko:'비밀번호',en:'Password'}, loginGo:{ko:'들어가기',en:'Enter'}, loginErr:{ko:'비밀번호가 올바르지 않아요.',en:'Wrong password.'}, logout:{ko:'로그아웃',en:'Log out'},
+  rpPickClientFirst:{ko:'클라이언트를 먼저 선택',en:'Pick a client first'},
+  rpDetails:{ko:'세부 입력',en:'Details'}, rpAdena:{ko:'아데나',en:'Adena'}, rpDrop:{ko:'드롭',en:'Drop'}, rpRedPotion:{ko:'빨간 물약',en:'Red potion'},
+  eqSword:{ko:'검',en:'Sword'}, eqArmor:{ko:'방',en:'Armor'},
+  rpSearch:{ko:'이름 검색…',en:'Search name…'}, rpPickStaff:{ko:'직원 선택',en:'Select booster'}, rpNoMatch:{ko:'일치하는 직원 없음',en:'No match'},
+  rpThread:{ko:'Discord 스레드',en:'Discord thread'},
+  mapTest:{ko:'기타·테스트 (정산 제외)',en:'Other·Test (excluded)'},
+  mapTestNote:{ko:'정산·통계에서 제외되는 실험용 보고예요.',en:'Excluded from settlement & stats (test only).'},
+  rpThreadHint:{ko:'스레드 우클릭 → 링크 복사 (직원별 1회만, 비워둬도 됨)',en:'Right-click thread → Copy Link (once per booster, optional)'},
+  lbIndiv:{ko:'개인',en:'Individual'}, lbTeam:{ko:'팀',en:'Team'},
+  teamDay:{ko:'주간팀',en:'Day Team'}, teamNight:{ko:'야간팀',en:'Night Team'},
+  tlbWin:{ko:'선두',en:'Leading'}, tlbAvg:{ko:'팀 평균',en:'Team avg'}, tlbPool:{ko:'팀 인센티브',en:'Team incentive'},
+  sec5:{ko:'5. 리더보드',en:'5. Leaderboard'},
+  sec5desc:{ko:'인센티브를 가장 많이 받은 순. 누가 얼마 벌고 누가 얼마 깎였는지 한눈에 — 개인 경쟁용.',en:'Ranked by incentive earned. See who earned and who got docked — head-to-head.'},
+  lbRank:{ko:'순위',en:'Rank'}, lbIncentive:{ko:'인센티브',en:'Incentive'}, lbPenalty:{ko:'차감',en:'Deduction'}, lbNet:{ko:'실수령',en:'Take-home'}, lbPerf:{ko:'성과',en:'Perf'},
+  lbTop:{ko:'이번 달 1위',en:'This month #1'}, lbPending:{ko:'기록 대기',en:'Pending'}, lbPool:{ko:'인센티브 풀',en:'Incentive pool'},
+  sessions:{ko:'세션',en:'Sessions'}, badDays:{ko:'미달일',en:'Under days'}, deaths:{ko:'죽음',en:'Deaths'}, sortHint:{ko:'낮은 성과 우선 정렬',en:'Lowest performance first'},
+  pending:{ko:'기록 없음',en:'No records yet'},
+  roleLeader:{ko:'팀장',en:'Leader'},
+  ldAllowance:{ko:'리더 수당',en:'Leader allowance'},
+  ldTeamAvg:{ko:'팀 평균 성과',en:'Team avg'},
+  ldTeam:{ko:'팀',en:'Team'},
+  ldBasis:{ko:'팀 성과로 수당이 정산됩니다 (미달 시 차감 · 초과 시 추가)',en:'Allowance settled by team performance (docked if below, extra if above)'},
+  ldNoTeam:{ko:'팀 기록 대기 — 수당 100% 지급',en:'Team pending — allowance paid 100%'},
+  ldMembers:{ko:'팀원',en:'Members'},
+  tCount:{ko:'직원',en:'Staff'}, tAvg:{ko:'평균 성과',en:'Avg perf'}, tPayroll:{ko:'기본급 합계',en:'Total base'},
+  ibTitle:{ko:'이번 주 모인 인센티브',en:'Incentive earned this week'},
+  ibPayout:{ko:'주 1회 지급',en:'paid weekly'},
+  ibPenalty:{ko:'월말 차감 예정',en:'month-end deduction'},
+  gBase:{ko:'기본급 (월)',en:'Base (mo)'}, gIncentive:{ko:'인센티브',en:'Incentive'}, gPenalty:{ko:'차감',en:'Deduction'},
+  uBaseFixed:{ko:'기본급 (월·고정)',en:'Base (monthly, fixed)'},
+  uIncentive:{ko:'모인 인센티브 (주 지급)',en:'Incentive earned (paid weekly)'},
+  uPenalty:{ko:'월말 차감 (미달)',en:'Month-end deduction'},
+  uNet:{ko:'예상 실수령 (월)',en:'Projected take-home (mo)'},
+  uIncentiveDay:{ko:'인센티브',en:'Incentive'}, uPenaltyDay:{ko:'차감',en:'Deduction'},
+  excludedFull:{ko:'집계 제외',en:'Excluded'},
+  protectedNoStd:{ko:'보호중 / 기준없음',en:'Protected / no standard'},
+  monthNote:{ko:'월 한도 적용 →',en:'After month clamp →'},
+  monthRange:{ko:'(70~200% 안)',en:'(within 70–200%)'},
+  daily:{ko:'일급별',en:'Daily'},
+  hourly:{ko:'세션별',en:'By session'},
+  hDate:{ko:'날짜',en:'Date'}, hHours:{ko:'시간',en:'Hrs'}, hActualH:{ko:'실제/h',en:'Actual/h'}, hTargetH:{ko:'기준/h',en:'Target/h'},
+  hDiff:{ko:'차이',en:'Diff'}, hDayPct:{ko:'성과%',en:'Perf%'}, hDayPay:{ko:'일급',en:'Day pay'}, hResult:{ko:'판정',en:'Result'},
+  hClient:{ko:'클라',en:'Client'}, hPc:{ko:'PC',en:'PC'}, hLv:{ko:'LV',en:'LV'}, hMap:{ko:'사냥터',en:'Map'},
+  hActualExp:{ko:'실제 EXP',en:'Actual EXP'}, hTarget:{ko:'기준',en:'Target'},
+  vPass:{ko:'통과',en:'Pass'}, vUnder:{ko:'미달',en:'Under'}, vBig:{ko:'크게 미달',en:'Way under'}, vNoStd:{ko:'기준없음',en:'No std'}, vProtected:{ko:'보호',en:'Protected'},
+  death:{ko:'죽음',en:'D'},
+  protectedTag:{ko:'(보호)',en:'(prot.)'},
+  confirmDelClient:{ko:'이 클라이언트를 삭제할까요?',en:'Delete this client?'},
+  alertName:{ko:'클라이언트 이름을 입력하세요',en:'Enter a client name'},
+  payHr:{ko:'월급',en:'Monthly'}, payWeek:{ko:'주급',en:'Week pay'}, payMonth:{ko:'월급',en:'Month pay'},
+  pDay:{ko:'일',en:'Day'}, pWeek:{ko:'주',en:'Week'}, pMonth:{ko:'월',en:'Month'},
+  exportAll:{ko:'전체 CSV',en:'All CSV'}, exportOne:{ko:'이 직원 CSV',en:'CSV'},
+  calcHow:{ko:'이렇게 계산됐어요',en:'How this was calculated'},
+  cTarget:{ko:'목표 EXP',en:'Target EXP'}, cActual:{ko:'실제 EXP',en:'Actual EXP'},
+  cAchieve:{ko:'달성률 (실제 ÷ 목표)',en:'Achieved (actual ÷ target)'},
+  cBase:{ko:'기본급 (월급 기준)',en:'Base (from monthly)'},
+  cResult:{ko:'실제 지급',en:'Actual pay'},
+  cOver:{ko:'기준보다 잘해서 더 받음',en:'Above target — paid more'},
+  cUnder:{ko:'기준에 못 미쳐 덜 받음',en:'Below target — paid less'},
+  cProtectedPay:{ko:'보호기간 — 기본급 100% 지급',en:'Protection period — paid 100% of base'},
+  cNoStd:{ko:'기준이 없어 채점 불가 — 기본급 지급',en:'No standard — paid base'},
+  uMonthly:{ko:'내 월급 (기본 100%)',en:'My monthly (base 100%)'},
+  uProjected:{ko:'이번 달 예상 실지급',en:'Projected pay this month'},
+  uDownMsg:{ko:'기준 미달이라 월급이 깎이는 중',en:'Below target — salary being docked'},
+  uUpMsg:{ko:'기준 초과로 월급을 더 받는 중',en:'Above target — earning extra'},
+  uDayList:{ko:'하루하루 내 월급',en:'Day-by-day pay'},
+  uBase:{ko:'기본',en:'Base'}, uActual:{ko:'실제',en:'Actual'}, uPerf:{ko:'성과',en:'Perf'},
+  uProtectedDay:{ko:'보호기간 · 100% 지급',en:'Protected · paid 100%'},
+  uNoStdDay:{ko:'기준 없음 · 100% 지급',en:'No standard · paid 100%'},
+  uClampNote:{ko:'월말 70~200% 한도 적용 기준',en:'after 70–200% monthly clamp'},
+  recStaff:{ko:'직원',en:'Staff'}, recBase:{ko:'기본급',en:'Base'},
+  recDaily:{ko:'일별 기록',en:'Daily log'}, recSessions:{ko:'세션 기록',en:'Session log'},
+};
+function t(k){ return (T[k]&&T[k][lang])!=null ? T[k][lang] : k; }
+
+const JOB_T={ '기사':{ko:'기사',en:'Knight'},'궁수':{ko:'궁수',en:'Archer'},'법사':{ko:'법사',en:'Magician'} };
+function jobName(j){ return (JOB_T[j]&&JOB_T[j][lang])||j; }
+function mapName(m){ if(!m) return ''; return lang==='ko' ? (m.ko||m.en) : (m.en||m.ko); }
+function money(n){ return CURRENCY + Math.round(Number(n)||0).toLocaleString('id-ID'); }
+function hashHue(s){ let h=0; for(const ch of String(s||'?')) h=(h*31+ch.charCodeAt(0))%360; return h; }
+function avatarHtml(name){ const h=hashHue(name); const init=esc(String(name||'?').replace(/[^A-Za-z0-9가-힣]/g,'').slice(0,2).toUpperCase()||'?');
+  return `<span class="avatar" style="background:hsl(${h} 55% 24%); color:hsl(${h} 85% 78%); box-shadow:inset 0 0 0 1px hsl(${h} 60% 50% / .45);">${init}</span>`; }
+function targetColor(v){ const t=Math.max(0,Math.min(1,(Number(v)-0.6)/0.8)); return `hsl(${Math.round(145-145*t)} 68% 62%)`; }
+
+/* ============================================================
+   계산 로직
+   ============================================================ */
+function toMin(hhmm){ const [h,m]=String(hhmm).split(':').map(Number); return h*60+(m||0); }
+function sessionHours(r){ let m=toMin(r.end)-toMin(r.start); if(m<=0)m+=1440; return m/60; }
+function gainedPct(r){ return (r.lvAfter-r.lvBefore)*100 + (r.expAfter-r.expBefore); }
+function isProtectedDate(startStr,dateStr){
+  if(!startStr) return false;
+  const diff=Math.floor((new Date(dateStr+'T00:00:00')-new Date(startStr+'T00:00:00'))/864e5);
+  return diff>=0 && diff<PROTECTION_DAYS;
+}
+function isProtectedUntil(untilStr,dateStr){
+  if(!untilStr) return false;
+  return dateStr <= untilStr;          // 보호 종료일(포함) 이하면 보호중
+}
+function staffByName(staff,name){ return staff.find(s=>s.name===name)||null; }
+function zoneKey(s){ s=(s||'').toLowerCase();
+  if(s.includes('orc')) return 'orc';
+  if(s.includes('ant')) return 'ant';
+  if(s.includes('dragon')) return 'dragon';
+  if(s.includes('blessed')||s.includes('ats')) return 'ats';
+  if(s.includes('gludio')||s.includes('giran')||s.includes('desert')||s.includes('dessert')) return 'dgg';
+  return s;
+}
+function findMap(clients,r){
+  const c=clients.find(x=>x.name===r.client) || clients.find(x=>String(x.pc)===String(r.pc));
+  if(!c||!c.maps) return null;
+  const z=zoneKey(r.map); const lv=Number(r.lvAfter!=null?r.lvAfter:r.lv);
+  const cand=c.maps.filter(m=>zoneKey(m.en||m.ko)===z);
+  if(!cand.length) return null;
+  // 레벨 정보가 있는 맵은 정확히 일치할 때만, 레벨 없는 맵은 와일드카드
+  return cand.find(m=>m.level==null||m.level===''||Number(m.level)===lv) || null;
+}
+function verdict(d){ if(d>=0) return {key:'vPass',cls:'v-pass'}; if(d>-BIG_MISS_PER_HOUR) return {key:'vUnder',cls:'v-under'}; return {key:'vBig',cls:'v-big'}; }
+const f2=n=>n.toFixed(2);
+const sgn=n=>(n>=0?'+':'')+n.toFixed(2);
+
+function compute(clients, reports, staff){
+  const byBooster={};
+  // 정산은 체크아웃(또는 태그 없는 시프트 합계)만 집계. 체크인/현황은 기록·모니터링용.
+  reports.filter(r=>!r.tag || r.tag==='checkout').forEach(r=>(byBooster[r.booster]=byBooster[r.booster]||[]).push(r));
+
+  const results = Object.keys(byBooster).map(booster=>{
+    const sm=staffByName(staff,booster); const rate=sm?(Number(sm.rate)||0):0; const protectedUntil=sm?sm.protectedUntil:null;
+    const sessions=byBooster[booster].slice().sort((a,b)=>(a.date+a.tag).localeCompare(b.date+b.tag));
+
+    const sessionRows=sessions.map(r=>{
+      const mo=findMap(clients,r); const target=mo?Number(mo.target):null; const h=sessionHours(r);
+      const cl=clients.find(x=>x.name===r.client); const clientNo=cl?cl.no:'';
+      const actualPerH=gainedPct(r)/h; const diff=target==null?null:actualPerH-target;
+      return { date:r.date, tag:r.tag, client:r.client, clientNo, pc:r.pc, lv:r.lvAfter, mapObj:mo, rawMap:r.map, hours:h, dead:r.dead||0,
+        actualPerH, target, diff, protected:isProtectedUntil(protectedUntil,r.date),
+        verdict: target==null?{key:'vNoStd',cls:'v-skip'}:verdict(diff) };
+    });
+
+    const byDate={};
+    sessions.forEach(r=>(byDate[r.date]=byDate[r.date]||[]).push(r));
+    let weekGain=0, weekQuota=0, anyCounted=false, totalHours=0;
+    const dayRows=Object.keys(byDate).sort().map(date=>{
+      const rs=byDate[date]; let gain=0,quota=0,hours=0,dead=0,hasStd=true;
+      rs.forEach(r=>{ const mo=findMap(clients,r); const h=sessionHours(r);
+        gain+=gainedPct(r); hours+=h; dead+=r.dead||0; if(mo)quota+=Number(mo.target)*h; else hasStd=false; });
+      const prot=isProtectedUntil(protectedUntil,date); const counted=!prot&&hasStd&&quota>0;
+      const actualPerH=hours?gain/hours:0; const targetPerH=hours?quota/hours:0;
+      const diff=hasStd?actualPerH-targetPerH:null; const dayPct=quota>0?gain/quota*100:null;
+      const payPct = counted ? dayPct : 100;          // 보호/기준없음 = 기본급(100%)
+      totalHours+=hours;
+      if(counted){ weekGain+=gain; weekQuota+=quota; anyCounted=true; }
+      return { date, hours, dead, gain, quota, actualPerH, targetPerH, diff, dayPct, payPct, basePay:0, actualPay:0, protected:prot, noStd:!hasStd, counted,
+        verdict:!hasStd?{key:'vNoStd',cls:'v-skip'}:prot?{key:'vProtected',cls:'v-skip'}:verdict(diff) };
+    });
+
+    // rate = 월 기본급(고정). 근무시간 비율로 일별 배분.
+    //  · 스탠다드 초과분 = 인센티브(매일 정산 → 주 지급)
+    //  · 스탠다드 미달분 = 차감(월말 1회)
+    const monthBase = rate;
+    let weekActualPay=0, weekBasePay=0, incentiveTotal=0, penaltyTotal=0;
+    dayRows.forEach(d=>{
+      d.basePay = totalHours>0 ? monthBase*(d.hours/totalHours) : 0;
+      const ratio = d.payPct/100;                 // 보호/기준없음 = 1.0 (가감 없음)
+      d.incentive = d.counted ? d.basePay*Math.max(0, ratio-1) : 0;
+      d.penalty   = d.counted ? d.basePay*Math.max(0, 1-ratio) : 0;
+      d.actualPay = d.basePay + d.incentive - d.penalty;
+      weekBasePay += d.basePay; weekActualPay += d.actualPay;
+      incentiveTotal += d.incentive; penaltyTotal += d.penalty;
+    });
+
+    const weekPct=(anyCounted&&weekQuota>0)?weekGain/weekQuota*100:null;
+    // 월 = 데모에선 이번 주 데이터와 동일. 실제로는 한 달치 합산. 70~200% 클램프 적용.
+    const monthBasePay=weekBasePay, monthRaw=weekActualPay;
+    const monthClampedPay=Math.min(monthBasePay*MONTH_MAX/100, Math.max(monthBasePay*MONTH_MIN/100, monthRaw));
+    const monthClampedPct=monthBasePay>0?Math.min(MONTH_MAX,Math.max(MONTH_MIN, monthRaw/monthBasePay*100)):null;
+    const latestDay=dayRows.length?dayRows[dayRows.length-1]:null;
+
+    return { booster, baseRate:rate, sessionRows, dayRows, weekPct, weekGain, weekQuota,
+      weekActualPay, weekBasePay, monthClampedPay, monthBasePay, monthClampedPct, latestDay,
+      incentiveTotal, penaltyTotal };
+  });
+
+  // 리포트가 아직 없는 일반 직원 = 기록 대기 / 팀장은 별도(아래) 처리
+  const leaders=[];
+  staff.forEach(s=>{
+    if(byBooster[s.name]) return;                 // 본인이 사냥 리포트가 있으면 일반 처리됨
+    if(Number(s.allowance)>0){ leaders.push(s); return; }
+    results.push({ booster:s.name, baseRate:Number(s.rate)||0, sessionRows:[], dayRows:[],
+      weekPct:null, weekGain:0, weekQuota:0, weekActualPay:0, weekBasePay:0,
+      monthClampedPay:0, monthBasePay:0, monthClampedPct:null, latestDay:null,
+      incentiveTotal:0, penaltyTotal:0, noData:true });
+  });
+
+  // 팀장: 팀원 평균 성과로 정산. 기본급+수당(300K)은 고정 기준.
+  //  · 팀 미달 → 수당 차감 (최대 −수당, 0까지)
+  //  · 팀 초과 → 인센티브 (최대 MAX_LEADER_INCENTIVE = 1.2jt, 팀 200%에서 최대)
+  leaders.forEach(s=>{
+    const team = staff.filter(x=>x.leader===s.name);
+    const perfs = results.filter(p=>team.some(m=>m.name===p.booster) && p.weekPct!=null).map(p=>p.weekPct);
+    const teamAvg = perfs.length ? perfs.reduce((a,b)=>a+b,0)/perfs.length : null;
+    const allowance = Number(s.allowance)||0;
+    let inc=0, pen=0;
+    if(teamAvg!=null){
+      if(teamAvg>=100) inc = MAX_LEADER_INCENTIVE * Math.min(1, (teamAvg-100)/100);
+      else             pen = MAX_LEADER_PENALTY   * Math.min(1, (100-teamAvg)/100);
+    }
+    const base = Number(s.rate)||0;
+    const monthBasePay = base + allowance;        // 기본급 + 수당(100% 기준)
+    const net = base + allowance + inc - pen;
+    results.push({ booster:s.name, baseRate:base, sessionRows:[], dayRows:[],
+      weekPct:teamAvg, weekGain:0, weekQuota:0, weekActualPay:net, weekBasePay:monthBasePay,
+      monthClampedPay:net, monthBasePay, monthClampedPct:teamAvg, latestDay:null,
+      incentiveTotal:inc, penaltyTotal:pen, isLeader:true, allowance, teamSize:team.length,
+      teamAvg, teamMembers:team.map(m=>m.name), teamReported:perfs.length });
+  });
+  return results;
+}
+
+/* ============================================================
+   언어 / 정적 텍스트
+   ============================================================ */
+function applyStaticText(){
+  document.getElementById('app-title').textContent=t('title');
+  document.getElementById('app-subtitle').textContent=t('subtitle');
+  document.getElementById('app-demo').textContent='● '+t('demo');
+  document.getElementById('app-sec1').textContent=t('sec1');
+  document.getElementById('app-sec1desc').textContent=t('sec1desc');
+  document.getElementById('app-sec2').textContent=t('sec2');
+  document.getElementById('app-sec2desc').textContent=t('sec2desc');
+  document.getElementById('app-sec3').textContent=t('sec3');
+  document.getElementById('app-sec4').textContent=t('sec4');
+  document.getElementById('app-sec4desc').textContent=t('sec4desc');
+  document.getElementById('app-note').innerHTML=t('note');
+  document.getElementById('nav-standards').textContent=t('navStandards');
+  document.getElementById('nav-staff').textContent=t('navStaff');
+  document.getElementById('nav-dashboard').textContent=t('navDashboard');
+  document.getElementById('nav-records').textContent=t('navRecords');
+  const lt=document.getElementById('login-title'); if(lt) lt.textContent=t('loginTitle');
+  const lsub=document.getElementById('login-sub'); if(lsub) lsub.textContent=t('loginSub');
+  const lp=document.getElementById('login-pw'); if(lp) lp.placeholder=t('loginPw');
+  const lb=document.getElementById('login-btn'); if(lb) lb.textContent=t('loginGo');
+  const lo=document.getElementById('role-logout'); if(lo) lo.textContent=t('logout');
+  document.getElementById('nav-leaderboard').textContent=t('navLeaderboard');
+  document.getElementById('nav-report').textContent=t('navReport');
+  document.getElementById('app-sec6').textContent=t('sec6');
+  document.getElementById('app-sec6desc').textContent=t('sec6desc');
+  document.getElementById('app-sec5').textContent=t('sec5');
+  document.getElementById('app-sec5desc').textContent=t('sec5desc');
+}
+async function setLang(l){
+  lang=l;
+  document.getElementById('seg-ko').classList.toggle('active', l==='ko');
+  document.getElementById('seg-en').classList.toggle('active', l==='en');
+  applyStaticText();
+  await renderStandards(); await renderStaff(); await renderDashboard(); renderReport();
+}
+function showSection(id){
+  if(id==='section-staff' && userRole==='player') id='section-dashboard';
+  document.querySelectorAll('.section-panel').forEach(s=>s.classList.toggle('active', s.id===id));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.sec===id));
+  const m=document.querySelector('.main'); if(m) m.scrollTop=0;
+  window.scrollTo({top:0});
+}
+function scrollToSection(id){ showSection(id); }
+
+/* ============================================================
+   기준 카드 + 편집
+   ============================================================ */
+const JOBS=['기사','궁수','법사'];
+let editingId=null, editBuf=null, clientCache=[];
+
+async function renderStandards(){
+  clientCache=await loadClients();
+  clientCache.sort((a,b)=>((Number(a.no)||0)-(Number(b.no)||0)) || (a.name||'').localeCompare(b.name||''));
+  const grid=document.getElementById('standards-grid'); grid.innerHTML='';
+  clientCache.forEach(c=>{
+    const card=document.createElement('div');
+    card.className='std-card';
+    card.onclick=()=>startEdit(c.id);
+    card.innerHTML=viewCardHtml(c);
+    grid.appendChild(card);
+  });
+  const add=document.createElement('div');
+  add.className='std-add'; add.textContent=t('addClient'); add.onclick=addClient;
+  grid.appendChild(add);
+}
+function viewCardHtml(c){
+  const curLv=Number(c.level);
+  const shown=(c.maps||[]).filter(m=>m.level==null||m.level===''||Number(m.level)===curLv);
+  const maps=shown.length
+    ? shown.map(m=>`<div class="map-row"><span class="mname">📍 ${esc(mapName(m))}</span><span class="mval" style="color:${targetColor(m.target)};">${f2(Number(m.target))}<small>%/h</small></span></div>`).join('')
+    : `<div class="map-empty">${t('noMaps')}</div>`;
+  return `
+    <span class="std-edit-hint">${t('edit')} ✎</span>
+    <div>
+      <div class="std-client" style="color:hsl(${hashHue(c.name||c.id)} 75% 72%);">${c.no?esc(c.no)+'. ':''}${esc(c.name||t('noName'))}</div>
+      <div class="std-pc">PC ${esc(c.pc)}</div>
+    </div>
+    <div class="std-chips">
+      <span class="chip">Lv ${c.level}</span>
+      <span class="chip">${t('wpnShort')} ${c.sword} / ${c.armor} ${t('armShort')}</span>
+      <span class="chip">${esc(jobName(c.job))}</span>
+    </div>
+    <div class="map-list">${maps}</div>`;
+}
+
+/* ----- 편집 모달 ----- */
+function renderEditModal(){
+  const isNew=String(editingId).startsWith('new_');
+  const overlay=document.getElementById('edit-modal');
+  overlay.innerHTML=`
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-head">
+        <h3>${isNew?t('addClientTitle'):t('editClientTitle')}</h3>
+        <button class="modal-close" onclick="cancelEdit()" aria-label="close">×</button>
+      </div>
+      <div class="modal-body">${editFields()}</div>
+      <div class="modal-foot">
+        ${isNew?'':`<button class="btn btn-danger btn-sm" onclick="deleteClient()">${t('delClient')}</button>`}
+        <button class="btn btn-ghost btn-sm" onclick="cancelEdit()">${t('cancel')}</button>
+        <button class="btn btn-primary" style="flex:1;" onclick="saveEdit()">${t('save')}</button>
+      </div>
+    </div>`;
+  overlay.classList.add('open');
+  document.body.style.overflow='hidden';
+  setTimeout(()=>{ const el=overlay.querySelector('.modal-body input:not([type=number]):not([type=date])'); if(el) el.focus(); }, 60);
+}
+function renderEditBody(){ const b=document.querySelector('#edit-modal .modal-body'); if(b) b.innerHTML=editFields(); }
+function closeModal(){
+  const o=document.getElementById('edit-modal'); o.classList.remove('open'); o.innerHTML='';
+  document.body.style.overflow=''; editingId=null; editBuf=null;
+}
+function editFields(){
+  const b=editBuf; const jobOpts=JOBS.map(j=>`<option value="${j}" ${j===b.job?'selected':''}>${jobName(j)}</option>`).join('');
+  const mapRows=(b.maps||[]).map((m,i)=>`
+    <div class="map-edit">
+      <input class="input" id="map-ko-${i}" list="map-ko-list" value="${esc(m.ko)}" oninput="editBuf.maps[${i}].ko=this.value" onchange="autofillEn(${i},this.value)" placeholder="${t('phKo')}">
+      <input class="input" id="map-en-${i}" list="map-en-list" value="${esc(m.en)}" oninput="editBuf.maps[${i}].en=this.value" onchange="autofillKo(${i},this.value)" placeholder="${t('phEn')}">
+      <input class="input" type="number" value="${m.level==null?'':m.level}" oninput="editBuf.maps[${i}].level=this.value" placeholder="Lv" style="text-align:center;">
+      <input class="input" type="number" step="0.05" value="${m.target}" oninput="editBuf.maps[${i}].target=this.value" placeholder="%/h" style="text-align:right;">
+      <button class="map-x" onclick="removeMap(${i})" aria-label="remove">×</button>
+    </div>`).join('');
+  return `
+    <div class="form-grid2">
+      <div class="field"><label class="flabel">${t('clientNoLabel')}</label><input class="input" type="number" value="${esc(b.no)}" oninput="editBuf.no=this.value" placeholder="${t('phNo')}"></div>
+      <div class="field"><label class="flabel">${t('pcNum')}</label><input class="input" value="${esc(b.pc)}" oninput="editBuf.pc=this.value" placeholder="${t('phPc')}"></div>
+    </div>
+    <div class="field"><label class="flabel">${t('clientName')}</label><input class="input" value="${esc(b.name)}" oninput="editBuf.name=this.value" placeholder="${t('phClient')}"></div>
+    <div class="field"><label class="flabel">${t('job')}</label><select class="input" onchange="editBuf.job=this.value">${jobOpts}</select></div>
+    <div class="stepper-row">
+      ${stepCell(t('level'),'level','')}
+      ${stepCell(t('wpnShort'),'sword','+')}
+      ${stepCell(t('armShort'),'armor','+')}
+    </div>
+    <div class="field" style="margin-top:12px; margin-bottom:0;">
+      <label class="flabel">${t('perMapTarget')}</label>
+      <div class="map-edit-head"><span>${t('phKo')}</span><span>${t('phEn')}</span><span style="text-align:center;">Lv</span><span style="text-align:right;">%/h</span><span></span></div>
+      <div>${mapRows}</div>
+      <button class="add-map" style="width:100%; margin-top:6px;" onclick="addMap()">${t('addMap')}</button>
+    </div>`;
+}
+function stepCell(label,field,prefix){
+  return `<div class="step-cell"><label class="flabel" style="text-align:center;">${label}</label>
+    <div class="stepper">
+      <button type="button" onclick="bump('${field}',-1)">−</button>
+      <input class="step-input" id="inp-${field}" type="number" value="${editBuf[field]}" oninput="editBuf.${field}=this.value">
+      <button type="button" onclick="bump('${field}',1)">+</button>
+    </div></div>`;
+}
+function bump(field,delta){
+  let v=Math.max(0, Math.round(Number(editBuf[field])+delta));
+  editBuf[field]=v;
+  const inp=document.getElementById('inp-'+field);
+  if(inp) inp.value=v;
+}
+function addMap(){ editBuf.maps=editBuf.maps||[]; editBuf.maps.push({ko:'',en:'',level:33,target:0.8}); renderEditBody(); }
+function removeMap(i){ editBuf.maps.splice(i,1); renderEditBody(); }
+function autofillEn(i,val){ const p=MAP_PRESETS.find(x=>x.ko===val); if(!p) return; editBuf.maps[i].en=p.en; const el=document.getElementById('map-en-'+i); if(el) el.value=p.en; }
+function autofillKo(i,val){ const p=MAP_PRESETS.find(x=>x.en===val); if(!p) return; editBuf.maps[i].ko=p.ko; const el=document.getElementById('map-ko-'+i); if(el) el.value=p.ko; }
+
+function startEdit(id){ editingId=id; editBuf=JSON.parse(JSON.stringify(clientCache.find(x=>x.id===id))); renderEditModal(); }
+function cancelEdit(){ closeModal(); }
+async function saveEdit(){
+  if(!editBuf.name.trim()){ alert(t('alertName')); return; }
+  const clean={...editBuf, name:editBuf.name.trim(),
+    no:(editBuf.no===''||editBuf.no==null)?'':Number(editBuf.no),
+    maps:(editBuf.maps||[])
+      .filter(m=>(m.ko&&m.ko.trim())||(m.en&&m.en.trim()))
+      .map(m=>({ ko:(m.ko||'').trim(), en:(m.en||'').trim(), level:(m.level===''||m.level==null)?'':Number(m.level), target:Number(m.target)||0 })) };
+  await saveClient(clean);
+  closeModal(); await renderStandards(); await renderDashboard();
+}
+function addClient(){
+  const id='new_'+Date.now(); editingId=id;
+  const nextNo=Math.max(0,...clientCache.map(c=>Number(c.no)||0))+1;
+  editBuf={ id, no:nextNo, name:'', pc:'', level:1, sword:0, armor:0, job:'기사', maps:[{ko:'',en:'',level:33,target:0.8}] };
+  renderEditModal();
+}
+async function deleteClient(){
+  if(!confirm(t('confirmDelClient'))) return;
+  const id=editingId;
+  closeModal(); await removeClient(id);
+  await renderStandards(); await renderDashboard();
+}
+
+/* ============================================================
+   직원 급여 & 성과
+   ============================================================ */
+let perfCache=[], selectedBooster=null, empFilter='', period='week', recFilter='';
+/* ===== 간단 로그인 게이트 (비밀번호 2종) — 소스에 노출되는 가벼운 차단막입니다 ===== */
+const SITE_PW = 'player7';     // ← 접속 비밀번호 (여기서 수정). 맞으면 전부 공개.
+let userRole = null;           // 'admin' (전원 동일 — 월급 포함 전체 공개)
+function doLogin(){
+  const v=(document.getElementById('login-pw')||{}).value||'';
+  if(v!==SITE_PW){ const e=document.getElementById('login-err'); if(e) e.textContent=t('loginErr'); return; }
+  userRole='admin';   // 전원 전체 공개 (월급 포함)
+  const g=document.getElementById('login-gate'); if(g) g.setAttribute('hidden','');
+  applyRole();
+}
+function applyRole(){
+  document.body.classList.toggle('role-player', userRole==='player');
+  if(userRole==='player'){ const s=document.getElementById('section-staff'); if(s&&s.classList.contains('active')) showSection('section-dashboard'); }
+  const rb=document.getElementById('role-badge'); if(rb) rb.textContent = userRole==='admin' ? 'ADMIN · OP' : 'PLAYER';
+}
+function logout(){ userRole=null; document.body.classList.remove('role-player');
+  const g=document.getElementById('login-gate'); if(g){ g.removeAttribute('hidden'); const pw=document.getElementById('login-pw'); if(pw){ pw.value=''; setTimeout(()=>pw.focus(),0);} } }
+function setRecFilter(b){ recFilter=(recFilter===b?'':b); renderRecords(); }
+
+function periodPay(p){ return period==='day'?(p.latestDay?p.latestDay.actualPay:0) : period==='month'?p.monthClampedPay : p.weekActualPay; }
+function periodPct(p){
+  if(period==='day') return p.latestDay?(p.latestDay.counted?p.latestDay.dayPct:null):null;
+  if(period==='month') return p.monthClampedPct;
+  return p.weekPct;
+}
+function periodStats(p){
+  if(period==='day'){
+    const d=p.latestDay; if(!d) return null;
+    return { label:t('pDay')+' ('+d.date.slice(5)+')', targetExp:d.quota, actualExp:d.gain,
+      pct:d.counted?d.dayPct:null, protected:d.protected, noStd:d.noStd, basePay:d.basePay, actualPay:d.actualPay, clamped:false };
+  }
+  if(period==='month'){
+    return { label:t('pMonth'), targetExp:p.weekQuota, actualExp:p.weekGain,
+      pct:p.weekPct==null?null:p.monthClampedPct, protected:false, noStd:false, basePay:p.monthBasePay, actualPay:p.monthClampedPay, clamped:true };
+  }
+  return { label:t('pWeek'), targetExp:p.weekQuota, actualExp:p.weekGain,
+    pct:p.weekPct, protected:false, noStd:false, basePay:p.weekBasePay, actualPay:p.weekActualPay, clamped:false };
+}
+function calcBreakdown(p){
+  const s=periodStats(p); if(!s) return '';
+  if(s.pct==null){
+    return `<div class="calc-box">
+      <div class="calc-title">📊 ${t('calcHow')} · ${s.label}</div>
+      <div class="muted" style="margin-bottom:10px;">${s.noStd?t('cNoStd'):t('cProtectedPay')}</div>
+      <div class="calc-flow"><span class="calc-eq">${t('cResult')}</span> <b>${money(s.actualPay)}</b></div>
+    </div>`;
+  }
+  const max=Math.max(s.targetExp,s.actualExp)||1;
+  const tW=Math.max(3,s.targetExp/max*100), aW=Math.max(3,s.actualExp/max*100);
+  const aColor=s.actualExp>=s.targetExp?'var(--success)':'var(--danger)';
+  const pctCls=s.pct>=100?'pos':'neg';
+  const verdictMsg=s.pct>=100?t('cOver'):t('cUnder');
+  return `<div class="calc-box">
+    <div class="calc-title">📊 ${t('calcHow')} · ${s.label}</div>
+    <div class="cmp-row"><span class="cmp-label">${t('cTarget')}</span><div class="cmp-bar"><i style="width:${tW}%;background:var(--text-tertiary);"></i></div><span class="cmp-val">${f2(s.targetExp)}%</span></div>
+    <div class="cmp-row"><span class="cmp-label">${t('cActual')}</span><div class="cmp-bar"><i style="width:${aW}%;background:${aColor};"></i></div><span class="cmp-val">${f2(s.actualExp)}%</span></div>
+    <div class="calc-flow">
+      <div class="calc-line"><span class="calc-eq">${t('cAchieve')}</span><b class="${pctCls}">${s.pct.toFixed(1)}%</b></div>
+      <div class="calc-line"><span class="calc-eq">${t('cBase')}</span><b>${money(s.basePay)}</b></div>
+      <div class="calc-line" style="border-top:1px solid var(--border); padding-top:8px; margin-top:4px;"><span class="calc-eq">${t('cResult')}</span><span class="result-pill ${pctCls}">${money(s.actualPay)}</span></div>
+      <div class="tiny ${pctCls}" style="margin-top:6px;">${s.pct>=100?'▲':'▼'} ${verdictMsg}${s.clamped?' · '+t('monthRange'):''}</div>
+    </div>
+  </div>`;
+}
+
+async function renderDashboard(){
+  const clients=await loadClients(); const reports=await loadReports(); const staff=await loadStaff();
+  perfCache=compute(clients,reports,staff);
+  perfCache.sort((a,b)=>{ const aw=a.weekPct==null?Infinity:a.weekPct, bw=b.weekPct==null?Infinity:b.weekPct; return aw-bw; });
+  if(!selectedBooster || !perfCache.find(p=>p.booster===selectedBooster))
+    selectedBooster = perfCache.length?perfCache[0].booster:null;
+  renderDashboardUI();
+  renderRecords();
+  renderLeaderboard();
+}
+function renderDashboardUI(){
+  const wrap=document.getElementById('dashboard');
+  if(!perfCache.length){ wrap.innerHTML=`<div class="empty">${t('noReports')}</div>`; return; }
+  const q=empFilter.toLowerCase();
+  const filtered=perfCache.filter(p=>p.booster.toLowerCase().includes(q));
+  const scored=perfCache.filter(p=>p.weekPct!=null);
+  const avg=scored.length?scored.reduce((a,p)=>a+p.weekPct,0)/scored.length:null;
+  const totalWeek=perfCache.reduce((a,p)=>a+(p.monthBasePay||0),0);
+  const totalIncentive=perfCache.reduce((a,p)=>a+(p.incentiveTotal||0),0);
+  const totalPenalty=perfCache.reduce((a,p)=>a+(p.penaltyTotal||0),0);
+  const avgCls=avg==null?'':(avg>=100?'pos':'neg');
+  wrap.innerHTML=`
+    <div class="incentive-banner">
+      <div class="ib-main">
+        <div class="ib-label">💰 ${t('ibTitle')}</div>
+        <div class="ib-val">+${money(totalIncentive)}</div>
+        <div class="ib-sub">${t('ibPayout')}</div>
+      </div>
+      <div class="ib-side">
+        <div class="ib-pen-label">${t('ibPenalty')}</div>
+        <div class="ib-pen">−${money(totalPenalty)}</div>
+      </div>
+    </div>
+    <div class="team-summary">
+      <div class="team-stat"><div class="ts-label">${t('tCount')}</div><div class="ts-val">${perfCache.length}</div></div>
+      <div class="team-stat"><div class="ts-label">${t('tAvg')}</div><div class="ts-val ${avgCls}">${avg==null?'—':avg.toFixed(0)+'%'}</div></div>
+      <div class="team-stat"><div class="ts-label">${t('tPayroll')}</div><div class="ts-val">${money(totalWeek)}</div></div>
+    </div>
+    <div class="dash-top">
+      <input class="input" id="emp-filter" placeholder="${t('searchStaff')}" value="${esc(empFilter)}" oninput="onEmpFilter(this.value)">
+      <span class="meta-chip">${t('sortHint')}</span>
+      <button class="btn btn-ghost btn-sm" onclick="exportAllCsv()">⬇ ${t('exportAll')}</button>
+    </div>
+    <div class="emp-overview">${ filtered.map(empGlanceCard).join('') || `<div class="empty">${t('noResults')}</div>` }</div>`;
+  const fi=document.getElementById('emp-filter');
+  if(fi && empFilter){ fi.focus(); fi.setSelectionRange(fi.value.length, fi.value.length); }
+}
+function empGlanceCard(p){
+  if(p.noData){
+    return `<div class="glance glance-pending" style="--strip:var(--border-strong);">
+      <div class="glance-main" style="cursor:default;">
+        <div class="glance-top">
+          <span class="glance-left">${avatarHtml(p.booster)}<span class="glance-name">${esc(p.booster)}</span></span>
+          <span class="glance-right"><span class="glance-perf neu">—</span></span>
+        </div>
+        <div class="glance-meta"><span class="meta-chip">${t('pending')}</span><span class="meta-chip">${t('rateLabel')} ${money(p.baseRate)}</span></div>
+      </div>
+    </div>`;
+  }
+  if(p.isLeader){
+    const pct=p.teamAvg;
+    const pcls=pct==null?'neu':(pct>=100?'pos':'neg');
+    const perf=pct==null?'—':((pct>=100?'▲ ':'▼ ')+pct.toFixed(0)+'%');
+    const strip=pct==null?'var(--ac)':(pct>=100?'var(--success)':'var(--danger)');
+    const open=p.booster===selectedBooster;
+    return `<div class="glance${open?' open':''}" style="--strip:${strip};">
+      <div class="glance-main" onclick="selectEmp('${esc(p.booster)}')">
+        <div class="glance-top">
+          <span class="glance-left">${avatarHtml(p.booster)}<span class="glance-name">${esc(p.booster)}</span><span class="role-badge">👑 ${t('roleLeader')}</span></span>
+          <span class="glance-right"><span class="glance-perf ${pcls}">${perf}</span><span class="glance-chev">▸</span></span>
+        </div>
+        <div class="glance-meta"><span class="meta-chip">${t('ldTeam')} · ${p.teamSize}</span><span class="meta-chip">${t('ldTeamAvg')} ${pct==null?'—':pct.toFixed(0)+'%'}</span></div>
+        <div class="glance-stats">
+          <div><div class="gs-label">${t('gBase')}</div><div class="gs-val">${money(p.monthBasePay)}</div></div>
+          <div><div class="gs-label">${t('gIncentive')}</div><div class="gs-val ${p.incentiveTotal>0?'pos':''}">+${money(p.incentiveTotal)}</div></div>
+          <div><div class="gs-label">${t('gPenalty')}</div><div class="gs-val ${p.penaltyTotal>0?'neg':''}">−${money(p.penaltyTotal)}</div></div>
+        </div>
+      </div>
+      ${open?`<div class="glance-detail">${empDetailHtml(p)}</div>`:''}
+    </div>`;
+  }
+  const pct=p.weekPct;
+  let perf,pcls,strip;
+  if(pct==null){ perf='—'; pcls='neu'; strip='var(--border-strong)'; }
+  else { pcls=pct>=100?'pos':'neg'; perf=(pct>=100?'▲ ':'▼ ')+pct.toFixed(0)+'%'; strip=pct>=100?'var(--success)':'var(--danger)'; }
+  const SCALE=160;
+  const last=p.dayRows.length-1;
+  const spark=p.dayRows.map((d,i)=>{
+    const dp=d.counted?d.dayPct:null;
+    const h=dp==null?16:Math.max(12,Math.min(100,dp/SCALE*100));
+    const c=dp==null?'var(--surface-3)':(dp>=100?'var(--success)':'var(--danger)');
+    const lbl=d.date.slice(5)+(dp==null?'':' · '+dp.toFixed(0)+'%');
+    return `<span class="spark-bar${i===last?' latest':''}" style="height:${h}%;background:${c};color:${c};animation-delay:${i*45}ms;" title="${lbl}"></span>`;
+  }).join('');
+  const dayPay=p.latestDay?p.latestDay.actualPay:0;
+  const dayLabel=p.latestDay?`${t('pDay')} ${p.latestDay.date.slice(5)}`:t('pDay');
+  const open=p.booster===selectedBooster;
+  const badDays=p.dayRows.filter(d=>d.counted && d.diff<0).length;
+  const deathCnt=p.dayRows.reduce((a,d)=>a+(d.dead||0),0);
+  const sessionCnt=p.sessionRows.length;
+  const meta=`<div class="glance-meta"><span class="meta-chip">${sessionCnt} ${t('sessions')}</span><span class="meta-chip ${badDays?'warn':''}">${badDays} ${t('badDays')}</span><span class="meta-chip ${deathCnt?'bad':''}">${deathCnt} ${t('deaths')}</span></div>`;
+  return `<div class="glance${open?' open':''}" style="--strip:${strip};">
+    <div class="glance-main" onclick="selectEmp('${esc(p.booster)}')">
+      <div class="glance-top">
+        <span class="glance-left">${avatarHtml(p.booster)}<span class="glance-name">${esc(p.booster)}</span></span>
+        <span class="glance-right"><span class="glance-perf ${pcls}">${perf}</span><span class="glance-chev">▸</span></span>
+      </div>
+      ${meta}
+      <div class="spark">${spark}</div>
+      <div class="glance-stats">
+        <div><div class="gs-label">${t('gBase')}</div><div class="gs-val">${money(p.monthBasePay)}</div></div>
+        <div><div class="gs-label">${t('gIncentive')}</div><div class="gs-val ${p.incentiveTotal>0?'pos':''}">+${money(p.incentiveTotal)}</div></div>
+        <div><div class="gs-label">${t('gPenalty')}</div><div class="gs-val ${p.penaltyTotal>0?'neg':''}">−${money(p.penaltyTotal)}</div></div>
+      </div>
+    </div>
+    ${open?`<div class="glance-detail">${empDetailHtml(p)}</div>`:''}
+  </div>`;
+}
+function onEmpFilter(v){ empFilter=v; renderDashboardUI(); }
+function setPeriod(v){ period=v; renderDashboardUI(); }
+function leaderDetailHtml(p){
+  const pct=p.teamAvg;
+  const cls=p.incentiveTotal>0?'pos':(p.penaltyTotal>0?'neg':'neu');
+  const members=(p.teamMembers||[]).map(name=>{
+    const mp=perfCache.find(x=>x.booster===name); const mpct=mp?mp.weekPct:null;
+    const mc=mpct==null?'neu':(mpct>=100?'pos':'neg');
+    const stripC=mpct==null?'var(--tx3)':(mpct>=100?'var(--gr)':'var(--re)');
+    return `<div class="ud-row" style="--c:${stripC};">
+      <span class="ud-date" style="min-width:auto;">${esc(name)}</span>
+      <span class="ud-calc"></span>
+      <span class="ud-delta ${mc}">${mpct==null?t('pending'):mpct.toFixed(0)+'%'}</span>
+    </div>`;
+  }).join('');
+  const tail=p.incentiveTotal>0?` · +${money(p.incentiveTotal)}`:(p.penaltyTotal>0?` · −${money(p.penaltyTotal)}`:'');
+  return `<div class="udash">
+    <div class="ud-buckets">
+      <div class="udb"><div class="udb-l">${t('uBaseFixed')}</div><div class="udb-v">${money(p.baseRate)}</div></div>
+      <div class="udb"><div class="udb-l">${t('ldAllowance')}</div><div class="udb-v">${money(p.allowance)}</div></div>
+      <div class="udb ${cls==='pos'?'pos':(cls==='neg'?'neg':'')}"><div class="udb-l">${t('ldTeamAvg')}</div><div class="udb-v">${pct==null?'—':pct.toFixed(0)+'%'}</div></div>
+      <div class="udb net ${cls}"><div class="udb-l">${t('uNet')}</div><div class="udb-v">${money(p.monthClampedPay)}</div></div>
+    </div>
+    <div class="ud-msg ${cls}" style="margin-top:10px;">${pct==null?t('ldNoTeam'):t('ldBasis')}${tail}</div>
+    <div class="ud-list-title">👥 ${t('ldMembers')} (${p.teamSize})</div>
+    <div class="ud-list">${members}</div>
+  </div>`;
+}
+function selectEmp(b){ selectedBooster = (selectedBooster===b ? null : b); renderDashboardUI(); }
+function renderDetail(){}
+function empDetailHtml(p){
+  if(p.isLeader) return leaderDetailHtml(p);
+  const monthly  = p.baseRate;            // 월 기본급 (고정)
+  const incentive= p.incentiveTotal||0;   // 모인 인센티브 (주 지급)
+  const penalty  = p.penaltyTotal||0;     // 월말 차감
+  const net      = p.monthClampedPay;      // 예상 실수령 (월)
+  const pct      = p.monthClampedPct;
+  const down=penalty>incentive+0.5, up=incentive>penalty+0.5;
+  const deltaCls=down?'neg':(up?'pos':'neu');
+  const gPos=pct==null?100:Math.min(MONTH_MAX,Math.max(MONTH_MIN,pct));
+  const gPct=(gPos-MONTH_MIN)/(MONTH_MAX-MONTH_MIN)*100;
+  const g100=(100-MONTH_MIN)/(MONTH_MAX-MONTH_MIN)*100;
+
+  const dayList=p.dayRows.map(d=>{
+    const over=d.counted&&d.incentive>0, under=d.counted&&d.penalty>0;
+    const dpCls=!d.counted?'neu':(over?'pos':(under?'neg':'neu'));
+    const arr=!d.counted?'·':(over?'▲':(under?'▼':'·'));
+    const stripC=!d.counted?'var(--tx3)':(over?'var(--gr)':(under?'var(--re)':'var(--tx3)'));
+    const perfTxt=d.counted?(d.dayPct.toFixed(0)+'%'):(d.protected?t('uProtectedDay'):t('uNoStdDay'));
+    const perfCls=!d.counted?'neu':(d.dayPct>=100?'pos':'neg');
+    const deadTxt=d.dead?` <span class="ud-dead">·☠${d.dead}</span>`:'';
+    const amt=!d.counted?'·':(over?money(d.incentive):(under?money(d.penalty):money(0)));
+    return `<div class="ud-row" style="--c:${stripC};">
+      <span class="ud-date">${d.date.slice(5)}</span>
+      <span class="ud-perf ${perfCls}">${perfTxt}</span>
+      <span class="ud-calc">${t('uBase')} ${money(d.basePay)}${deadTxt}</span>
+      <span class="ud-delta ${dpCls}">${arr} ${amt}</span>
+    </div>`;
+  }).join('');
+
+  return `
+    <div class="udash">
+      <div class="ud-net-row ${deltaCls}">
+        <span class="ud-net-l">${t('uNet')}</span>
+        <span class="ud-net-v">${money(net)} <span class="ud-net-pct">${pct==null?'—':pct.toFixed(0)+'%'}</span></span>
+      </div>
+      <div class="ud-gauge">
+        <div class="ud-gauge-track">
+          <div class="ud-gauge-fill ${deltaCls}" style="width:${gPct}%;"></div>
+          <div class="ud-gauge-100" style="left:${g100}%;"></div>
+          <div class="ud-gauge-mark ${deltaCls}" style="left:${gPct}%;"></div>
+        </div>
+        <div class="ud-gauge-scale"><span>${MONTH_MIN}%</span><span style="margin-left:auto;margin-right:auto;">100%</span><span>${MONTH_MAX}%</span></div>
+      </div>
+      <div class="ud-list-title">📊 ${t('uDayList')}</div>
+      <div class="ud-list">${dayList}</div>
+      <div style="margin-top:10px;text-align:right;"><button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();exportEmployeeCsv('${esc(p.booster)}')">⬇ ${t('exportOne')}</button></div>
+    </div>`;
+}
+
+/* ============================================================
+   기록 & 통계 (전 직원 일별 / 세션 로그)
+   ============================================================ */
+function renderRecords(){
+  const host=document.getElementById('records'); if(!host) return;
+  if(!perfCache || !perfCache.length){ host.innerHTML=`<div class="empty">${t('noReports')}</div>`; return; }
+  const dRows=[], sRows=[];
+  perfCache.forEach(p=>{
+    p.dayRows.forEach(d=>dRows.push(Object.assign({booster:p.booster}, d)));
+    p.sessionRows.forEach(s=>sRows.push(Object.assign({booster:p.booster}, s)));
+  });
+  dRows.sort((a,b)=> b.date.localeCompare(a.date) || a.booster.localeCompare(b.booster));
+  sRows.sort((a,b)=> (b.date+(b.tag||'')).localeCompare(a.date+(a.tag||'')) || a.booster.localeCompare(b.booster));
+
+  const boosters=[...new Set([...dRows.map(d=>d.booster), ...sRows.map(s=>s.booster)])]
+    .sort((a,b)=>{ const pa=perfCache.find(x=>x.booster===a), pb=perfCache.find(x=>x.booster===b);
+      return ((pb?.weekPct??-1)-(pa?.weekPct??-1)); });
+  if(recFilter && !boosters.includes(recFilter)) recFilter='';
+  const cards=`<div class="rec-cards">
+    <button class="rec-card all${recFilter===''?' active':''}" onclick="setRecFilter('')"><span class="rec-card-name">${t('recAll')}</span><span class="rec-card-pct muted">${boosters.length}</span></button>
+    ${boosters.map(b=>{ const p=perfCache.find(x=>x.booster===b); const pct=p?p.weekPct:null;
+      const cls=pct==null?'neu':(pct>=100?'pos':'neg');
+      return `<button class="rec-card${recFilter===b?' active':''}" onclick="setRecFilter('${esc(b)}')">${avatarHtml(b)}<span class="rec-card-name">${esc(b)}</span><span class="rec-card-pct ${cls}">${pct==null?'—':pct.toFixed(0)+'%'}</span>${p&&p.isLeader?'<span class="rec-card-crown">👑</span>':''}</button>`;
+    }).join('')}
+  </div>`;
+
+  const fDay  = recFilter? dRows.filter(d=>d.booster===recFilter): dRows;
+  const fSess = recFilter? sRows.filter(s=>s.booster===recFilter): sRows;
+
+  const dayBody=fDay.map(d=>{
+    const diffTxt=d.diff==null?'-':sgn(d.diff);
+    const pctTxt=d.counted? d.dayPct.toFixed(0)+'%' : (d.protected? t('vProtected') : '-');
+    const deadTxt=d.dead?` <span class="neg tiny">·${t('death')}${d.dead}</span>`:'';
+    return `<tr><td class="rec-staff">${esc(d.booster)}</td><td>${d.date.slice(5)}${deadTxt}</td><td class="num muted">${f2(d.hours)}h</td>
+      <td class="num">${f2(d.actualPerH)}</td><td class="num muted">${d.noStd?'-':f2(d.targetPerH)}</td>
+      <td class="num ${d.diff==null?'neu':(d.diff>=0?'pos':'neg')}">${diffTxt}</td>
+      <td class="num">${pctTxt}</td><td class="num muted">${money(d.basePay)}</td>
+      <td class="num" style="font-weight:600;">${money(d.actualPay)}</td>
+      <td><span class="vp ${d.verdict.cls}">${t(d.verdict.key)}</span></td></tr>`;
+  }).join('');
+
+  const sessBody=fSess.map(r=>{
+    const dateLbl=r.date.slice(5)+(r.tag?('-'+r.tag):''); const diffTxt=r.diff==null?'-':sgn(r.diff)+'%';
+    const deadTxt=r.dead?` <span class="neg tiny">·${t('death')}${r.dead}</span>`:'';
+    const mapTxt=r.mapObj?mapName(r.mapObj):esc(r.rawMap);
+    return `<tr><td class="rec-staff">${esc(r.booster)}</td><td>${dateLbl}${deadTxt}</td><td>${r.clientNo?esc(r.clientNo)+'. ':''}${esc(r.client)}</td><td>${esc(r.pc)}</td><td class="num">${r.lv}</td><td>${esc(mapTxt)}</td>
+      <td class="num">+${f2(r.actualPerH)}%</td><td class="num muted">${r.target==null?'-':'+'+f2(r.target)+'%'}</td>
+      <td class="num ${r.diff==null?'neu':(r.diff>=0?'pos':'neg')}">${diffTxt}</td>
+      <td><span class="vp ${r.verdict.cls}">${t(r.verdict.key)}</span>${r.protected?' <span class="tiny v-skip">'+t('protectedTag')+'</span>':''}</td></tr>`;
+  }).join('');
+
+  host.innerHTML=`
+    ${cards}
+    <div class="rec-block">
+      <div class="rec-h"><h3>${t('recDaily')} <span class="rec-cnt">${fDay.length}</span></h3>
+        <button class="btn btn-ghost btn-sm" onclick="exportAllCsv()">⬇ ${t('exportAll')}</button></div>
+      <div class="scroll-x"><table class="tbl tbl-rec">
+        <thead><tr><th>${t('recStaff')}</th><th>${t('hDate')}</th><th class="num">${t('hHours')}</th><th class="num">${t('hActualH')}</th><th class="num">${t('hTargetH')}</th><th class="num">${t('hDiff')}</th><th class="num">${t('hDayPct')}</th><th class="num">${t('recBase')}</th><th class="num">${t('hDayPay')}</th><th>${t('hResult')}</th></tr></thead>
+        <tbody>${dayBody}</tbody></table></div>
+    </div>
+    <div class="rec-block">
+      <div class="rec-h"><h3>${t('recSessions')} <span class="rec-cnt">${fSess.length}</span></h3></div>
+      <div class="scroll-x"><table class="tbl tbl-rec">
+        <thead><tr><th>${t('recStaff')}</th><th>${t('hDate')}</th><th>${t('hClient')}</th><th>${t('hPc')}</th><th class="num">${t('hLv')}</th><th>${t('hMap')}</th><th class="num">${t('hActualExp')}</th><th class="num">${t('hTarget')}</th><th class="num">${t('hDiff')}</th><th>${t('hResult')}</th></tr></thead>
+        <tbody>${sessBody}</tbody></table></div>
+    </div>`;
+}
+
+/* ============================================================
+   리더보드 (개인 경쟁 — 인센티브 / 차감 랭킹)
+   ============================================================ */
+let lbMode='indiv';
+function setLbMode(m){ lbMode=m; renderLeaderboard(); }
+function renderLeaderboard(){
+  const host=document.getElementById('leaderboard'); if(!host) return;
+  if(!perfCache.length){ host.innerHTML=`<div class="empty">${t('noReports')}</div>`; return; }
+  host.innerHTML=`<div class="lb-toggle">
+    <button class="lb-tg${lbMode==='indiv'?' active':''}" onclick="setLbMode('indiv')">${t('lbIndiv')}</button>
+    <button class="lb-tg${lbMode==='team'?' active':''}" onclick="setLbMode('team')">${t('lbTeam')}</button>
+  </div><div id="lb-body"></div>`;
+  const body=document.getElementById('lb-body');
+  if(lbMode==='team') renderTeamLB(body); else renderIndivLB(body);
+}
+function teamLabel(leaderName){
+  const s=MOCK_STAFF.find(x=>x.name===leaderName); const sh=(s&&s.shift)||'';
+  return sh.includes('주간')?t('teamDay'):sh.includes('야간')?t('teamNight'):t('ldTeam');
+}
+function renderTeamLB(host){
+  const teams=perfCache.filter(p=>p.isLeader).map(p=>{
+    const memInc=perfCache.filter(x=>(p.teamMembers||[]).includes(x.booster)).reduce((a,x)=>a+(x.incentiveTotal||0),0);
+    return { leader:p.booster, label:teamLabel(p.booster), avg:p.teamAvg, size:p.teamSize, reported:p.teamReported, members:p.teamMembers||[], memInc };
+  }).sort((a,b)=>((b.avg==null?-1:b.avg)-(a.avg==null?-1:a.avg)));
+  if(!teams.length){ host.innerHTML=`<div class="empty">${t('noReports')}</div>`; return; }
+  const memList=tm=>tm.members.map(name=>{
+    const mp=perfCache.find(x=>x.booster===name); const mpct=mp?mp.weekPct:null;
+    const cls=mpct==null?'neu':(mpct>=100?'pos':'neg');
+    return `<div class="tlb-mem"><span>${esc(name)}</span><span class="${cls}">${mpct==null?'—':mpct.toFixed(0)+'%'}</span></div>`;
+  }).join('');
+  const card=(tm,win)=>{ const cls=tm.avg==null?'neu':(tm.avg>=100?'pos':'neg');
+    return `<div class="tlb-card${win?' win':''}">${win?'<div class="tlb-crown">🏆</div>':''}
+      <div class="tlb-label">${tm.label}</div><div class="tlb-leader">👑 ${esc(tm.leader)}</div>
+      <div class="tlb-avg ${cls}">${tm.avg==null?'—':tm.avg.toFixed(0)+'%'}</div>
+      <div class="tlb-sub">${t('tlbAvg')} · ${tm.reported}/${tm.size} ${t('ldMembers')} · ${t('tlbPool')} +${money(tm.memInc)}</div>
+      <div class="tlb-mems">${memList(tm)}</div></div>`; };
+  if(teams.length===2){
+    const [a,b]=teams; const aWin=(a.avg||0)>=(b.avg||0);
+    host.innerHTML=`<div class="tlb-vs">${card(a,aWin)}<div class="tlb-vs-mid"><span>VS</span></div>${card(b,!aWin)}</div>`;
+  } else {
+    host.innerHTML=`<div class="tlb-list">${teams.map((tm,i)=>{ const cls=tm.avg==null?'neu':(tm.avg>=100?'pos':'neg');
+      return `<div class="tlb-row${i===0?' win':''}"><div class="tlb-row-rank">${i===0?'🏆':'#'+(i+1)}</div>
+        <div class="tlb-row-main"><div class="tlb-row-label">${tm.label} <span class="muted" style="font-weight:600;">👑${esc(tm.leader)}</span></div>
+        <div class="tlb-row-sub">${tm.reported}/${tm.size} ${t('ldMembers')} · ${t('tlbPool')} +${money(tm.memInc)}</div></div>
+        <div class="tlb-row-avg ${cls}">${tm.avg==null?'—':tm.avg.toFixed(0)+'%'}</div></div>`;
+    }).join('')}</div>`;
+  }
+}
+function renderIndivLB(host){
+  const ranked=perfCache.filter(p=>!p.noData).slice().sort((a,b)=>
+    (b.incentiveTotal-a.incentiveTotal) || (a.penaltyTotal-b.penaltyTotal) || ((b.weekPct||0)-(a.weekPct||0)));
+  const pending=perfCache.filter(p=>p.noData);
+  const pool=perfCache.reduce((a,p)=>a+(p.incentiveTotal||0),0);
+  const top=ranked[0];
+  const medal=i=>i===0?'🥇':i===1?'🥈':i===2?'🥉':('#'+(i+1));
+  const rows=ranked.map((p,i)=>{
+    const pct=p.weekPct, pcls=pct==null?'neu':(pct>=100?'pos':'neg');
+    return `<div class="lb-row${i<3?' lb-top'+(i+1):''}" onclick="selectEmp('${esc(p.booster)}');showSection('section-dashboard')">
+      <div class="lb-rank">${medal(i)}</div>
+      <div class="lb-who">${avatarHtml(p.booster)}<span class="lb-name">${esc(p.booster)}</span>${p.isLeader?`<span class="role-badge sm">👑</span>`:''}<span class="lb-perf ${pcls}">${pct==null?'—':pct.toFixed(0)+'%'}</span></div>
+      <div class="lb-inc ${p.incentiveTotal>0?'on':''}">+${money(p.incentiveTotal)}</div>
+      <div class="lb-pen ${p.penaltyTotal>0?'on':''}">−${money(p.penaltyTotal)}</div>
+      <div class="lb-net">${money(p.monthClampedPay)}</div>
+    </div>`;
+  }).join('');
+  const pendRows=pending.map(p=>`<div class="lb-row lb-pending">
+      <div class="lb-rank">·</div>
+      <div class="lb-who">${avatarHtml(p.booster)}<span class="lb-name">${esc(p.booster)}</span></div>
+      <div class="lb-inc"></div><div class="lb-pen"></div><div class="lb-net muted">${t('lbPending')}</div>
+    </div>`).join('');
+  host.innerHTML=`
+    ${top?`<div class="lb-hero">
+      <div class="lb-hero-l"><div class="lb-hero-lbl">🏆 ${t('lbTop')}</div><div class="lb-hero-name">${esc(top.booster)}</div></div>
+      <div class="lb-hero-r"><div class="lb-hero-inc">+${money(top.incentiveTotal)}</div><div class="lb-hero-sub">${t('lbPool')} +${money(pool)}</div></div>
+    </div>`:''}
+    <div class="lb-head"><span>${t('lbRank')}</span><span></span><span class="num">${t('lbIncentive')}</span><span class="num">${t('lbPenalty')}</span><span class="num">${t('lbNet')}</span></div>
+    <div class="lb-list">${rows}${pendRows}</div>`;
+}
+
+/* ============================================================
+   📝 시프트 보고 입력 (제출 시 대시보드/기록/리더보드 갱신)
+   ============================================================ */
+let reportType='checkin';
+let rpDraft={};
+function setReportType(tp){ reportType=tp; renderReport(); }
+function staffTriggerHtml(){
+  const n=rpDraft.booster;
+  if(!n) return `<span class="combo-ph">${t('rpPickStaff')}</span><span class="combo-caret">▾</span>`;
+  const p=perfCache.find(x=>x.booster===n); const pct=p?p.weekPct:null;
+  const cls=pct==null?'neu':(pct>=100?'pos':'neg');
+  const lead=MOCK_STAFF.find(s=>s.name===n&&Number(s.allowance)>0);
+  return `${avatarHtml(n)}<span class="combo-trig-nm">${esc(n)}${lead?' 👑':''}</span>${pct==null?'':`<span class="combo-trig-pct ${cls}">${pct.toFixed(0)}%</span>`}<span class="combo-caret">▾</span>`;
+}
+function staffGroups(){
+  const leaders=MOCK_STAFF.filter(s=>Number(s.allowance)>0);
+  const groups=leaders.map(L=>({ label:teamLabel(L.name), members:MOCK_STAFF.filter(s=>s.name===L.name||s.leader===L.name) }));
+  const seen=new Set(groups.flatMap(g=>g.members.map(m=>m.name)));
+  const rest=MOCK_STAFF.filter(s=>!seen.has(s.name));
+  if(rest.length) groups.push({ label:t('ldTeam'), members:rest });
+  return groups;
+}
+function staffPickerListHtml(q){
+  q=(q||'').toLowerCase().trim();
+  let html='';
+  staffGroups().forEach(g=>{
+    const ms=g.members.filter(s=>!q||s.name.toLowerCase().includes(q));
+    if(!ms.length) return;
+    html+=`<div class="combo-group">${g.label}</div>`;
+    html+=ms.map(s=>{
+      const p=perfCache.find(x=>x.booster===s.name); const pct=p?p.weekPct:null;
+      const cls=pct==null?'neu':(pct>=100?'pos':'neg');
+      const lead=Number(s.allowance)>0;
+      return `<button type="button" class="combo-row${rpDraft.booster===s.name?' sel':''}" onclick="pickStaffCombo('${esc(s.name)}')">
+        ${avatarHtml(s.name)}<span class="combo-row-nm">${esc(s.name)}${lead?' <span class="combo-crown">👑</span>':''}</span>
+        <span class="combo-row-pct ${cls}">${pct==null?'—':pct.toFixed(0)+'%'}</span>${rpDraft.booster===s.name?'<span class="combo-check">✓</span>':''}</button>`;
+    }).join('');
+  });
+  return html||`<div class="combo-empty muted">${t('rpNoMatch')}</div>`;
+}
+function toggleStaffPicker(e){
+  if(e) e.stopPropagation();
+  const panel=document.getElementById('rp-staff-panel'); if(!panel) return;
+  const open=panel.hasAttribute('hidden');
+  if(open){ panel.removeAttribute('hidden'); document.getElementById('rp-staff-combo')?.classList.add('open');
+    const s=document.getElementById('rp-staff-search'); if(s){ s.value=''; setTimeout(()=>s.focus(),0); }
+    document.getElementById('rp-staff-list').innerHTML=staffPickerListHtml('');
+  } else closeStaffPicker();
+}
+function closeStaffPicker(){ const p=document.getElementById('rp-staff-panel'); if(p) p.setAttribute('hidden',''); document.getElementById('rp-staff-combo')?.classList.remove('open'); }
+function filterStaffPicker(v){ const l=document.getElementById('rp-staff-list'); if(l) l.innerHTML=staffPickerListHtml(v); }
+function parseThreadId(v){ v=(v||'').trim(); const m=v.match(/channels\/\d+\/(\d+)/); if(m) return m[1]; if(/^\d{10,25}$/.test(v)) return v; return v; }
+function rpThreadVal(){ const s=staffByName(MOCK_STAFF, rpDraft.booster); return s&&s.threadId?s.threadId:''; }
+function onThreadChange(){ const s=staffByName(MOCK_STAFF, rpDraft.booster); const v=document.getElementById('rp-thread')?.value||'';
+  if(s){ s.threadId=v; saveStaff(s); } }
+function commitThread(booster){ const v=document.getElementById('rp-thread')?.value||''; const s=staffByName(MOCK_STAFF, booster); if(s){ s.threadId=v; saveStaff(s); } return parseThreadId(v); }
+function pickStaffCombo(n){ rpDraft.booster=n; const tr=document.getElementById('rp-staff-trigger'); if(tr) tr.innerHTML=staffTriggerHtml();
+  const th=document.getElementById('rp-thread'); if(th) th.value=rpThreadVal();
+  closeStaffPicker(); updateReportPreview(); }
+if(!window._staffPickerDoc){ window._staffPickerDoc=true; document.addEventListener('click',e=>{ const c=document.getElementById('rp-staff-combo'); if(c && !c.contains(e.target)) closeStaffPicker(); }); }
+function clientGridHtml(){
+  return MOCK_CLIENTS.map(c=>`<button class="rep-pick rep-pick-c${rpDraft.clientId===c.id?' active':''}" onclick="pickClient('${esc(c.id)}')">
+    <span class="rp-c-pc">PC${c.pc}</span><span class="rp-c-name">${esc(c.name)}</span><span class="rp-c-lv">Lv${c.level} · ${esc(c.job||'')}</span></button>`).join('');
+}
+function mapGridHtml(){
+  const c=MOCK_CLIENTS.find(x=>x.id===rpDraft.clientId);
+  if(!c) return `<div class="rp-pick-empty muted">${t('rpPickClientFirst')}</div>`;
+  const seen=new Set(), out=[];
+  (c.maps||[]).forEach(m=>{ const key=m.en||m.ko; if(key&&!seen.has(key)){ seen.add(key); out.push(`<button class="rep-pick rep-pick-m${rpDraft.map===key?' active':''}" onclick="pickMap('${esc(key)}')">${esc(m.ko||m.en)}</button>`); } });
+  out.push(`<button class="rep-pick rep-pick-m rep-pick-test${rpDraft.map==='TEST'?' active':''}" onclick="pickMap('TEST')">🧪 ${t('mapTest')}</button>`);
+  return out.join('');
+}
+function jobInfoHtml(){
+  const c=MOCK_CLIENTS.find(x=>x.id===rpDraft.clientId); if(!c) return '';
+  return `<div class="rp-cardinfo">
+    <span class="rp-chip">🎯 Lv ${c.level}</span>
+    <span class="rp-chip">🧙 ${esc(c.job||'-')}</span>
+    <span class="rp-chip">⚔️ ${t('eqSword')} +${c.sword??'-'}</span>
+    <span class="rp-chip">🛡️ ${t('eqArmor')} +${c.armor??'-'}</span></div>`;
+}
+function pickClient(id){ rpDraft.clientId=id; rpDraft.map='';
+  const cg=document.getElementById('rp-client-grid'); if(cg)cg.innerHTML=clientGridHtml();
+  const ji=document.getElementById('rp-jobinfo'); if(ji)ji.innerHTML=jobInfoHtml();
+  const mg=document.getElementById('rp-map-grid'); if(mg)mg.innerHTML=mapGridHtml();
+  const c=MOCK_CLIENTS.find(x=>x.id===id); const lv=document.getElementById('rp-lv'); if(c&&lv)lv.value=c.level;
+  updateReportPreview();
+}
+function pickMap(m){ rpDraft.map=m; const g=document.getElementById('rp-map-grid'); if(g)g.innerHTML=mapGridHtml(); updateReportPreview(); }
+function renderReport(){
+  const host=document.getElementById('report'); if(!host) return;
+  const today=new Date().toISOString().slice(0,10);
+  const nowT=new Date().toTimeString().slice(0,5);
+  const tabs=[['checkin','rtCheckin',''],['status','rtStatus','rtStatusSub'],['checkout','rtCheckout','']]
+    .map(([k,lbl,sub])=>`<button class="rep-tab${reportType===k?' active':''}" onclick="setReportType('${k}')">${t(lbl)}${sub?` <span class="rep-tab-sub">(${t(sub)})</span>`:''}</button>`).join('');
+  let typed='', hint='', submitLbl='', submitFn='';
+  const fAdena=`<label class="rep-f sm"><span>${t('rpAdena')}</span><input id="rp-adena" type="number" step="0.001" class="input" placeholder="0"></label>`;
+  const fDrop=`<label class="rep-f sm"><span>${t('rpDrop')}</span><input id="rp-drop" type="number" class="input" value="0"></label>`;
+  const fNote=`<label class="rep-f wide"><span>${t('rpNote')}</span><input id="rp-note" type="text" class="input" placeholder="…"></label>`;
+  if(reportType==='checkin'){
+    hint=t('rpHintCheckin'); submitLbl=t('rpDoCheckin'); submitFn='submitCheckin()';
+    typed=`<label class="rep-f sm"><span>${t('rpStartTime')}</span><input id="rp-start" type="time" class="input" value="21:00"></label>
+      <label class="rep-f sm"><span>${t('rpStartLv')}</span><input id="rp-lv" type="number" class="input"></label>
+      <label class="rep-f sm"><span>${t('rpStartExp')}</span><input id="rp-exp" type="number" step="0.01" class="input" placeholder="0.00"></label>
+      ${fAdena}<label class="rep-f sm"><span>${t('rpRedPotion')}</span><input id="rp-potion" type="number" class="input" value="0"></label>${fNote}`;
+  } else if(reportType==='status'){
+    hint=t('rpHintStatus'); submitLbl=t('rpDoStatus'); submitFn='submitStatus()';
+    typed=`<label class="rep-f sm"><span>${t('rpTime')}</span><input id="rp-time" type="time" class="input" value="${nowT}"></label>
+      <label class="rep-f sm"><span>${t('rpCurLv')}</span><input id="rp-lv" type="number" class="input"></label>
+      <label class="rep-f sm"><span>${t('rpCurExp')}</span><input id="rp-exp" type="number" step="0.01" class="input" placeholder="0.00"></label>
+      ${fAdena}<label class="rep-f sm"><span>${t('rpRedPotion')}</span><input id="rp-potion" type="number" class="input" value="0"></label>
+      ${fDrop}<label class="rep-f sm"><span>${t('rpDead')}</span><input id="rp-dead" type="number" class="input" value="0"></label>${fNote}`;
+  } else {
+    hint=t('rpHintCheckout'); submitLbl=t('rpDoCheckout'); submitFn='submitCheckout()';
+    typed=`<label class="rep-f sm"><span>${t('rpEndTime')}</span><input id="rp-end" type="time" class="input" value="09:00" onchange="updateReportPreview()"></label>
+      <label class="rep-f sm"><span>${t('rpEndLv')}</span><input id="rp-lv" type="number" class="input" onchange="updateReportPreview()"></label>
+      <label class="rep-f sm"><span>${t('rpEndExp')}</span><input id="rp-exp" type="number" step="0.01" class="input" placeholder="0.00" oninput="updateReportPreview()"></label>
+      ${fAdena}<label class="rep-f sm"><span>${t('rpRedPotion')}</span><input id="rp-potion" type="number" class="input" value="0"></label>
+      ${fDrop}<label class="rep-f sm"><span>${t('rpDeadTot')}</span><input id="rp-dead" type="number" class="input" value="0"></label>${fNote}`;
+  }
+  host.innerHTML=`
+    <div class="rep-tabs">${tabs}</div>
+    <div class="rep-form">
+      <div class="rep-hint rep-hint-${reportType}">${hint}</div>
+      <div class="rep-pickwrap">
+        <div class="rep-toprow">
+          <div class="rep-top-l">
+            <div class="rep-pick-label">${t('rpClient')}</div>
+            <div id="rp-client-grid" class="rep-grid-pick rep-grid-c">${clientGridHtml()}</div>
+            <div id="rp-jobinfo">${jobInfoHtml()}</div>
+          </div>
+          <div class="rep-top-r">
+            <div class="rep-pick-label">${t('rpBooster')}</div>
+            <div class="combo" id="rp-staff-combo">
+              <button type="button" class="combo-trigger" id="rp-staff-trigger" onclick="toggleStaffPicker(event)">${staffTriggerHtml()}</button>
+              <div class="combo-panel" id="rp-staff-panel" hidden>
+                <div class="combo-search-wrap"><span class="combo-search-ic">🔍</span><input class="combo-search" id="rp-staff-search" placeholder="${t('rpSearch')}" oninput="filterStaffPicker(this.value)" onclick="event.stopPropagation()"></div>
+                <div class="combo-list" id="rp-staff-list">${staffPickerListHtml('')}</div>
+              </div>
+            </div>
+            <div class="rep-pick-label" style="margin-top:12px;">${t('rpThread')}</div>
+            <input id="rp-thread" type="text" class="input" placeholder="https://discord.com/channels/…" onchange="onThreadChange()" value="${esc(rpThreadVal())}">
+            <div class="rep-thread-hint muted">${t('rpThreadHint')}</div>
+          </div>
+        </div>
+        <div class="rep-pick-label">${t('rpMap')}</div>
+        <div id="rp-map-grid" class="rep-grid-pick rep-grid-m">${mapGridHtml()}</div>
+      </div>
+      <div class="rep-pick-label">${t('rpDetails')}</div>
+      <div class="rep-grid">${typed}</div>
+      <div class="rep-foot">
+        <div id="rp-preview" class="rep-preview"></div>
+        <button class="btn btn-primary rep-submit" onclick="${submitFn}">${submitLbl}</button>
+      </div>
+    </div>
+    <div class="ud-list-title">🕓 ${t('rpRecent')}</div>
+    <div id="report-recent" class="rep-recent"></div>`;
+  renderReportList();
+}
+function latestCheckin(booster,clientName,date){
+  return MOCK_REPORTS.filter(r=>r.tag==='checkin'&&r.booster===booster&&r.client===clientName&&r.date===date)
+    .sort((a,b)=>(a.start||'').localeCompare(b.start||'')).pop()||null;
+}
+function updateReportPreview(){
+  const el=document.getElementById('rp-preview'); if(!el) return;
+  if(reportType!=='checkout'){ el.innerHTML=''; return; }
+  const c=MOCK_CLIENTS.find(x=>x.id===rpDraft.clientId);
+  const booster=rpDraft.booster, map=rpDraft.map||'';
+  const date=document.getElementById('rp-date')?.value||'';
+  const lv=Number(document.getElementById('rp-lv')?.value)||0;
+  const endExp=Number(document.getElementById('rp-exp')?.value)||0;
+  const end=document.getElementById('rp-end')?.value||'';
+  if(!c){ el.innerHTML=''; return; }
+  if(map==='TEST'){ el.innerHTML=`<span class="rep-pv-txt" style="color:var(--ye);">🧪 ${t('mapTestNote')}</span>`; return; }
+  const ci=latestCheckin(booster,c.name,date);
+  const startLv=ci?Number(ci.lvBefore):lv, startExp=ci?Number(ci.expBefore):0;
+  const start=ci?ci.start:'21:00';
+  const gained=(lv-startLv)*100+(endExp-startExp);
+  const hrs=sessionHours({start,end});
+  const src=ci?t('rpFromCheckin'):t('rpNoCheckin');
+  if(!gained||!hrs){ el.innerHTML=`<span class="rep-pv-txt muted">${src}</span>`; return; }
+  const mm=findMap(MOCK_CLIENTS,{client:c.name,pc:c.pc,map,lvAfter:lv});
+  const perH=gained/hrs;
+  if(!mm||!mm.target){ el.innerHTML=`<span class="rep-pv-txt muted">+${gained.toFixed(2)}% · ${perH.toFixed(2)}%/h · ${t('uNoStdDay')} <span class="rep-pv-src">(${src})</span></span>`; return; }
+  const pct=perH/mm.target*100, cls=pct>=100?'pos':'neg';
+  el.innerHTML=`<span class="rep-pv-txt">${t('rpPreview')}: <b class="${cls}">${pct.toFixed(0)}%</b> <span class="muted">(+${gained.toFixed(2)}% / ${hrs}${t('rpHours')} · ${src})</span></span>`;
+}
+function rpCommon(){
+  const c=MOCK_CLIENTS.find(x=>x.id===rpDraft.clientId);
+  const gv=id=>{const e=document.getElementById(id); return e?Number(e.value)||0:0;};
+  return { booster:rpDraft.booster, c, map:rpDraft.map||'',
+    date:document.getElementById('rp-date')?.value||new Date().toISOString().slice(0,10),
+    lv:gv('rp-lv'), exp:gv('rp-exp'), dead:gv('rp-dead'), potion:gv('rp-potion'), adena:gv('rp-adena'), drop:gv('rp-drop'),
+    note:document.getElementById('rp-note')?.value||'' };
+}
+async function afterSubmit(msg){ await renderDashboard(); renderReport(); showToast(msg); }
+async function submitCheckin(){
+  const f=rpCommon(); if(!f.booster||!f.c){ showToast(t('rpNeed')); return; }
+  const lv=f.lv||f.c.level;
+  await saveReport({ id:'rpt-'+Date.now(), tag:'checkin', booster:f.booster, client:f.c.name, pc:f.c.pc, threadId:commitThread(f.booster),
+    date:f.date, map:f.map, start:document.getElementById('rp-start')?.value||'',
+    lvBefore:lv, expBefore:f.exp, lvAfter:lv, expAfter:f.exp, adena:f.adena, dead:0, potion:f.potion, drop:0, note:f.note });
+  afterSubmit(t('rpCheckinOk'));
+}
+async function submitStatus(){
+  const f=rpCommon(); if(!f.booster||!f.c){ showToast(t('rpNeed')); return; }
+  const lv=f.lv||f.c.level; const tm=document.getElementById('rp-time')?.value||'';
+  await saveReport({ id:'rpt-'+Date.now(), tag:'status', booster:f.booster, client:f.c.name, pc:f.c.pc, threadId:commitThread(f.booster),
+    date:f.date, map:f.map, start:tm, end:tm,
+    lvBefore:lv, expBefore:f.exp, lvAfter:lv, expAfter:f.exp, adena:f.adena, dead:f.dead, potion:f.potion, drop:f.drop, note:f.note });
+  afterSubmit(t('rpStatusOk'));
+}
+async function submitCheckout(){
+  const f=rpCommon();
+  if(!f.booster||!f.c||!f.exp){ showToast(t('rpNeedCheckout')); return; }
+  const lv=f.lv||f.c.level;
+  const ci=latestCheckin(f.booster,f.c.name,f.date);
+  const startLv=ci?Number(ci.lvBefore):lv, startExp=ci?Number(ci.expBefore):0;
+  const start=ci?ci.start:'21:00';
+  await saveReport({ id:'rpt-'+Date.now(), tag:'checkout', booster:f.booster, client:f.c.name, pc:f.c.pc, threadId:commitThread(f.booster),
+    date:f.date, map:f.map, start, end:document.getElementById('rp-end')?.value||'09:00',
+    lvBefore:startLv, expBefore:startExp, lvAfter:lv, expAfter:f.exp, adena:f.adena, dead:f.dead, potion:f.potion, drop:f.drop, note:f.note });
+  afterSubmit(t('rpCheckoutOk'));
+}
+function renderReportList(){
+  const host=document.getElementById('report-recent'); if(!host) return;
+  const badge={checkin:['rtCheckin','rb-in'],status:['rtStatus','rb-st'],checkout:['rtCheckout','rb-out'],'':['rtCheckout','rb-out']};
+  const rows=MOCK_REPORTS.slice().sort((a,b)=>{const k=(b.date||'').localeCompare(a.date||''); return k||((b.start||b.end||'').localeCompare(a.start||a.end||''));}).slice(0,14);
+  if(!rows.length){ host.innerHTML=`<div class="muted" style="padding:10px;">${t('rpNone')}</div>`; return; }
+  host.innerHTML=rows.map(r=>{
+    const tg=r.tag||'checkout'; const [lbl,cls]=badge[tg]||badge[''];
+    const isOut=tg==='checkout';
+    const g=(r.lvAfter-r.lvBefore)*100+(r.expAfter-r.expBefore);
+    const right=isOut?`<span class="rep-r-exp">+${g.toFixed(2)}%</span>`:`<span class="rep-r-snap muted">Lv${r.lvAfter} · ${Number(r.expAfter).toFixed(2)}%</span>`;
+    return `<div class="rep-row">
+      <span class="rep-badge ${cls}">${t(lbl)}</span>
+      <span class="rep-r-date">${(r.date||'').slice(5)}</span>
+      <span class="rep-r-who">${esc(r.booster)}</span>
+      <span class="rep-r-mid muted">PC${r.pc} · ${esc(r.map||'-')}</span>
+      ${right}
+      <button class="rep-r-del" onclick="deleteReport('${esc(r.id)}')" title="${t('rpDelOk')}">×</button>
+    </div>`;
+  }).join('');
+}
+async function deleteReport(id){ await removeReport(id); await renderDashboard(); renderReportList(); showToast(t('rpDelOk')); }
+let _toastT=null;
+function showToast(msg){ const el=document.getElementById('toast'); if(!el) return; el.textContent=msg; el.classList.add('show'); clearTimeout(_toastT); _toastT=setTimeout(()=>el.classList.remove('show'),2200); }
+
+/* ============================================================
+   직원 급여 입력 화면
+   ============================================================ */
+async function renderStaff(){
+  const staff=await loadStaff();
+  const host=document.getElementById('staff-list'); if(!host) return;
+  const head=`<div class="staff-head"><span>${t('thName')}</span><span class="h-rate">${t('rateLabel')} (${CURRENCY.trim()})</span><span>${t('startLabel')}</span><span></span></div>`;
+  host.innerHTML=`<div class="staff-table">${head}${staff.map(staffLine).join('')}<div class="staff-add" onclick="addStaff()">${t('addStaff')}</div></div>`;
+}
+function staffLine(s){
+  const lead=Number(s.allowance)>0;
+  return `<div class="staff-line${lead?' staff-leader':''}">
+    <div class="s-name-cell">
+      <div class="s-name-row">${lead?'<span class="staff-crown" title="'+t('roleLeader')+'">👑</span>':''}<input class="input s-name" value="${esc(s.name)}" onchange="updateStaff('${s.id}','name',this.value)" placeholder="${t('thName')}"></div>
+      ${lead?`<span class="s-allow">+ ${t('ldAllowance')} ${money(s.allowance)} · ${t('gBase')} ${money((Number(s.rate)||0)+Number(s.allowance))}</span>`:''}
+    </div>
+    <input class="input s-rate" type="number" value="${s.rate}" onchange="updateStaff('${s.id}','rate',this.value)" placeholder="${t('rateLabel')}">
+    <input class="input s-date" type="date" value="${esc(s.protectedUntil||'')}" onchange="updateStaff('${s.id}','protectedUntil',this.value)">
+    <button class="staff-del" onclick="deleteStaff('${s.id}')" aria-label="remove">×</button>
+  </div>`;
+}
+async function updateStaff(id,field,val){
+  const staff=await loadStaff(); const s=staff.find(x=>x.id===id); if(!s) return;
+  s[field] = field==='rate' ? (Number(val)||0) : val;
+  await saveStaff(s);
+  await renderDashboard();   // 월급 바뀌면 급여 다시 계산
+}
+async function addStaff(){
+  await saveStaff({ id:'st_'+Date.now(), name:'', rate:0, start:'' });
+  await renderStaff();
+}
+async function deleteStaff(id){
+  if(!confirm(t('delStaffConfirm'))) return;
+  await removeStaff(id); await renderStaff(); await renderDashboard();
+}
+
+/* ============================================================
+   CSV 내보내기
+   ============================================================ */
+function csvCell(v){ const s=String(v==null?'':v); return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s; }
+function download(name,text){
+  const blob=new Blob(['\uFEFF'+text],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob); const a=document.createElement('a');
+  a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+}
+function today(){ return new Date().toISOString().slice(0,10).replace(/-/g,''); }
+function exportAllCsv(){
+  const head=['Staff', t('payHr'), 'Week%', t('payWeek'), t('payMonth')];
+  const rows=perfCache.map(p=>[ p.booster, p.baseRate, p.weekPct==null?'-':p.weekPct.toFixed(1), Math.round(p.weekActualPay), Math.round(p.monthClampedPay) ]);
+  const csv=[head,...rows].map(r=>r.map(csvCell).join(',')).join('\n');
+  download('staff_summary_'+today()+'.csv', csv);
+}
+function exportEmployeeCsv(booster){
+  const p=perfCache.find(x=>x.booster===booster); if(!p) return;
+  const head=[t('hDate'),t('hClient'),t('hPc'),t('hLv'),t('hMap'),t('hActualExp'),t('hTarget'),t('hDiff'),t('hResult')];
+  const rows=p.sessionRows.map(r=>[
+    r.date+(r.tag?('-'+r.tag):''), (r.clientNo?r.clientNo+'. ':'')+r.client, r.pc, r.lv,
+    r.mapObj?mapName(r.mapObj):r.rawMap, f2(r.actualPerH), r.target==null?'-':f2(r.target),
+    r.diff==null?'-':sgn(r.diff), t(r.verdict.key)
+  ]);
+  const csv=[head,...rows].map(r=>r.map(csvCell).join(',')).join('\n');
+  download(booster+'_'+today()+'.csv', csv);
+}
+
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function buildDatalists(){
+  const ko=document.getElementById('map-ko-list'); const en=document.getElementById('map-en-list');
+  if(ko) ko.innerHTML=MAP_PRESETS.map(m=>`<option value="${esc(m.ko)}">`).join('');
+  if(en) en.innerHTML=MAP_PRESETS.map(m=>`<option value="${esc(m.en)}">`).join('');
+}
+
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){ const o=document.getElementById('edit-modal'); if(o && o.classList.contains('open')) cancelEdit(); }
+});
+(async function init(){ applyStaticText(); buildDatalists(); await renderStandards(); await renderStaff(); await renderDashboard(); renderReport(); })();
+</script>
+</body>
+</html>
