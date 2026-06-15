@@ -814,6 +814,8 @@ body.role-player #section-staff { display:none !important; }
 .step-btn{ background:var(--surface-2); border:1px solid var(--border-strong); border-radius:8px; color:var(--tx2); font-family:inherit; font-size:12px; font-weight:600; padding:8px 4px; cursor:pointer; transition:.12s; }
 .step-btn:hover{ background:var(--ac-bg); border-color:var(--ac); color:var(--ac); }
 .step-btn:active{ transform:scale(.95); }
+.glance-wage{ grid-column:1/-1; margin-top:7px; padding-top:8px; border-top:1px solid var(--border-strong); font-size:11.5px; font-weight:600; color:var(--tx2); text-align:center; letter-spacing:.01em; }
+.glance-wage b{ color:var(--tx); font-weight:800; }
 </style>
 </head>
 <body>
@@ -1186,7 +1188,7 @@ const T={
   ibTitle:{ko:'이번 주 모인 인센티브',en:'Incentive earned this week'},
   ibPayout:{ko:'주 1회 지급',en:'paid weekly'},
   ibPenalty:{ko:'월말 차감 예정',en:'month-end deduction'},
-  gBase:{ko:'기본급 (월)',en:'Base (mo)'}, gIncentive:{ko:'인센티브',en:'Incentive'}, gPenalty:{ko:'차감',en:'Deduction'},
+  gBase:{ko:'기본급 (월)',en:'Base (mo)'}, gIncentive:{ko:'인센티브',en:'Incentive'}, gPenalty:{ko:'차감',en:'Deduction'}, wDaily:{ko:'일급',en:'Daily'}, wHourly:{ko:'시급',en:'Hourly'},
   uBaseFixed:{ko:'기본급 (월·고정)',en:'Base (monthly, fixed)'},
   uIncentive:{ko:'모인 인센티브 (주 지급)',en:'Incentive earned (paid weekly)'},
   uPenalty:{ko:'월말 차감 (미달)',en:'Month-end deduction'},
@@ -1297,15 +1299,15 @@ const sgn=n=>{const x=Number(n)||0; return (x>=0?'+':'')+x.toFixed(2);};
 function compute(clients, reports, staff){
   const byBooster={};
   const isTestMap=r=>String(r.map||'').toUpperCase()==='TEST';
-  // 정산은 체크아웃(또는 태그 없는 시프트 합계)만 집계. 체크인/현황은 기록·모니터링용. 기타·테스트 맵 제외.
-  reports.filter(r=>(!r.tag || r.tag==='checkout') && !isTestMap(r)).forEach(r=>(byBooster[r.booster]=byBooster[r.booster]||[]).push(r));
+  // 정산 집계: 체크아웃 + 현황(1시간 리포트). 체크인은 근무창(시급 계산)용. 기타·테스트 맵 제외.
+  reports.filter(r=>(r.tag==='status'||r.tag==='checkout'||!r.tag) && !isTestMap(r)).forEach(r=>(byBooster[r.booster]=byBooster[r.booster]||[]).push(r));
 
   const results = Object.keys(byBooster).map(booster=>{
     const sm=staffByName(staff,booster); const rate=sm?(Number(sm.rate)||0):0; const protectedUntil=sm?sm.protectedUntil:null;
     const sessions=byBooster[booster].slice().sort((a,b)=>(a.date+a.tag).localeCompare(b.date+b.tag));
 
     const sessionRows=sessions.map(r=>{
-      const mo=findMap(clients,r); const target=mo?Number(mo.target):null; const h=sessionHours(r);
+      const mo=findMap(clients,r); const target=mo?Number(mo.target):null; const h=(r.tag==='status')?1:sessionHours(r);
       const cl=clients.find(x=>x.name===r.client); const clientNo=cl?cl.no:'';
       const actualPerH=gainedPct(r)/h; const diff=target==null?null:actualPerH-target;
       return { date:r.date, tag:r.tag, client:r.client, clientNo, pc:r.pc, lv:r.lvAfter, mapObj:mo, rawMap:r.map, hours:h, dead:r.dead||0,
@@ -1318,7 +1320,7 @@ function compute(clients, reports, staff){
     let weekGain=0, weekQuota=0, anyCounted=false, totalHours=0;
     const dayRows=Object.keys(byDate).sort().map(date=>{
       const rs=byDate[date]; let gain=0,quota=0,hours=0,dead=0,hasStd=true;
-      rs.forEach(r=>{ const mo=findMap(clients,r); const h=sessionHours(r);
+      rs.forEach(r=>{ const mo=findMap(clients,r); const h=(r.tag==='status')?1:sessionHours(r);
         gain+=gainedPct(r); hours+=h; dead+=r.dead||0; if(mo)quota+=Number(mo.target)*h; else hasStd=false; });
       const prot=isProtectedUntil(protectedUntil,date); const counted=!prot&&hasStd&&quota>0;
       const actualPerH=hours?gain/hours:0; const targetPerH=hours?quota/hours:0;
@@ -1353,6 +1355,11 @@ function compute(clients, reports, staff){
     const weekPct=(anyCounted&&weekQuota>0)?weekGain/weekQuota*100:null;
     // 표시 기준 = 전체 월급(+리더 수당). 일급 단위 ± 가감을 월급에 반영. 70~200% 클램프.
     const monthBasePay = monthBase + allowance;
+    // 시급 = 일급 ÷ 하루 근무시간 (체크인 PLAY TIME 창 평균). 일급 = 월급 ÷ 30.
+    const myCheckins = reports.filter(r=>r.booster===booster && r.tag==='checkin' && !isTestMap(r));
+    const shiftHours = myCheckins.length ? (myCheckins.reduce((s,r)=>s+sessionHours(r),0)/myCheckins.length) : 12;
+    const dailyBase = monthBasePay/30;
+    const hourlyBase = shiftHours>0 ? dailyBase/shiftHours : dailyBase/12;
     const monthRaw = monthBase + allowance + incentiveTotal - penaltyTotal;
     const monthClampedPay=Math.min(monthBasePay*MONTH_MAX/100, Math.max(monthBasePay*MONTH_MIN/100, monthRaw));
     const monthClampedPct=monthBasePay>0?Math.min(MONTH_MAX,Math.max(MONTH_MIN, monthRaw/monthBasePay*100)):null;
@@ -1360,7 +1367,8 @@ function compute(clients, reports, staff){
 
     return { booster, baseRate:rate, sessionRows, dayRows, weekPct, weekGain, weekQuota,
       weekActualPay, weekBasePay, monthClampedPay, monthBasePay, monthClampedPct, latestDay,
-      incentiveTotal, penaltyTotal, isLeader, allowance, teamMembers, teamSize:teamMembers.length };
+      incentiveTotal, penaltyTotal, isLeader, allowance, teamMembers, teamSize:teamMembers.length,
+      dailyBase, hourlyBase, shiftHours };
   });
 
   // 리포트가 아직 없는 일반 직원 = 기록 대기. (팀장은 아래 팀-정산 패스에서 일괄 처리)
@@ -1399,6 +1407,9 @@ function compute(clients, reports, staff){
     const teamAvg = allPcts.length ? allPcts.reduce((a,b)=>a+b,0)/allPcts.length : null;
     const teamReported = memberResults.filter(p=>p.weekPct!=null).length;
     const monthBasePay = rate + allowance;
+    const _lc = reports.filter(r=>r.booster===ls.name && r.tag==='checkin');
+    const shiftHours = _lc.length ? (_lc.reduce((s,r)=>s+sessionHours(r),0)/_lc.length) : 12;
+    const hourlyBase = shiftHours>0 ? dailyBase/shiftHours : dailyBase/12;
     const monthRaw = monthBasePay + incentiveTotal - penaltyTotal;
     const monthClampedPay = Math.min(monthBasePay*MONTH_MAX/100, Math.max(monthBasePay*MONTH_MIN/100, monthRaw));
     const monthClampedPct = monthBasePay>0 ? Math.min(MONTH_MAX, Math.max(MONTH_MIN, monthRaw/monthBasePay*100)) : null;
@@ -1407,7 +1418,7 @@ function compute(clients, reports, staff){
       weekPct:teamAvg, weekGain:0, weekQuota:0, weekActualPay:monthRaw, weekBasePay:monthBasePay,
       monthClampedPay, monthBasePay, monthClampedPct, latestDay,
       incentiveTotal, penaltyTotal, isLeader:true, allowance, teamSize:teamMembers.length, teamMembers,
-      teamAvg, teamReported };
+      teamAvg, teamReported, dailyBase, hourlyBase, shiftHours };
     const idx = results.findIndex(p=>p.booster===ls.name);
     if(idx>=0) results[idx]=leaderResult; else results.push(leaderResult);
   });
@@ -1749,7 +1760,7 @@ function empGlanceCard(p){
         <div class="glance-stats">
           <div><div class="gs-label">${t('gBase')}</div><div class="gs-val">${money(p.monthBasePay)}</div></div>
           <div><div class="gs-label">${t('gIncentive')}</div><div class="gs-val ${p.incentiveTotal>0?'pos':''}">+${money(p.incentiveTotal)}</div></div>
-          <div><div class="gs-label">${t('gPenalty')}</div><div class="gs-val ${p.penaltyTotal>0?'neg':''}">−${money(p.penaltyTotal)}</div></div>
+          <div><div class="gs-label">${t('gPenalty')}</div><div class="gs-val ${p.penaltyTotal>0?'neg':''}">−${money(p.penaltyTotal)}</div></div><div class="glance-wage">${t('wDaily')} <b>${money(p.dailyBase||0)}</b> · ${t('wHourly')} <b>${money(p.hourlyBase||0)}</b></div>
         </div>
       </div>
       ${open?`<div class="glance-detail">${empDetailHtml(p)}</div>`:''}
@@ -1786,7 +1797,7 @@ function empGlanceCard(p){
       <div class="glance-stats">
         <div><div class="gs-label">${t('gBase')}</div><div class="gs-val">${money(p.monthBasePay)}</div></div>
         <div><div class="gs-label">${t('gIncentive')}</div><div class="gs-val ${p.incentiveTotal>0?'pos':''}">+${money(p.incentiveTotal)}</div></div>
-        <div><div class="gs-label">${t('gPenalty')}</div><div class="gs-val ${p.penaltyTotal>0?'neg':''}">−${money(p.penaltyTotal)}</div></div>
+        <div><div class="gs-label">${t('gPenalty')}</div><div class="gs-val ${p.penaltyTotal>0?'neg':''}">−${money(p.penaltyTotal)}</div></div><div class="glance-wage">${t('wDaily')} <b>${money(p.dailyBase||0)}</b> · ${t('wHourly')} <b>${money(p.hourlyBase||0)}</b></div>
       </div>
     </div>
     ${open?`<div class="glance-detail">${empDetailHtml(p)}</div>`:''}
