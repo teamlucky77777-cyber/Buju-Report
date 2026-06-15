@@ -835,8 +835,13 @@ body.role-player #section-staff { display:none !important; }
 .s-shift-sel:hover{ border-color:var(--accent); }
 .rec-tag{ font-size:10px; font-weight:700; color:var(--tx2); background:var(--surface-3); border-radius:4px; padding:1px 5px; margin-left:3px; }
 .rec-wrote{ white-space:nowrap; font-variant-numeric:tabular-nums; }
-.wt-kr{ display:block; font-weight:700; color:var(--tx); white-space:nowrap; font-variant-numeric:tabular-nums; }
-.wt-id{ display:block; font-size:11px; font-weight:600; color:var(--tx2); white-space:nowrap; font-variant-numeric:tabular-nums; }
+.wt{ cursor:pointer; white-space:nowrap; font-variant-numeric:tabular-nums; border-radius:5px; padding:1px 4px; margin:-1px -4px; transition:background .12s; }
+.wt:hover{ background:var(--surface-2); }
+.wt .wt-kr, .wt .wt-id{ font-weight:700; color:var(--tx); }
+.wt .wt-id{ display:none; }
+.wt.show-id .wt-kr{ display:none; }
+.wt.show-id .wt-id{ display:inline; }
+.wt-plain{ font-weight:700; color:var(--tx); white-space:nowrap; font-variant-numeric:tabular-nums; }
 .rec-act{ text-align:center; }
 .rec-del{ width:24px; height:24px; border:none; border-radius:6px; background:transparent; color:var(--tx2); font-size:16px; line-height:1; cursor:pointer; transition:all .12s; }
 .rec-del:hover{ background:var(--danger); color:#fff; }
@@ -1172,7 +1177,7 @@ const T={
   startLabel:{ko:'보호 종료일',en:'Protected until'},
   addStaff:{ko:'+ 직원 추가',en:'+ Add staff'},
   delStaffConfirm:{ko:'이 직원을 삭제할까요?',en:'Delete this staff?'},
-  delete:{ko:'삭제',en:'Delete'}, recDelConfirm:{ko:'이 기록(리포트)을 삭제할까요? 되돌릴 수 없어요.',en:'Delete this record? This cannot be undone.'},
+  delete:{ko:'삭제',en:'Delete'}, recDelConfirm:{ko:'이 기록(리포트)을 삭제할까요? 되돌릴 수 없어요.',en:'Delete this record? This cannot be undone.'}, tzToggle:{ko:'클릭: 한국 ↔ 자카르타 시간',en:'Click: KR ↔ Jakarta time'},
   note:{ko:'<b>급여 = 월급(기본급) × 성과%</b> · 월말엔 70~200%로 조정. 직원을 누르면 계산 과정이 보입니다.',
         en:'<b>Pay = monthly salary (base) × performance%</b> · clamped to 70–200% monthly. Tap a staff member for the breakdown.'},
   edit:{ko:'수정',en:'Edit'},
@@ -1376,10 +1381,11 @@ function reportMs(r){
 function fmtAt(ms, off){ const d=new Date(ms + off*3600*1000); return pad2(d.getUTCMonth()+1)+'-'+pad2(d.getUTCDate())+' '+pad2(d.getUTCHours())+':'+pad2(d.getUTCMinutes()); }
 function dualTimeHtmlMs(ms, fallbackStr){
   if(ms!=null && ms>1e12){
-    return `<span class="wt-kr">🇰🇷 ${fmtAt(ms,9)}</span><span class="wt-id">🇮🇩 ${fmtAt(ms,7)}</span>`;
+    return `<span class="wt" onclick="toggleTz(event,this)" title="${t('tzToggle')}"><span class="wt-kr">🇰🇷 ${fmtAt(ms,9)}</span><span class="wt-id">🇮🇩 ${fmtAt(ms,7)}</span></span>`;
   }
-  return `<span class="wt-id">${esc(fallbackStr||'')}</span>`;
+  return `<span class="wt-plain">${esc(fallbackStr||'')}</span>`;
 }
+function toggleTz(e, el){ if(e){ e.stopPropagation(); } if(el) el.classList.toggle('show-id'); }
 function dualTimeHtml(r){ return dualTimeHtmlMs(reportMs(r), writtenShort(r)); }
 function isProtectedDate(startStr,dateStr){
   if(!startStr) return false;
