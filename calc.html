@@ -879,6 +879,9 @@ body.no-edit-records .rec-click:hover{ background:transparent; }
 .tbl-rec tr.rec-nostd > td:first-child{ box-shadow:inset 3px 0 0 var(--warning,#e0b341); }
 .tbl-rec tr.rec-nostd > td{ background:rgba(224,179,65,.045); }
 .nostd-dash{ color:var(--warning,#e0b341); font-weight:800; cursor:help; }
+.ci-start{ color:var(--tx2); font-weight:700; }
+.t-gain{ color:#a98bdb; font-weight:700; }
+.vp.v-skip{ }
 </style>
 </head>
 <body>
@@ -1328,6 +1331,7 @@ const T={
   hActualExp:{ko:'실제 EXP',en:'Actual EXP'}, hTarget:{ko:'기준',en:'Target'},
   vPass:{ko:'통과',en:'Pass'}, vUnder:{ko:'미달',en:'Under'}, vBig:{ko:'크게 미달',en:'Way under'}, vNoStd:{ko:'기준없음',en:'No std'}, vProtected:{ko:'보호',en:'Protected'}, vRest:{ko:'휴식',en:'Rest'},
   nostdWait:{ko:'기준 대기 — 기준을 넣으면 자동 채점됩니다',en:'Awaiting standard — auto-scores once a standard is set'},
+  vCheckin:{ko:'시작',en:'Start'}, vTest:{ko:'정산제외',en:'Excluded'},
   adjTitle:{ko:'기록 수정',en:'Edit record'}, adjNormal:{ko:'정상',en:'Normal'}, adjRest:{ko:'휴식 · 기본급',en:'Rest · Base'}, adjManual:{ko:'수동',en:'Manual'},
   adjNormalD:{ko:'리포트의 실제 EXP로 자동 채점합니다.',en:"Scored automatically from the report's EXP."},
   adjRestD:{ko:'이 시간은 일을 못한 것으로 처리 — 성과 집계에서 빠지고 기본급만 지급됩니다 (± 없음).',en:'Treated as downtime — excluded from scoring, base pay only (no ±).'},
@@ -1472,28 +1476,33 @@ const sgn=n=>{const x=Number(n)||0; return (x>=0?'+':'')+x.toFixed(2);};
 function compute(clients, reports, staff){
   const byBooster={};
   const isTestMap=r=>String(r.map||'').toUpperCase()==='TEST';
-  // 정산 집계: 체크아웃 + 현황(1시간 리포트). 체크인은 근무창(시급 계산)용. 기타·테스트 맵 제외.
-  reports.filter(r=>(r.tag==='status'||r.tag==='checkout'||!r.tag) && !isTestMap(r)).forEach(r=>(byBooster[r.booster]=byBooster[r.booster]||[]).push(r));
+  // 표시는 모든 리포트(체크인·테스트·체크아웃 포함). 정산은 각 직원 안에서 status/checkout(테스트·체크인 제외)만.
+  reports.forEach(r=>(byBooster[r.booster]=byBooster[r.booster]||[]).push(r));
 
   const results = Object.keys(byBooster).map(booster=>{
     const sm=staffByName(staff,booster); const rate=sm?(Number(sm.rate)||0):0; const protectedUntil=sm?sm.protectedUntil:null;
     const brk=breaksFor(workHoursOf(sm));        // 근무시간별 쉬는시간
-    const sessions=byBooster[booster].slice().sort((a,b)=>(a.date+a.tag).localeCompare(b.date+b.tag));
+    const allRs=byBooster[booster].slice().sort((a,b)=>(reportMs(a)||0)-(reportMs(b)||0));
 
-    const sessionRows=sessions.map(r=>{
-      const mo=findMap(clients,r); const target=mo?Number(mo.target):null; const h=(r.tag==='status')?1:sessionHours(r, brk);
+    // ── 세션 기록(표시): 모든 타입. 체크인=시작 경험치 / 테스트=증가량(정산제외) / 체크아웃·현황=증가량 ──
+    const sessionRows=allRs.map(r=>{
+      const mo=findMap(clients,r); const target=mo?Number(mo.target):null;
       const cl=clients.find(x=>x.name===r.client); const clientNo=cl?cl.no:'';
       const adj=r.adj||null; const isRest=adj&&adj.mode==='rest'; const isManual=adj&&adj.mode==='manual';
-      const effGain=(isManual&&target!=null)?(adj.pct/100)*target*h:gainedPct(r);
-      const actualPerH=isRest?null:effGain/h; const diff=(isRest||target==null)?null:actualPerH-target;
+      const isTest=isTestMap(r); const isCheckin=r.tag==='checkin';
+      const base={ id:r.id, wrote:writtenShort(r), wroteMs:reportMs(r), date:r.date, tag:r.tag, client:r.client, clientNo, pc:r.pc, lv:r.lvAfter, mapObj:mo, rawMap:r.map, dead:r.dead||0, isRest, isManual, protected:isProtectedUntil(protectedUntil,r.date) };
+      if(isCheckin) return Object.assign(base,{ dispKind:'start', startExp:(r.expAfter!=null?r.expAfter:r.expBefore), actualPerH:null, target:null, diff:null, verdict:{key:'vCheckin',cls:'v-skip'} });
+      if(isTest)    return Object.assign(base,{ dispKind:'test',  actualPerH:gainedPct(r), target:null, diff:null, verdict:{key:'vTest',cls:'v-skip'} });
+      const effGain=(isManual&&target!=null)?(adj.pct/100)*target:(isRest?null:gainedPct(r));
+      const actualPerH=isRest?null:effGain; const diff=(isRest||target==null)?null:actualPerH-target;
       const vd=isRest?{key:'vRest',cls:'v-skip'}:(target==null?{key:'vNoStd',cls:'v-skip'}:verdict(diff));
-      return { id:r.id, wrote:writtenShort(r), wroteMs:reportMs(r), date:r.date, tag:r.tag, client:r.client, clientNo, pc:r.pc, lv:r.lvAfter, mapObj:mo, rawMap:r.map, hours:h, dead:r.dead||0,
-        actualPerH, target, diff, isRest, isManual, protected:isProtectedUntil(protectedUntil,r.date),
-        verdict: vd };
+      return Object.assign(base,{ dispKind:'perH', actualPerH, target, diff, verdict:vd });
     });
 
+    // ── 정산 집계: status/checkout만 (체크인·테스트 제외). 일별/급여는 여기서만 ──
+    const settleRs=allRs.filter(r=>(r.tag==='status'||r.tag==='checkout'||!r.tag) && !isTestMap(r));
     const byDate={};
-    sessions.forEach(r=>(byDate[r.date]=byDate[r.date]||[]).push(r));
+    settleRs.forEach(r=>(byDate[r.date]=byDate[r.date]||[]).push(r));
     let weekGain=0, weekQuota=0, anyCounted=false, totalHours=0;
     const dayRows=Object.keys(byDate).sort().map(date=>{
       const rs=byDate[date]; let gain=0,quota=0,hours=0,dead=0,hasStd=true;
@@ -2236,7 +2245,7 @@ function renderRecords(){
     p.sessionRows.forEach(s=>sRows.push(Object.assign({booster:p.booster}, s)));
   });
   dRows.sort((a,b)=> b.date.localeCompare(a.date) || a.booster.localeCompare(b.booster));
-  sRows.sort((a,b)=> (b.date+(b.tag||'')).localeCompare(a.date+(a.tag||'')) || a.booster.localeCompare(b.booster));
+  sRows.sort((a,b)=> b.date.localeCompare(a.date) || ((a.wroteMs||0)-(b.wroteMs||0)) || a.booster.localeCompare(b.booster));
 
   const boosters=[...new Set([...dRows.map(d=>d.booster), ...sRows.map(s=>s.booster)])]
     .sort((a,b)=>{ const pa=perfCache.find(x=>x.booster===a), pb=perfCache.find(x=>x.booster===b);
@@ -2270,11 +2279,15 @@ function renderRecords(){
     const tagB = tagKey?` <span class="rec-tag">${t(tagKey)}</span>`:'';
     const deadTxt=r.dead?` <span class="neg tiny">·${t('death')}${r.dead}</span>`:'';
     const mapTxt=r.mapObj?mapName(r.mapObj):esc(r.rawMap);
-    const expCell = r.isRest ? `<span class="muted">—</span>` : `+${f2(r.actualPerH)}%`;
-    const diffCell = r.isRest ? `<span class="muted">—</span>` : `<span class="${r.diff==null?'neu':(r.diff>=0?'pos':'neg')}">${r.diff==null?'-':sgn(r.diff)+'%'}</span>`;
+    let expCell, tgtCell, diffCell;
+    if(r.dispKind==='start'){ expCell=`<span class="ci-start">${f2(r.startExp)}%</span>`; tgtCell='<span class="muted">-</span>'; diffCell='<span class="muted">-</span>'; }
+    else if(r.dispKind==='test'){ expCell=`<span class="t-gain">+${f2(r.actualPerH)}%</span>`; tgtCell='<span class="muted">-</span>'; diffCell='<span class="muted">-</span>'; }
+    else if(r.isRest){ expCell='<span class="muted">—</span>'; tgtCell=(r.target==null?'<span class="muted">-</span>':'+'+f2(r.target)+'%'); diffCell='<span class="muted">—</span>'; }
+    else { expCell=`+${f2(r.actualPerH)}%`; tgtCell=(r.target==null?`<span class="nostd-dash" title="${t('nostdWait')}">-</span>`:'+'+f2(r.target)+'%'); diffCell=`<span class="${r.diff==null?'neu':(r.diff>=0?'pos':'neg')}">${r.diff==null?'-':sgn(r.diff)+'%'}</span>`; }
     const tag = r.isManual ? ` <span class="tiny adj-tag">${t('adjTagM')}</span>` : '';
-    return `<tr class="rec-click${r.isRest?' rec-rest':''}${(r.target==null&&!r.isRest)?' rec-nostd':''}" onclick="openAdjModal('${esc(r.id)}')" title="${t('adjEdit')}"><td class="rec-staff">${esc(r.booster)}</td><td class="rec-wrote">${dualTimeHtmlMs(r.wroteMs, r.wrote)}${tagB}${deadTxt}</td><td>${r.clientNo?esc(r.clientNo)+'. ':''}${esc(r.client)}</td><td>${esc(r.pc)}</td><td class="num">${r.lv}</td><td>${esc(mapTxt)}</td>
-      <td class="num">${expCell}</td><td class="num muted">${r.target==null?'<span class="nostd-dash" title="'+t('nostdWait')+'">-</span>':'+'+f2(r.target)+'%'}</td>
+    const noStdRow = (r.dispKind==='perH' && r.target==null && !r.isRest) ? ' rec-nostd' : '';
+    return `<tr class="rec-click${r.isRest?' rec-rest':''}${noStdRow}" onclick="openAdjModal('${esc(r.id)}')" title="${t('adjEdit')}"><td class="rec-staff">${esc(r.booster)}</td><td class="rec-wrote">${dualTimeHtmlMs(r.wroteMs, r.wrote)}${tagB}${deadTxt}</td><td>${r.clientNo?esc(r.clientNo)+'. ':''}${esc(r.client)}</td><td>${esc(r.pc)}</td><td class="num">${r.lv}</td><td>${esc(mapTxt)}</td>
+      <td class="num">${expCell}</td><td class="num muted">${tgtCell}</td>
       <td class="num">${diffCell}</td>
       <td><span class="vp ${r.verdict.cls}">${t(r.verdict.key)}</span>${tag}${r.protected?' <span class="tiny v-skip">'+t('protectedTag')+'</span>':''}</td><td class="rec-act"><button class="rec-del" onclick="event.stopPropagation(); deleteRecordReport('${esc(r.id)}')" title="${t('delete')}">×</button></td></tr>`;
   }).join('');
