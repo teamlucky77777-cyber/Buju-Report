@@ -835,13 +835,20 @@ body.role-player #section-staff { display:none !important; }
 .s-shift-sel:hover{ border-color:var(--accent); }
 .rec-tag{ font-size:10px; font-weight:700; color:var(--tx2); background:var(--surface-3); border-radius:4px; padding:1px 5px; margin-left:3px; }
 .rec-wrote{ white-space:nowrap; font-variant-numeric:tabular-nums; }
-.wt{ cursor:pointer; white-space:nowrap; font-variant-numeric:tabular-nums; border-radius:5px; padding:1px 4px; margin:-1px -4px; transition:background .12s; }
-.wt:hover{ background:var(--surface-2); }
+.wt{ cursor:pointer; white-space:nowrap; font-variant-numeric:tabular-nums; border-radius:6px; padding:2px 7px; margin:-2px 0; transition:background .12s,border-color .12s; border:1px solid transparent; display:inline-flex; align-items:center; gap:6px; }
+.wt:hover{ background:var(--surface-2); border-color:var(--border-strong); }
 .wt .wt-kr, .wt .wt-id{ font-weight:700; color:var(--tx); }
 .wt .wt-id{ display:none; }
 .wt.show-id .wt-kr{ display:none; }
 .wt.show-id .wt-id{ display:inline; }
+.wt-swap{ font-size:10px; color:var(--tx3); font-weight:800; transition:color .14s,transform .25s; }
+.wt:hover .wt-swap{ color:var(--accent); transform:rotate(180deg); }
 .wt-plain{ font-weight:700; color:var(--tx); white-space:nowrap; font-variant-numeric:tabular-nums; }
+.rec-h-right{ display:flex; align-items:center; gap:10px; }
+.tz-toggle{ display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:var(--tx2); background:var(--surface-2); border:1px solid var(--border-strong); border-radius:999px; padding:5px 11px; cursor:pointer; transition:all .14s; white-space:nowrap; }
+.tz-toggle:hover{ color:var(--tx); border-color:var(--accent); }
+.tz-swap{ font-size:11px; font-weight:800; color:var(--accent); transition:transform .25s; }
+.tz-toggle:hover .tz-swap{ transform:rotate(180deg); }
 .rec-act{ text-align:center; }
 .rec-del{ width:24px; height:24px; border:none; border-radius:6px; background:transparent; color:var(--tx2); font-size:16px; line-height:1; cursor:pointer; transition:all .12s; }
 .rec-del:hover{ background:var(--danger); color:#fff; }
@@ -977,6 +984,7 @@ body.no-edit-records .rec-click:hover{ background:transparent; }
 const PROTECTION_DAYS    = 3;
 const MONTH_MIN          = 70;   // 최대 -30% 차감 (기본급의 70%는 유지)
 const MONTH_MAX          = 200;
+const LEADER_SHARE       = 0.5;  // 팀장 일급가감 = 팀원 평균 일급가감 × 이 값 (A버전: 절반). 0.3~0.5로 조절 가능
 const BIG_MISS_PER_HOUR  = 0.3;   // %/h 스케일(0.7~1.2)에 맞춤: 목표보다 0.3%/h 이상 미달이면 '크게 미달'
 const MAX_LEADER_INCENTIVE = 1200000;   // 팀장 최대 인센티브 (팀 평균 200%에서 도달) → 상한 +1.2jt
 const MAX_LEADER_PENALTY   = 600000;    // 팀장 최대 차감 (팀 평균 0%에서 도달) → 하한 −0.6jt
@@ -1311,6 +1319,7 @@ const T={
   daily:{ko:'일급별',en:'Daily'},
   hourly:{ko:'세션별',en:'By session'},
   hDate:{ko:'날짜',en:'Date'}, hWrote:{ko:'작성시각',en:'Written'}, hHours:{ko:'시간',en:'Hrs'}, hActualH:{ko:'실제/h',en:'Actual/h'}, hTargetH:{ko:'기준/h',en:'Target/h'},
+  tzKR:{ko:'한국시간',en:'KR time'}, tzID:{ko:'자카르타시간',en:'Jakarta time'},
   hDiff:{ko:'차이',en:'Diff'}, hDayPct:{ko:'성과%',en:'Perf%'}, hDayPay:{ko:'일급',en:'Day pay'}, hResult:{ko:'판정',en:'Result'},
   hClient:{ko:'클라',en:'Client'}, hPc:{ko:'PC',en:'PC'}, hLv:{ko:'LV',en:'LV'}, hMap:{ko:'사냥터',en:'Map'},
   hActualExp:{ko:'실제 EXP',en:'Actual EXP'}, hTarget:{ko:'기준',en:'Target'},
@@ -1412,11 +1421,12 @@ function reportMs(r){
 function fmtAt(ms, off){ const d=new Date(ms + off*3600*1000); return pad2(d.getUTCMonth()+1)+'-'+pad2(d.getUTCDate())+' '+pad2(d.getUTCHours())+':'+pad2(d.getUTCMinutes()); }
 function dualTimeHtmlMs(ms, fallbackStr){
   if(ms!=null && ms>1e12){
-    return `<span class="wt" onclick="toggleTz(event,this)" title="${t('tzToggle')}"><span class="wt-kr">🇰🇷 ${fmtAt(ms,9)}</span><span class="wt-id">🇮🇩 ${fmtAt(ms,7)}</span></span>`;
+    return `<span class="wt${tzAll==='id'?' show-id':''}" onclick="toggleTz(event,this)" title="${t('tzToggle')}"><span class="wt-kr">🇰🇷 ${fmtAt(ms,9)}</span><span class="wt-id">🇮🇩 ${fmtAt(ms,7)}</span><span class="wt-swap">⇄</span></span>`;
   }
   return `<span class="wt-plain">${esc(fallbackStr||'')}</span>`;
 }
 function toggleTz(e, el){ if(e){ e.stopPropagation(); } if(el) el.classList.toggle('show-id'); }
+function toggleTzAll(){ tzAll = tzAll==='kr'?'id':'kr'; try{localStorage.setItem('buju_tz',tzAll);}catch(e){} renderRecords(); }
 function dualTimeHtml(r){ return dualTimeHtmlMs(reportMs(r), writtenShort(r)); }
 function isProtectedDate(startStr,dateStr){
   if(!startStr) return false;
@@ -1551,25 +1561,35 @@ function compute(clients, reports, staff){
   // ── 팀장 정산: 본인 플레이가 아니라 "팀원들의 성과"를 일급 방식으로 월급에 반영 ──
   //  · 팀원이 그날 기준 초과 → 리더 일급 +, 미달 → 리더 일급 −  (팀 평균 성과% 기준)
   //  · 리더 일급 = (월급 + 리더수당) ÷ 30.  월 누적 = 월급+수당 ± Σ일급가감 (70~200% 클램프)
+  // ── 팀장 정산 (A버전): 팀원들의 '일급 가감(Rp)' 평균의 절반만 팀장 월급에 반영 ──
+  //  · 팀원 평균이 + (기준 초과) → 팀장 일급 +,  − (미달) → 팀장 일급 −,  서로 상쇄돼 형평성 ↑
+  //  · 절반 비율 = LEADER_SHARE.  월 누적 = 월급+수당 ± Σ일급가감 (70~200% 클램프, 바닥 유지)
   staff.filter(s=>Number(s.allowance)>0).forEach(ls=>{
     const rate = Number(ls.rate)||0, allowance = Number(ls.allowance)||0;
     const teamMembers = staff.filter(x=>x.leader===ls.name).map(m=>m.name);
     const memberResults = results.filter(p=>teamMembers.includes(p.booster));
-    // 팀원들의 일자별 성과%(채점된 날만) 수집 → 그날 팀 평균
-    const dayMap = {};
-    memberResults.forEach(p=>(p.dayRows||[]).forEach(d=>{ if(d.counted && d.dayPct!=null){ (dayMap[d.date]=dayMap[d.date]||[]).push(d.dayPct); } }));
+    const adjMap = {};  // date -> [팀원 일급가감 Rp]  (채점된 날만)
+    const pctMap = {};  // date -> [팀원 성과%]       (표시용 평균)
+    memberResults.forEach(p=>(p.dayRows||[]).forEach(d=>{
+      if(d.counted){ const adj=(d.incentive||0)-(d.penalty||0); (adjMap[d.date]=adjMap[d.date]||[]).push(adj);
+        if(d.dayPct!=null)(pctMap[d.date]=pctMap[d.date]||[]).push(d.dayPct); }
+    }));
     const dailyBase = (rate + allowance)/30;       // 리더 일급 (월급+수당)
     let incentiveTotal=0, penaltyTotal=0;
-    const dayRows = Object.keys(dayMap).sort().map(date=>{
-      const avgPct = dayMap[date].reduce((a,b)=>a+b,0)/dayMap[date].length;
-      const ratio = Math.min(MONTH_MAX/100, Math.max(MONTH_MIN/100, avgPct/100));  // -70%~+200% 클램프
-      const incentive = dailyBase*Math.max(0, ratio-1), penalty = dailyBase*Math.max(0, 1-ratio);
+    const dayRows = Object.keys(adjMap).sort().map(date=>{
+      const adjs=adjMap[date];
+      const avgAdj = adjs.reduce((a,b)=>a+b,0)/adjs.length;     // 팀원 평균 일급가감(Rp)
+      const leaderAdj = avgAdj * LEADER_SHARE;                  // 그 절반 = 팀장 일급가감
+      const incentive = Math.max(0, leaderAdj), penalty = Math.max(0, -leaderAdj);
       incentiveTotal += incentive; penaltyTotal += penalty;
-      return { date, dayPct:avgPct, payPct:avgPct, counted:true, hours:0, dead:0, gain:0, quota:0, diff:null,
+      const payPct = dailyBase>0 ? (dailyBase+leaderAdj)/dailyBase*100 : 100;
+      const pcts = pctMap[date]||[];
+      const dPct = pcts.length ? pcts.reduce((a,b)=>a+b,0)/pcts.length : payPct;
+      return { date, dayPct:dPct, payPct, counted:true, hours:0, dead:0, gain:0, quota:0, diff:null,
         basePay:dailyBase, incentive, penalty, actualPay:dailyBase+incentive-penalty, protected:false, noStd:false,
-        verdict: avgPct>=100?{key:'vPass',cls:'v-pass'}:verdict((avgPct-100)/100) };
+        verdict: leaderAdj>=0?{key:'vPass',cls:'v-pass'}:verdict(leaderAdj/dailyBase) };
     });
-    const allPcts = Object.values(dayMap).reduce((a,b)=>a.concat(b),[]);
+    const allPcts = Object.values(pctMap).reduce((a,b)=>a.concat(b),[]);
     const teamAvg = allPcts.length ? allPcts.reduce((a,b)=>a+b,0)/allPcts.length : null;
     const teamReported = memberResults.filter(p=>p.weekPct!=null).length;
     const monthBasePay = rate + allowance;
@@ -1651,6 +1671,7 @@ let CUSTOM_GAMES=[];
 let GAMES=BUILTIN_GAMES.slice();
 function rebuildGames(){ GAMES = BUILTIN_GAMES.concat((CUSTOM_GAMES||[]).filter(g=>g&&g.id&&!BUILTIN_GAMES.some(b=>b.id===g.id))); }
 let currentGame='lineage';
+let tzAll='kr';   // 작성시각 표시 시간대: 'kr'(한국) | 'id'(자카르타)
 function gameById(id){ return GAMES.find(g=>g.id===id)||GAMES[0]; }
 function gameOf(c){ return gameById((c&&c.game)||'lineage'); }
 const STEP_META={ level:{l:'level',p:''}, sword:{l:'wpnShort',p:'+'}, armor:{l:'armShort',p:'+'}, ac:{l:'eqAC',p:''}, statAttack:{l:'statAtk',p:''} };
@@ -2264,7 +2285,11 @@ function renderRecords(){
         <tbody>${dayBody}</tbody></table></div>
     </div>
     <div class="rec-block">
-      <div class="rec-h"><h3>${t('recSessions')} <span class="rec-cnt">${fSess.length}</span></h3><span class="rec-hint">${t('adjHint')}</span></div>
+      <div class="rec-h"><h3>${t('recSessions')} <span class="rec-cnt">${fSess.length}</span></h3>
+        <div class="rec-h-right">
+          <button class="tz-toggle" onclick="toggleTzAll()" title="${t('tzToggle')}">${tzAll==='kr'?'🇰🇷':'🇮🇩'} ${tzAll==='kr'?t('tzKR'):t('tzID')} <span class="tz-swap">⇄</span></button>
+          <span class="rec-hint">${t('adjHint')}</span>
+        </div></div>
       <div class="scroll-x"><table class="tbl tbl-rec">
         <thead><tr><th>${t('recStaff')}</th><th>${t('hWrote')}</th><th>${t('hClient')}</th><th>${t('hPc')}</th><th class="num">${t('hLv')}</th><th>${t('hMap')}</th><th class="num">${t('hActualExp')}</th><th class="num">${t('hTarget')}</th><th class="num">${t('hDiff')}</th><th>${t('hResult')}</th><th></th></tr></thead>
         <tbody>${sessBody}</tbody></table></div>
@@ -2830,6 +2855,7 @@ function startSyncPolling(){
 (async function init(){
   try{ const sv=localStorage.getItem('buju_lang'); if(sv==='en'||sv==='ko') lang=sv; }catch(e){}
   try{ const g=localStorage.getItem('buju_game'); if(g) currentGame=g; }catch(e){}
+  try{ const z=localStorage.getItem('buju_tz'); if(z==='kr'||z==='id') tzAll=z; }catch(e){}
   ['seg-ko','login-seg-ko'].forEach(id=>{ const e=document.getElementById(id); if(e) e.classList.toggle('active', lang==='ko'); });
   ['seg-en','login-seg-en'].forEach(id=>{ const e=document.getElementById(id); if(e) e.classList.toggle('active', lang==='en'); });
   applyStaticText(); buildDatalists(); await syncFromServer(); await renderStandards(); await renderStaff(); await renderDashboard(); renderReport(); startSyncPolling(); })();
