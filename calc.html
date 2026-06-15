@@ -499,7 +499,7 @@ table.tbl td { vertical-align:middle; }
 /* ===== 노션식 사이드바 셸 ===== */
 html { scroll-behavior:smooth; }
 body { padding:0; background:var(--bg); }
-.app-shell { display:flex; min-height:100vh; max-width:1240px; margin:0 auto; }
+.app-shell { display:flex; min-height:100vh; }
 .sidebar { position:sticky; top:0; align-self:flex-start; height:100vh; width:236px; flex:0 0 236px; display:flex; flex-direction:column; gap:16px; padding:18px 8px; border-right:1px solid var(--br); background:var(--bg-sb); }
 .sidebar .brand { padding:4px 12px 6px; }
 .sidebar .eyebrow { display:inline-flex; margin:0 0 4px; color:var(--ac); font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; }
@@ -845,6 +845,30 @@ body.role-player #section-staff { display:none !important; }
 .rec-act{ text-align:center; }
 .rec-del{ width:24px; height:24px; border:none; border-radius:6px; background:transparent; color:var(--tx2); font-size:16px; line-height:1; cursor:pointer; transition:all .12s; }
 .rec-del:hover{ background:var(--danger); color:#fff; }
+.stepper-row-1{ grid-template-columns:repeat(1,1fr); }
+.stepper-row-2{ grid-template-columns:repeat(2,1fr); }
+.game-tabs{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+.game-tab{ display:inline-flex; align-items:center; gap:7px; padding:8px 14px; border:1px solid var(--border-strong); border-radius:999px; background:var(--surface-2); color:var(--tx2); font-size:13px; font-weight:700; cursor:pointer; transition:all .14s; }
+.game-tab:hover{ border-color:var(--tx2); color:var(--tx); }
+.game-tab.on{ background:var(--accent); color:#fff; border-color:var(--accent); }
+.game-tab-n{ font-size:11px; font-weight:800; opacity:.7; }
+.game-tab-add{ font-size:16px; font-weight:800; padding:8px 13px; color:var(--tx2); }
+.gm-check{ display:flex; align-items:center; gap:9px; font-size:13.5px; font-weight:600; color:var(--tx); cursor:pointer; margin-top:6px; }
+.gm-check input{ width:17px; height:17px; }
+body.no-edit-records .rec-del, body.no-edit-records .rep-r-del, body.no-edit-records .rec-hint { display:none !important; }
+body.no-edit-records .rec-click{ cursor:default; }
+body.no-edit-records .rec-click:hover{ background:transparent; }
+.login-roles{ margin-top:14px; font-size:11px; font-weight:700; letter-spacing:.12em; color:var(--tx2); opacity:.7; }
+.role-switch { font-size:13px; font-weight:700; line-height:1; color:var(--tx3); background:transparent; border:1px solid var(--border-strong); cursor:pointer; padding:3px 7px; border-radius:var(--r-full); transition:all .14s; }
+.role-switch:hover { color:var(--tx); border-color:var(--tx2); }
+.login-role-grid{ display:flex; flex-direction:column; gap:10px; margin:18px 0 4px; }
+.login-role-btn{ width:100%; padding:14px 16px; border-radius:13px; border:1px solid var(--border-strong); background:var(--surface-2); color:var(--tx); font-size:15px; font-weight:800; letter-spacing:.1em; cursor:pointer; transition:all .15s; }
+.login-role-btn:hover{ transform:translateY(-1px); }
+.login-role-btn.lr-admin:hover{ border-color:#e0b341; color:#e0b341; box-shadow:0 6px 18px rgba(224,179,65,.16); }
+.login-role-btn.lr-opteam:hover{ border-color:#5aa9e6; color:#5aa9e6; box-shadow:0 6px 18px rgba(90,169,230,.16); }
+.login-role-btn.lr-player:hover{ border-color:var(--tx2); color:var(--tx); box-shadow:0 6px 18px rgba(0,0,0,.18); }
+.login-back{ margin-top:14px; background:transparent; border:none; color:var(--tx3); font-size:13px; font-weight:600; cursor:pointer; }
+.login-back:hover{ color:var(--tx2); }
 </style>
 </head>
 <body>
@@ -864,8 +888,7 @@ body.role-player #section-staff { display:none !important; }
       <button class="nav-item" data-sec="section-records" onclick="showSection('section-records')"><span class="nav-ico">🗂️</span><span id="nav-records"></span></button>
     </nav>
     <div class="side-foot">
-      <div class="role-row"><span class="role-pill" id="role-badge">—</span><button class="role-logout" id="role-logout" onclick="logout()"></button></div>
-      <span class="demo-badge" id="app-demo"></span>
+      <div class="role-row"><span class="role-pill" id="role-badge">—</span><button class="role-switch" id="role-switch" onclick="openRoleSwitch()" title="역할 전환">⇄</button><button class="role-logout" id="role-logout" onclick="logout()"></button></div>
       <div class="seg-group lang-seg" aria-label="language">
         <button class="seg active" id="seg-ko" onclick="setLang('ko')">한국어</button>
         <button class="seg" id="seg-en" onclick="setLang('en')">EN</button>
@@ -879,6 +902,7 @@ body.role-player #section-staff { display:none !important; }
         <h2 id="app-sec1"></h2>
         <p class="muted" id="app-sec1desc"></p>
       </div>
+      <div id="game-tabs" class="game-tabs"></div>
       <div class="std-grid" id="standards-grid"></div>
       <datalist id="map-ko-list"></datalist>
       <datalist id="map-en-list"></datalist>
@@ -928,6 +952,8 @@ body.role-player #section-staff { display:none !important; }
 
 <div id="edit-modal" class="modal-overlay" onclick="cancelEdit()"></div>
 <div id="adj-modal" class="modal-overlay" onclick="closeAdjModal()"></div>
+<div id="game-modal" class="modal-overlay" onclick="closeGameModal()"></div>
+<div id="role-modal" class="modal-overlay" onclick="closeRoleSwitch()"></div>
 
 <div id="toast" class="toast"></div>
 <div id="login-gate" class="login-gate">
@@ -938,10 +964,7 @@ body.role-player #section-staff { display:none !important; }
     </div>
     <div class="login-logo">🎯 LUCKY7 · BUJU</div>
     <div class="login-title" id="login-title">성과 계산기</div>
-    <div class="login-sub" id="login-sub">비밀번호를 입력하세요</div>
-    <input id="login-pw" type="text" class="login-input login-mask" placeholder="비밀번호" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" oninput="var e=document.getElementById('login-err'); if(e)e.textContent='';" onkeydown="if(event.key==='Enter')doLogin()" autofocus>
-    <button class="login-btn" id="login-btn" onclick="doLogin()">들어가기</button>
-    <div id="login-err" class="login-err"></div>
+    <div id="login-body"></div>
   </div>
 </div>
 
@@ -1034,18 +1057,19 @@ async function _putData(key, value){
     setSyncStatus('ok'); return j.updated_at||null;
   }catch(e){ setSyncStatus('fail'); return null; }
 }
-let _syncTs={clients:undefined, staff:undefined, reports:undefined};
+let _syncTs={clients:undefined, staff:undefined, reports:undefined, games:undefined};
 // 서버에서 최신 데이터를 가져와 메모리 갱신. 비어있으면 현재값으로 시드. 변경되면 true 반환.
 async function syncFromServer(){
   let changed=false, ok=true;
   try{
-    const [rc,rs,rr]=await Promise.all([fetch('/api/calc-data/clients'),fetch('/api/calc-data/staff'),fetch('/api/calc-data/reports')]);
-    const jc=await rc.json().catch(()=>({error:'parse'})), js=await rs.json().catch(()=>({error:'parse'})), jr=await rr.json().catch(()=>({error:'parse'}));
+    const [rc,rs,rr,rg]=await Promise.all([fetch('/api/calc-data/clients'),fetch('/api/calc-data/staff'),fetch('/api/calc-data/reports'),fetch('/api/calc-data/games')]);
+    const jc=await rc.json().catch(()=>({error:'parse'})), js=await rs.json().catch(()=>({error:'parse'})), jr=await rr.json().catch(()=>({error:'parse'})), jg=await rg.json().catch(()=>({error:'parse'}));
     if(!rc.ok||!rs.ok||!rr.ok||jc.error||js.error||jr.error){ ok=false; }
     else {
       if(jc.updated_at!==_syncTs.clients){ _syncTs.clients=jc.updated_at; if(jc.value&&jc.value.length!=null){ MOCK_CLIENTS=jc.value; } else { _syncTs.clients=await _putData('clients',MOCK_CLIENTS); } changed=true; }
       if(js.updated_at!==_syncTs.staff){ _syncTs.staff=js.updated_at; if(js.value&&js.value.length!=null){ MOCK_STAFF=js.value; } else { _syncTs.staff=await _putData('staff',MOCK_STAFF); } changed=true; }
       if(jr.updated_at!==_syncTs.reports){ _syncTs.reports=jr.updated_at; if(jr.value&&jr.value.length!=null){ MOCK_REPORTS=jr.value; } else { _syncTs.reports=await _putData('reports',MOCK_REPORTS); } changed=true; }
+      if(rg.ok && !jg.error && jg.updated_at!==_syncTs.games){ _syncTs.games=jg.updated_at; if(jg.value&&jg.value.length!=null){ CUSTOM_GAMES=jg.value; rebuildGames(); } changed=true; }
     }
   }catch(e){ ok=false; }
   setSyncStatus(ok?'ok':'fail');
@@ -1098,6 +1122,7 @@ async function removeReport(id) {
 // ───────── 기록 수정 (휴식=기본급 / 수동 ± / 정상) ─────────
 let adjId=null, adjMode='normal', adjPct=100;
 function openAdjModal(id){
+  if(!roleCan('editRecords')) return;
   const r=MOCK_REPORTS.find(x=>x.id===id); if(!r) return;
   adjId=id; adjMode=(r.adj&&r.adj.mode)||'normal'; adjPct=(r.adj&&r.adj.pct)||100;
   renderAdjModal(r);
@@ -1241,7 +1266,13 @@ const T={
   loginTitle:{ko:'성과 계산기',en:'Performance Calculator'}, loginSub:{ko:'비밀번호를 입력하세요',en:'Enter your password'}, loginPw:{ko:'비밀번호',en:'Password'}, loginGo:{ko:'들어가기',en:'Log in'}, loginErr:{ko:'비밀번호가 올바르지 않아요.',en:'Wrong password.'}, logout:{ko:'로그아웃',en:'Log out'},
   rpPickClientFirst:{ko:'클라이언트를 먼저 선택',en:'Pick a client first'},
   rpDetails:{ko:'세부 입력',en:'Details'}, rpAdena:{ko:'아데나',en:'Adena'}, rpDrop:{ko:'드롭',en:'Drop'}, rpRedPotion:{ko:'빨간 물약',en:'Red potion'},
-  eqSword:{ko:'검',en:'Sword'}, eqArmor:{ko:'방어구',en:'Armor'}, eqAC:{ko:'방어력',en:'AC'},
+  eqSword:{ko:'검',en:'Sword'}, eqArmor:{ko:'방어구',en:'Armor'}, eqAC:{ko:'방어력',en:'AC'}, statAtk:{ko:'스탯공격력',en:'Stat ATK'},
+  gameSel:{ko:'게임',en:'Game'}, addGame:{ko:'게임 추가',en:'Add game'}, newGameTitle:{ko:'새 게임 추가',en:'Add a game'},
+  gName:{ko:'게임 이름',en:'Game name'}, gMetric:{ko:'성과 기준 (단위)',en:'Metric (unit)'}, gBig:{ko:'큰 숫자 (메소·돈 등)',en:'Large number'},
+  gTemplate:{ko:'클라이언트 항목',en:'Client fields'}, gtLineage:{ko:'리니지형 (검·방어구·방어력)',en:'Lineage (wpn·armor·AC)'}, gtMaple:{ko:'메이플형 (스탯공격력)',en:'Maple (stat ATK)'}, gtSimple:{ko:'심플 (레벨만)',en:'Simple (level only)'},
+  delGame:{ko:'게임 삭제',en:'Delete game'}, delGameConfirm:{ko:'이 게임과 설정을 삭제할까요? (클라이언트는 유지)',en:'Delete this game? (clients kept)'},
+  roleSwitch:{ko:'역할 전환',en:'Switch role'}, roleSwitchHint:{ko:'전환할 역할의 비밀번호를 입력하세요.',en:'Enter the password for the role you want to switch to.'}, roleSwitchPh:{ko:'비밀번호',en:'Password'},
+  loginPickRole:{ko:'역할을 선택하세요',en:'Choose your role'}, loginEnterPw:{ko:'비밀번호 입력',en:'Enter password'}, roleSwitchPick:{ko:'전환할 역할을 선택하세요',en:'Choose a role to switch to'}, back:{ko:'뒤로',en:'Back'},
   rpSearch:{ko:'이름 검색…',en:'Search name…'}, rpPickStaff:{ko:'직원 선택',en:'Select booster'}, rpNoMatch:{ko:'일치하는 직원 없음',en:'No match'},
   rpThread:{ko:'Discord 스레드',en:'Discord thread'},
   mapTest:{ko:'테스트 (정산제외)',en:'Test (excluded)'},
@@ -1566,7 +1597,6 @@ function compute(clients, reports, staff){
 function applyStaticText(){
   document.getElementById('app-title').textContent=t('title');
   document.getElementById('app-subtitle').textContent=t('subtitle');
-  document.getElementById('app-demo').textContent='● '+t('demo');
   document.getElementById('app-sec1').textContent=t('sec1');
   document.getElementById('app-sec1desc').textContent=t('sec1desc');
   document.getElementById('app-sec2').textContent=t('sec2');
@@ -1580,9 +1610,7 @@ function applyStaticText(){
   document.getElementById('nav-dashboard').textContent=t('navDashboard');
   document.getElementById('nav-records').textContent=t('navRecords');
   const lt=document.getElementById('login-title'); if(lt) lt.textContent=t('loginTitle');
-  const lsub=document.getElementById('login-sub'); if(lsub) lsub.textContent=t('loginSub');
-  const lp=document.getElementById('login-pw'); if(lp) lp.placeholder=t('loginPw');
-  const lb=document.getElementById('login-btn'); if(lb) lb.textContent=t('loginGo');
+  if(typeof renderLogin==='function') renderLogin();
   const lo=document.getElementById('role-logout'); if(lo) lo.textContent=t('logout');
   document.getElementById('nav-leaderboard').textContent=t('navLeaderboard');
   document.getElementById('nav-report').textContent=t('navReport');
@@ -1600,11 +1628,12 @@ async function setLang(l){
   await renderStandards(); await renderStaff(); await renderDashboard(); renderReport();
 }
 function showSection(id){
-  if(id==='section-staff' && userRole==='player') id='section-dashboard';
+  const acc=ROLE_ACCESS[userRole];
+  if(acc && acc.sections.length){ const sec=id.replace('section-',''); if(!acc.sections.includes(sec)) id='section-'+acc.sections[0]; }
   document.querySelectorAll('.section-panel').forEach(s=>s.classList.toggle('active', s.id===id));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.sec===id));
   const m=document.querySelector('.main'); if(m) m.scrollTop=0;
-  window.scrollTo({top:0});
+  if(typeof window!=='undefined'&&window.scrollTo) window.scrollTo({top:0});
 }
 function scrollToSection(id){ showSection(id); }
 
@@ -1612,13 +1641,30 @@ function scrollToSection(id){ showSection(id); }
    기준 카드 + 편집
    ============================================================ */
 const JOBS=['기사','궁수','법사'];
+// ───────── 멀티 게임 ─────────
+const BUILTIN_GAMES=[
+  { id:'lineage', name:'리니지 클래식', stepFields:['level','sword','armor','ac'], jobs:['기사','궁수','법사'], metric:{label:'경험치',unit:'%/h',big:false}, builtin:true },
+  { id:'maple',   name:'메이플',        stepFields:['level','statAttack'],         jobs:['전사','마법사','궁수','도적','해적'], metric:{label:'메소',unit:'메소/h',big:true}, builtin:true },
+  { id:'aion2',   name:'아이온2',       stepFields:['level'],                       jobs:['검성','수호성','살성','궁성','마도성','정령성','치유성','호법성'], metric:{label:'키나',unit:'키나/h',big:true}, builtin:true }
+];
+let CUSTOM_GAMES=[];
+let GAMES=BUILTIN_GAMES.slice();
+function rebuildGames(){ GAMES = BUILTIN_GAMES.concat((CUSTOM_GAMES||[]).filter(g=>g&&g.id&&!BUILTIN_GAMES.some(b=>b.id===g.id))); }
+let currentGame='lineage';
+function gameById(id){ return GAMES.find(g=>g.id===id)||GAMES[0]; }
+function gameOf(c){ return gameById((c&&c.game)||'lineage'); }
+const STEP_META={ level:{l:'level',p:''}, sword:{l:'wpnShort',p:'+'}, armor:{l:'armShort',p:'+'}, ac:{l:'eqAC',p:''}, statAttack:{l:'statAtk',p:''} };
+function fmtNumC(n){ return (Number(n)||0).toLocaleString('en-US'); }            // 5,000,000
+function parseNumC(s){ return Number(String(s==null?'':s).replace(/[^\d.]/g,''))||0; }
 let editingId=null, editBuf=null, clientCache=[];
 
 async function renderStandards(){
   clientCache=await loadClients();
   clientCache.sort((a,b)=>((Number(a.no)||0)-(Number(b.no)||0)) || (a.name||'').localeCompare(b.name||''));
+  if(!GAMES.find(g=>g.id===currentGame)) currentGame='lineage';
+  renderGameTabs();
   const grid=document.getElementById('standards-grid'); grid.innerHTML='';
-  clientCache.forEach(c=>{
+  clientCache.filter(c=>gameOf(c).id===currentGame).forEach(c=>{
     const card=document.createElement('div');
     card.className='std-card';
     card.onclick=()=>startEdit(c.id);
@@ -1629,23 +1675,75 @@ async function renderStandards(){
   add.className='std-add'; add.textContent=t('addClient'); add.onclick=addClient;
   grid.appendChild(add);
 }
+function renderGameTabs(){
+  const host=document.getElementById('game-tabs'); if(!host) return;
+  const tabs=GAMES.map(g=>{
+    const n=clientCache.filter(c=>gameOf(c).id===g.id).length;
+    return `<button class="game-tab${g.id===currentGame?' on':''}" onclick="setGame('${g.id}')">${esc(g.name)}<span class="game-tab-n">${n}</span></button>`;
+  }).join('');
+  host.innerHTML = tabs + `<button class="game-tab game-tab-add" onclick="openGameModal()" title="${t('addGame')}">＋</button>`;
+}
+function setGame(id){ currentGame=id; try{localStorage.setItem('buju_game',id);}catch(e){} renderStandards(); }
+let gmBuf=null;
+function openGameModal(){ gmBuf={ name:'', metricLabel:'', big:true, template:'simple' }; renderGameModal(); }
+function renderGameModal(){
+  const o=document.getElementById('game-modal'); if(!o) return; const b=gmBuf;
+  const tplBtn=(v,l)=>`<button class="adj-mode${b.template===v?' on':''}" onclick="gmSet('template','${v}')">${l}</button>`;
+  o.innerHTML=`<div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-head"><h3>${t('newGameTitle')}</h3><button class="modal-close" onclick="closeGameModal()" aria-label="close">×</button></div>
+    <div class="modal-body">
+      <div class="field"><label class="flabel">${t('gName')}</label><input class="input" value="${esc(b.name)}" oninput="gmSet('name',this.value)" placeholder="예: 메이플랜드"></div>
+      <div class="field"><label class="flabel">${t('gMetric')}</label><input class="input" value="${esc(b.metricLabel)}" oninput="gmSet('metricLabel',this.value)" placeholder="예: 메소 · 골드 · 키나 · 경험치"></div>
+      <label class="gm-check"><input type="checkbox" ${b.big?'checked':''} onchange="gmSet('big',this.checked)"> ${t('gBig')}</label>
+      <div class="field" style="margin-top:12px;"><label class="flabel">${t('gTemplate')}</label>
+        <div class="adj-modes">${tplBtn('lineage',t('gtLineage'))}${tplBtn('maple',t('gtMaple'))}${tplBtn('simple',t('gtSimple'))}</div>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-ghost btn-sm" onclick="closeGameModal()">${t('cancel')}</button><button class="btn btn-primary" style="flex:1;" onclick="saveGame()">${t('save')}</button></div>
+  </div>`;
+  o.classList.add('open'); document.body.style.overflow='hidden';
+}
+function gmSet(k,v){ if(!gmBuf) return; gmBuf[k]=v; if(k==='template'||k==='big') renderGameModal(); }
+function closeGameModal(){ const o=document.getElementById('game-modal'); if(o){o.classList.remove('open');o.innerHTML='';} document.body.style.overflow=''; gmBuf=null; }
+async function saveGame(){
+  const b=gmBuf; if(!b||!String(b.name).trim()){ showToast(t('gName')); return; }
+  const id='g_'+Date.now();
+  const tplFields={ lineage:['level','sword','armor','ac'], maple:['level','statAttack'], simple:['level'] }[b.template]||['level'];
+  const label=String(b.metricLabel||'').trim()||'점수';
+  const game={ id, name:String(b.name).trim(), stepFields:tplFields, jobs:[], metric:{ label, unit: label+'/h', big: !!b.big } };
+  CUSTOM_GAMES.push(game); rebuildGames();
+  const _ts=await _putData('games', CUSTOM_GAMES); if(_ts)_syncTs.games=_ts;
+  currentGame=id; try{localStorage.setItem('buju_game',id);}catch(e){}
+  closeGameModal(); renderStandards(); showToast(t('addGame'));
+}
+async function deleteCustomGame(id){
+  if(BUILTIN_GAMES.some(g=>g.id===id)) return;
+  if(!confirm(t('delGameConfirm'))) return;
+  CUSTOM_GAMES=CUSTOM_GAMES.filter(g=>g.id!==id); rebuildGames();
+  const _ts=await _putData('games', CUSTOM_GAMES); if(_ts)_syncTs.games=_ts;
+  if(currentGame===id) currentGame='lineage';
+  renderStandards();
+}
 function viewCardHtml(c){
+  const g=gameOf(c); const big=g.metric.big; const unit=g.metric.unit;
   const curLv=Number(c.level);
   const shown=(c.maps||[]).filter(m=>m.level==null||m.level===''||Number(m.level)===curLv);
+  const fmtT = big ? (v=>fmtNumC(v)) : (v=>f2(Number(v)));
   const maps=shown.length
-    ? shown.map(m=>`<div class="map-row"><span class="mname">📍 ${esc(mapName(m))}</span><span class="mval" style="color:${targetColor(m.target)};">${f2(Number(m.target))}<small>%/h</small></span></div>`).join('')
+    ? shown.map(m=>`<div class="map-row"><span class="mname">📍 ${esc(mapName(m))}</span><span class="mval" style="color:${big?'var(--accent)':targetColor(m.target)};">${fmtT(m.target)}<small> ${esc(unit)}</small></span></div>`).join('')
     : `<div class="map-empty">${t('noMaps')}</div>`;
+  const chips=[`<span class="chip">Lv ${c.level==null?'':c.level}</span>`];
+  if(g.stepFields.includes('sword')||g.stepFields.includes('armor')) chips.push(`<span class="chip">${t('wpnShort')} ${c.sword||0} / ${c.armor||0} ${t('armShort')}</span>`);
+  if(g.stepFields.includes('ac')) chips.push(`<span class="chip">${t('eqAC')} ${c.ac===''||c.ac==null?'-':c.ac}</span>`);
+  if(g.stepFields.includes('statAttack')) chips.push(`<span class="chip">${t('statAtk')} ${c.statAttack==null?'-':c.statAttack}</span>`);
+  if(c.job) chips.push(`<span class="chip">${esc(jobName(c.job))}</span>`);
   return `
     <span class="std-edit-hint">${t('edit')} ✎</span>
     <div>
       <div class="std-client" style="color:hsl(${hashHue(c.name||c.id)} 75% 72%);">${c.no?esc(c.no)+'. ':''}${esc(c.name||t('noName'))}</div>
       <div class="std-pc">PC ${esc(c.pc)}</div>
     </div>
-    <div class="std-chips">
-      <span class="chip">Lv ${c.level}</span>
-      <span class="chip">${t('wpnShort')} ${c.sword} / ${c.armor} ${t('armShort')}</span>
-      <span class="chip">${esc(jobName(c.job))}</span>
-    </div>
+    <div class="std-chips">${chips.join('')}</div>
     <div class="map-list">${maps}</div>`;
 }
 
@@ -1676,31 +1774,36 @@ function closeModal(){
   document.body.style.overflow=''; editingId=null; editBuf=null;
 }
 function editFields(){
-  const b=editBuf; const jobOpts=JOBS.map(j=>`<option value="${j}" ${j===b.job?'selected':''}>${jobName(j)}</option>`).join('');
-  const mapRows=(b.maps||[]).map((m,i)=>`
-    <div class="map-edit">
+  const b=editBuf; const g=gameOf(b);
+  const jobOpts=(g.jobs||[]).map(j=>`<option value="${j}" ${j===b.job?'selected':''}>${jobName(j)}</option>`).join('');
+  const big=g.metric.big; const unit=g.metric.unit;
+  const mapRows=(b.maps||[]).map((m,i)=>{
+    const tgt = big
+      ? `<input class="input" type="text" inputmode="numeric" value="${m.target!=null&&m.target!==''?fmtNumC(m.target):''}" oninput="editBuf.maps[${i}].target=parseNumC(this.value)" onblur="this.value=this.value===''?'':fmtNumC(parseNumC(this.value))" placeholder="${esc(unit)}" style="text-align:right;">`
+      : `<input class="input" type="number" step="0.05" value="${m.target}" oninput="editBuf.maps[${i}].target=this.value" placeholder="${esc(unit)}" style="text-align:right;">`;
+    return `<div class="map-edit">
       <input class="input" id="map-ko-${i}" list="map-ko-list" value="${esc(m.ko)}" oninput="editBuf.maps[${i}].ko=this.value" onchange="autofillEn(${i},this.value)" placeholder="${t('phKo')}">
       <input class="input" id="map-en-${i}" list="map-en-list" value="${esc(m.en)}" oninput="editBuf.maps[${i}].en=this.value" onchange="autofillKo(${i},this.value)" placeholder="${t('phEn')}">
       <input class="input" type="number" value="${m.level==null?'':m.level}" oninput="editBuf.maps[${i}].level=this.value" placeholder="Lv" style="text-align:center;">
-      <input class="input" type="number" step="0.05" value="${m.target}" oninput="editBuf.maps[${i}].target=this.value" placeholder="%/h" style="text-align:right;">
+      ${tgt}
       <button class="map-x" onclick="removeMap(${i})" aria-label="remove">×</button>
-    </div>`).join('');
+    </div>`;
+  }).join('');
+  const sf=(g.stepFields&&g.stepFields.length)?g.stepFields:['level'];
+  const steppers=sf.map(f=>{ const me=STEP_META[f]||{l:f,p:''}; return stepCell(t(me.l),f,me.p); }).join('');
   return `
     <div class="form-grid2">
       <div class="field"><label class="flabel">${t('clientNoLabel')}</label><input class="input" type="number" value="${esc(b.no)}" oninput="editBuf.no=this.value" placeholder="${t('phNo')}"></div>
       <div class="field"><label class="flabel">${t('pcNum')}</label><input class="input" value="${esc(b.pc)}" oninput="editBuf.pc=this.value" placeholder="${t('phPc')}"></div>
     </div>
     <div class="field"><label class="flabel">${t('clientName')}</label><input class="input" value="${esc(b.name)}" oninput="editBuf.name=this.value" placeholder="${t('phClient')}"></div>
-    <div class="field"><label class="flabel">${t('job')}</label><select class="input" onchange="editBuf.job=this.value">${jobOpts}</select></div>
-    <div class="stepper-row stepper-row-4">
-      ${stepCell(t('level'),'level','')}
-      ${stepCell(t('wpnShort'),'sword','+')}
-      ${stepCell(t('armShort'),'armor','+')}
-      ${stepCell(t('eqAC'),'ac','')}
+    <div class="field"><label class="flabel">${t('job')}</label>${(g.jobs&&g.jobs.length)?`<select class="input" onchange="editBuf.job=this.value">${jobOpts}</select>`:`<input class="input" value="${esc(b.job||'')}" oninput="editBuf.job=this.value" placeholder="${t('job')}">`}</div>
+    <div class="stepper-row stepper-row-${sf.length}">
+      ${steppers}
     </div>
     <div class="field" style="margin-top:12px; margin-bottom:0;">
-      <label class="flabel">${t('perMapTarget')}</label>
-      <div class="map-edit-head"><span>${t('phKo')}</span><span>${t('phEn')}</span><span style="text-align:center;">Lv</span><span style="text-align:right;">%/h</span><span></span></div>
+      <label class="flabel">${t('perMapTarget')} · <span style="color:var(--accent);">${esc(g.metric.label)}</span></label>
+      <div class="map-edit-head"><span>${t('phKo')}</span><span>${t('phEn')}</span><span style="text-align:center;">Lv</span><span style="text-align:right;">${esc(unit)}</span><span></span></div>
       <div>${mapRows}</div>
       <button class="add-map" style="width:100%; margin-top:6px;" onclick="addMap()">${t('addMap')}</button>
     </div>`;
@@ -1709,7 +1812,7 @@ function stepCell(label,field,prefix){
   return `<div class="step-cell"><label class="flabel" style="text-align:center;">${label}</label>
     <div class="stepper">
       <button type="button" onclick="bump('${field}',-1)">−</button>
-      <input class="step-input" id="inp-${field}" type="number" value="${editBuf[field]}" oninput="editBuf.${field}=this.value">
+      <input class="step-input" id="inp-${field}" type="number" value="${editBuf[field]==null?'':editBuf[field]}" oninput="editBuf.${field}=this.value">
       <button type="button" onclick="bump('${field}',1)">+</button>
     </div></div>`;
 }
@@ -1741,7 +1844,8 @@ async function saveEdit(){
 function addClient(){
   const id='new_'+Date.now(); editingId=id;
   const nextNo=Math.max(0,...clientCache.map(c=>Number(c.no)||0))+1;
-  editBuf={ id, no:nextNo, name:'', pc:'', level:1, sword:0, armor:0, ac:'', job:'기사', maps:[{ko:'',en:'',level:33,target:0.8}] };
+  const g=gameById(currentGame); const dt=g.metric.big?1000000:0.8;
+  editBuf={ id, game:currentGame, no:nextNo, name:'', pc:'', level:1, sword:0, armor:0, ac:'', statAttack:0, job:(g.jobs&&g.jobs[0])||'', maps:[{ko:'',en:'',level:33,target:dt}] };
   renderEditModal();
 }
 async function deleteClient(){
@@ -1756,22 +1860,100 @@ async function deleteClient(){
    ============================================================ */
 let perfCache=[], selectedBooster=null, empFilter='', period='week', recFilter='';
 /* ===== 간단 로그인 게이트 (비밀번호 2종) — 소스에 노출되는 가벼운 차단막입니다 ===== */
-const SITE_PW = 'player7';     // ← 접속 비밀번호 (여기서 수정). 맞으면 전부 공개.
+// ── 접속 비밀번호 (역할별 3개 — 여기서 수정) ──
+const PASSWORDS = { admin:'admin7', opteam:'opteam7', player:'player7' };
+// ── 역할별 권한 (sections=볼 수 있는 메뉴, editRecords=기록 삭제·수정 가능) ──
+const ROLE_ACCESS = {
+  admin:  { label:'ADMIN',  sections:['standards','staff','report','dashboard','leaderboard','records'], editRecords:true  },
+  opteam: { label:'OPTEAM', sections:['standards','report','dashboard','leaderboard','records'],         editRecords:true  },
+  player: { label:'PLAYER', sections:['report','dashboard','leaderboard','records'],                     editRecords:false }
+};
+function roleCan(ability){ const r=ROLE_ACCESS[userRole]; return r ? !!r[ability] : false; }
 let userRole = null;           // 'admin' (전원 동일 — 월급 포함 전체 공개)
+let loginRole=null;
+function renderLogin(){
+  const b=document.getElementById('login-body'); if(!b) return;
+  if(!loginRole){
+    b.innerHTML=`
+      <div class="login-sub">${t('loginPickRole')}</div>
+      <div class="login-role-grid">
+        <button class="login-role-btn lr-admin" onclick="pickLoginRole('admin')">ADMIN</button>
+        <button class="login-role-btn lr-opteam" onclick="pickLoginRole('opteam')">OPTEAM</button>
+        <button class="login-role-btn lr-player" onclick="pickLoginRole('player')">PLAYER</button>
+      </div>`;
+  } else {
+    b.innerHTML=`
+      <div class="login-sub"><b style="color:var(--ac);">${ROLE_ACCESS[loginRole].label}</b> · ${t('loginEnterPw')}</div>
+      <input id="login-pw" type="password" class="login-input login-mask" placeholder="${t('loginPw')}" autocomplete="off" autocapitalize="off" spellcheck="false" oninput="var e=document.getElementById('login-err'); if(e)e.textContent='';" onkeydown="if(event.key==='Enter')doLogin()">
+      <button class="login-btn" onclick="doLogin()">${t('loginGo')}</button>
+      <div id="login-err" class="login-err"></div>
+      <button class="login-back" onclick="backLoginRole()">← ${t('back')}</button>`;
+    setTimeout(()=>{ const e=document.getElementById('login-pw'); if(e) e.focus(); },40);
+  }
+}
+function pickLoginRole(r){ loginRole=r; renderLogin(); }
+function backLoginRole(){ loginRole=null; renderLogin(); }
 function doLogin(){
-  const v=((document.getElementById('login-pw')||{}).value||'').trim();
-  if(v.toLowerCase()!==String(SITE_PW).toLowerCase()){ const e=document.getElementById('login-err'); if(e) e.textContent=t('loginErr'); return; }
-  userRole='admin';   // 전원 전체 공개 (월급 포함)
+  if(!loginRole) return;
+  const v=((document.getElementById('login-pw')||{}).value||'').trim().toLowerCase();
+  if(v!==String(PASSWORDS[loginRole]).toLowerCase()){ const e=document.getElementById('login-err'); if(e) e.textContent=t('loginErr'); return; }
+  userRole=loginRole;
   const g=document.getElementById('login-gate'); if(g) g.setAttribute('hidden','');
   applyRole();
 }
 function applyRole(){
+  const acc = ROLE_ACCESS[userRole] || ROLE_ACCESS.player;
+  const allowed = acc.sections || [];
+  document.querySelectorAll('.nav-item').forEach(n=>{
+    const sec=(n.dataset.sec||'').replace('section-','');
+    n.style.display = allowed.includes(sec) ? '' : 'none';
+  });
+  const active=document.querySelector('.section-panel.active');
+  const activeSec=active?active.id.replace('section-',''):'';
+  if(allowed.length && !allowed.includes(activeSec)) showSection('section-'+allowed[0]);
+  document.body.classList.toggle('no-edit-records', !acc.editRecords);
   document.body.classList.toggle('role-player', userRole==='player');
-  if(userRole==='player'){ const s=document.getElementById('section-staff'); if(s&&s.classList.contains('active')) showSection('section-dashboard'); }
-  const rb=document.getElementById('role-badge'); if(rb) rb.textContent = userRole==='admin' ? 'ADMIN · OP' : 'PLAYER';
+  const rb=document.getElementById('role-badge'); if(rb) rb.textContent=acc.label;
 }
-function logout(){ userRole=null; document.body.classList.remove('role-player');
-  const g=document.getElementById('login-gate'); if(g){ g.removeAttribute('hidden'); const pw=document.getElementById('login-pw'); if(pw){ pw.value=''; setTimeout(()=>pw.focus(),0);} } }
+function logout(){ userRole=null; loginRole=null; document.body.classList.remove('role-player');
+  const g=document.getElementById('login-gate'); if(g){ g.removeAttribute('hidden'); } renderLogin(); }
+let switchRole=null;
+function openRoleSwitch(){ switchRole=null; const o=document.getElementById('role-modal'); if(!o) return; o.classList.add('open'); document.body.style.overflow='hidden'; renderRoleSwitch(); }
+function renderRoleSwitch(){
+  const o=document.getElementById('role-modal'); if(!o) return;
+  let body, foot='';
+  if(!switchRole){
+    body=`<p class="muted" style="font-size:13px; margin:0 0 14px; line-height:1.5;">${t('roleSwitchPick')}</p>
+      <div class="login-role-grid">
+        <button class="login-role-btn lr-admin" onclick="pickSwitchRole('admin')">ADMIN</button>
+        <button class="login-role-btn lr-opteam" onclick="pickSwitchRole('opteam')">OPTEAM</button>
+        <button class="login-role-btn lr-player" onclick="pickSwitchRole('player')">PLAYER</button>
+      </div>`;
+  } else {
+    body=`<p class="muted" style="font-size:13px; margin:0 0 12px;"><b style="color:var(--ac);">${ROLE_ACCESS[switchRole].label}</b> · ${t('loginEnterPw')}</p>
+      <input id="role-sw-pw" type="password" class="input" placeholder="${t('roleSwitchPh')}" autocomplete="off" autocapitalize="off" spellcheck="false" oninput="var e=document.getElementById('role-sw-err'); if(e)e.textContent='';" onkeydown="if(event.key==='Enter')doRoleSwitch()">
+      <div id="role-sw-err" class="login-err" style="margin-top:8px; min-height:16px;"></div>
+      <button class="login-back" onclick="backSwitchRole()" style="margin-top:6px;">← ${t('back')}</button>`;
+    foot=`<div class="modal-foot"><button class="btn btn-ghost btn-sm" onclick="closeRoleSwitch()">${t('cancel')}</button><button class="btn btn-primary" style="flex:1;" onclick="doRoleSwitch()">${t('roleSwitch')}</button></div>`;
+  }
+  o.innerHTML=`<div class="modal" onclick="event.stopPropagation()" style="max-width:340px;">
+    <div class="modal-head"><h3>${t('roleSwitch')}</h3><button class="modal-close" onclick="closeRoleSwitch()" aria-label="close">×</button></div>
+    <div class="modal-body">${body}</div>
+    ${foot}
+  </div>`;
+  if(switchRole) setTimeout(()=>{ const e=document.getElementById('role-sw-pw'); if(e)e.focus(); },50);
+}
+function pickSwitchRole(r){ switchRole=r; renderRoleSwitch(); }
+function backSwitchRole(){ switchRole=null; renderRoleSwitch(); }
+function closeRoleSwitch(){ const o=document.getElementById('role-modal'); if(o){o.classList.remove('open');o.innerHTML='';} document.body.style.overflow=''; switchRole=null; }
+function doRoleSwitch(){
+  if(!switchRole) return;
+  const v=((document.getElementById('role-sw-pw')||{}).value||'').trim().toLowerCase();
+  if(v!==String(PASSWORDS[switchRole]).toLowerCase()){ const e=document.getElementById('role-sw-err'); if(e) e.textContent=t('loginErr'); return; }
+  const role=switchRole;
+  userRole=role; closeRoleSwitch(); applyRole();
+  showToast(ROLE_ACCESS[role].label);
+}
 function setRecFilter(b){ recFilter=(recFilter===b?'':b); renderRecords(); }
 
 function periodPay(p){ return period==='day'?(p.latestDay?p.latestDay.actualPay:0) : period==='month'?p.monthClampedPay : p.weekActualPay; }
@@ -2548,8 +2730,9 @@ function renderReportList(){
     </div>`;
   }).join('');
 }
-async function deleteReport(id){ await removeReport(id); await renderDashboard(); renderReportList(); showToast(t('rpDelOk')); }
+async function deleteReport(id){ if(!roleCan('editRecords')) return; await removeReport(id); await renderDashboard(); renderReportList(); showToast(t('rpDelOk')); }
 async function deleteRecordReport(id){
+  if(!roleCan('editRecords')) return;
   if(!confirm(t('recDelConfirm'))) return;
   await removeReport(id);
   if(typeof renderDashboard==='function') await renderDashboard();
@@ -2646,6 +2829,7 @@ function startSyncPolling(){
 }
 (async function init(){
   try{ const sv=localStorage.getItem('buju_lang'); if(sv==='en'||sv==='ko') lang=sv; }catch(e){}
+  try{ const g=localStorage.getItem('buju_game'); if(g) currentGame=g; }catch(e){}
   ['seg-ko','login-seg-ko'].forEach(id=>{ const e=document.getElementById(id); if(e) e.classList.toggle('active', lang==='ko'); });
   ['seg-en','login-seg-en'].forEach(id=>{ const e=document.getElementById(id); if(e) e.classList.toggle('active', lang==='en'); });
   applyStaticText(); buildDatalists(); await syncFromServer(); await renderStandards(); await renderStaff(); await renderDashboard(); renderReport(); startSyncPolling(); })();
