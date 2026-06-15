@@ -1382,7 +1382,14 @@ function targetColor(v){ const t=Math.max(0,Math.min(1,(Number(v)-0.6)/0.8)); re
 /* ============================================================
    계산 로직
    ============================================================ */
-function toMin(hhmm){ const [h,m]=String(hhmm).split(':').map(Number); return h*60+(m||0); }
+function toMin(hhmm){
+  const s=String(hhmm==null?'':hhmm).trim();
+  const m=s.match(/^(\d{1,2}):(\d{2})$/);            // HH:MM 형식만 허용 (콜론 누락·문자 거름)
+  if(!m) return NaN;
+  const h=Number(m[1]), mn=Number(m[2]);
+  if(h<0||h>24||mn<0||mn>59) return NaN;             // 범위 밖(25:00 등) = 무효 → sessionHours가 0 처리 후 폴백
+  return h*60+mn;
+}
 function ovMin(s,e,bs,be){ return Math.max(0, Math.min(e,be)-Math.max(s,bs)); }
 // 근무시간(8/10/12)별 쉬는시간 — 8h만 다름
 function workHoursOf(s){
@@ -1396,6 +1403,7 @@ function breaksFor(wh){
     : [[900,960],[300,360]];               // 10/12h: 15~16, 05~06
 }
 function sessionHours(r, breaks){
+  if(!r || r.start==null || r.end==null || String(r.start).trim()==='' || String(r.end).trim()==='') return 0; // PLAY TIME 비면 0 (24h로 오인 방지)
   const S=toMin(r.start), E=toMin(r.end);
   if(!isFinite(S)||!isFinite(E)) return 0;
   let span=E-S; if(span<=0)span+=1440;            // 자정 넘김
@@ -1444,9 +1452,10 @@ function isProtectedDate(startStr,dateStr){
 }
 function isProtectedUntil(untilStr,dateStr){
   if(!untilStr) return false;
-  return dateStr <= untilStr;          // 보호 종료일(포함) 이하면 보호중
+  const u=String(untilStr).slice(0,10), d=String(dateStr||'').slice(0,10);
+  return !!d && d <= u;                // 보호 종료일(포함) 이하면 보호중 (YYYY-MM-DD 앞 10자리로 정규화)
 }
-function staffByName(staff,name){ return staff.find(s=>s.name===name)||null; }
+function staffByName(staff,name){ const n=String(name||'').trim(); return staff.find(s=>String(s.name||'').trim()===n)||null; }
 function zoneKey(s){ s=(s||'').toLowerCase();
   if(s.includes('orc')) return 'orc';
   if(s.includes('ant')) return 'ant';
@@ -1456,7 +1465,8 @@ function zoneKey(s){ s=(s||'').toLowerCase();
   return s;
 }
 function findMap(clients,r){
-  const c=clients.find(x=>x.name===r.client) || clients.find(x=>String(x.pc)===String(r.pc));
+  const cn=String(r.client||'').trim();
+  const c=clients.find(x=>String(x.name||'').trim()===cn) || clients.find(x=>String(x.pc)===String(r.pc));
   if(!c||!c.maps) return null;
   const z=zoneKey(r.map); const lv=Number(r.lvAfter!=null?r.lvAfter:r.lv);
   const cand=c.maps.filter(m=>zoneKey(m.en||m.ko)===z);
@@ -1478,12 +1488,13 @@ function compute(clients, reports, staff){
   const byBooster={};
   const isTestMap=r=>String(r.map||'').toUpperCase()==='TEST';
   // 표시는 모든 리포트(체크인·테스트·체크아웃 포함). 정산은 각 직원 안에서 status/checkout(테스트·체크인 제외)만.
-  reports.forEach(r=>(byBooster[r.booster]=byBooster[r.booster]||[]).push(r));
+  reports.forEach(r=>{ const bk=String(r.booster||'').trim(); (byBooster[bk]=byBooster[bk]||[]).push(r); });
 
   const results = Object.keys(byBooster).map(booster=>{
     const sm=staffByName(staff,booster); const rate=sm?(Number(sm.rate)||0):0; const protectedUntil=sm?sm.protectedUntil:null;
     const brk=breaksFor(workHoursOf(sm));        // 근무시간별 쉬는시간
-    const allRs=byBooster[booster].slice().sort((a,b)=>(reportMs(a)||0)-(reportMs(b)||0));
+    const _tagOrd={checkin:0,status:1,checkout:2};
+    const allRs=byBooster[booster].slice().sort((a,b)=>((reportMs(a)||0)-(reportMs(b)||0)) || ((_tagOrd[a.tag]??1)-(_tagOrd[b.tag]??1)));
 
     // ── 라이브 증가량(텔레스코핑): 각 리포트 = 직전 리포트(테스트 제외) 대비 증가분 ──
     //    체크아웃은 "직전 현황 → 체크아웃"의 마지막 구간(≈1시간)만 표시.
@@ -1491,6 +1502,7 @@ function compute(clients, reports, staff){
     const segGain={}; { let prev=null;
       for(const r of allRs){
         if(isTestMap(r)){ segGain[r.id]=gainedPct(r); continue; }          // 테스트=자체 증가량(정산제외)
+        if(prev && prev.client!==r.client) prev=null;                      // 클라(캐릭터)가 바뀌면 단절 — 다른 캐릭 경험치끼리 빼지 않음
         if(r.tag==='checkin'){ segGain[r.id]=null; prev=r; continue; }      // 체크인=시작점(증가량 없음)
         if(prev){
           const cur=(Number(r.lvAfter)||0)*100+(Number(r.expAfter)||0);
@@ -1504,7 +1516,7 @@ function compute(clients, reports, staff){
 
     // ── 세션 기록(표시): 모든 타입. 체크인=시작 경험치 / 테스트=증가량(정산제외) / 체크아웃·현황=증가량 ──
     const sessionRows=allRs.map(r=>{
-      const mo=findMap(clients,r); const target=mo?Number(mo.target):null;
+      const mo=findMap(clients,r); const target=mo&&Number(mo.target)>0?Number(mo.target):null;
       const cl=clients.find(x=>x.name===r.client); const clientNo=cl?cl.no:'';
       const adj=r.adj||null; const isRest=adj&&adj.mode==='rest'; const isManual=adj&&adj.mode==='manual';
       const isTest=isTestMap(r); const isCheckin=r.tag==='checkin';
@@ -1519,24 +1531,35 @@ function compute(clients, reports, staff){
 
     // ── 정산 집계: status/checkout만 (체크인·테스트 제외). 일별/급여는 여기서만 ──
     const settleRs=allRs.filter(r=>(r.tag==='status'||r.tag==='checkout'||!r.tag) && !isTestMap(r));
+    // 시프트 시작일 매핑: 각 정산 리포트를 '소속 체크인의 날짜'로 묶음.
+    //  야간 시프트(21:00~익일 09:00)에서 체크아웃이 다음 UTC 날짜로 넘어가도 한 시프트로 유지.
+    const shiftDateMap={}; { let curCi=null;
+      for(const r of allRs){
+        if(isTestMap(r)) continue;
+        if(r.tag==='checkin'){ curCi=r; continue; }
+        if(curCi && curCi.client!==r.client) curCi=null;        // 클라 바뀌면 시프트 단절
+        shiftDateMap[r.id] = curCi ? curCi.date : r.date;
+        if(r.tag==='checkout') curCi=null;                      // 체크아웃으로 시프트 종료
+      }
+    }
+    const shiftDateOf = r => shiftDateMap[r.id] || r.date;
     const byDate={};
-    settleRs.forEach(r=>(byDate[r.date]=byDate[r.date]||[]).push(r));
+    settleRs.forEach(r=>(byDate[shiftDateOf(r)]=byDate[shiftDateOf(r)]||[]).push(r));
     let weekGain=0, weekQuota=0, anyCounted=false, totalHours=0;
     const dayRows=Object.keys(byDate).sort().map(date=>{
       const rs=byDate[date];
       // 시간 = 실제 시프트 시간 (PLAY TIME 창 − 휴식), 한 번만. 체크아웃 우선 → 체크인 → 폴백(현황 개수).
-      const dayAll = allRs.filter(r=>r.date===date && !isTestMap(r));
-      const cos = dayAll.filter(r=>r.tag==='checkout');
-      const cis = dayAll.filter(r=>r.tag==='checkin');
+      const cos = rs.filter(r=>r.tag==='checkout');
+      const cis = allRs.filter(r=>r.tag==='checkin' && r.date===date && !isTestMap(r));
       let hours = 0;
-      if(cos.length)      hours = cos.reduce((s,r)=>s+sessionHours(r, brk),0);
-      else if(cis.length) hours = cis.reduce((s,r)=>s+sessionHours(r, brk),0);
-      else                hours = rs.filter(r=>r.tag==='status').length;   // 폴백: 현황 1개=1시간
+      if(cos.length)             hours = cos.reduce((s,r)=>s+sessionHours(r, brk),0);
+      if(hours<=0 && cis.length) hours = cis.reduce((s,r)=>s+sessionHours(r, brk),0);  // 체크아웃 PLAY TIME 비었으면 체크인 창으로
+      if(hours<=0)               hours = rs.filter(r=>r.tag==='status').length;        // 그래도 없으면 현황 1개=1시간
       const restCount = rs.filter(r=>r.adj && r.adj.mode==='rest').length;
       hours = Math.max(0, hours - restCount);                              // 휴식 처리한 구간만큼 시간 차감
       // 증가량 = 라이브 텔레스코핑 합 (휴식 제외, 수동은 기준 대비 %로 치환). 기준 = 평균 target/h × 시간.
       let gain=0, dead=0, hasStd=true; const tgts=[];
-      rs.forEach(r=>{ const mo=findMap(clients,r); const tg=mo?Number(mo.target):null;
+      rs.forEach(r=>{ const mo=findMap(clients,r); const tg=mo&&Number(mo.target)>0?Number(mo.target):null;
         const adj=r.adj||null;
         if(adj && adj.mode==='rest'){ return; }                           // 휴식: 성과 집계 제외
         const g=(adj && adj.mode==='manual' && tg!=null)?(adj.pct/100)*tg:(segGain[r.id]!=null?segGain[r.id]:0);
@@ -2792,8 +2815,9 @@ function renderReportList(){
   host.innerHTML=rows.map(r=>{
     const tg=r.tag||'checkout'; const [lbl,cls]=badge[tg]||badge[''];
     const isOut=tg==='checkout';
-    const g=(r.lvAfter-r.lvBefore)*100+(r.expAfter-r.expBefore);
-    const right=isOut?`<span class="rep-r-exp">+${g.toFixed(2)}%</span>`:`<span class="rep-r-snap muted">Lv${r.lvAfter} · ${Number(r.expAfter).toFixed(2)}%</span>`;
+    let g=(r.lvAfter-r.lvBefore)*100+(r.expAfter-r.expBefore);
+    if(!isFinite(g)) g=0; else if(g<0) g=(Number(r.expAfter)||0)-(Number(r.expBefore)||0);  // 레벨값 오타 시 경험치만으로 폴백
+    const right=isOut?`<span class="rep-r-exp">${g>=0?'+':''}${g.toFixed(2)}%</span>`:`<span class="rep-r-snap muted">Lv${r.lvAfter} · ${Number(r.expAfter).toFixed(2)}%</span>`;
     return `<div class="rep-row">
       <span class="rep-badge ${cls}">${t(lbl)}</span>
       <span class="rep-r-date">${dualTimeHtml(r)}</span>
