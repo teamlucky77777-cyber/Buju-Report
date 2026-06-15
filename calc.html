@@ -845,9 +845,10 @@ body.role-player #section-staff { display:none !important; }
 .wt:hover .wt-swap{ color:var(--accent); transform:rotate(180deg); }
 .wt-plain{ font-weight:700; color:var(--tx); white-space:nowrap; font-variant-numeric:tabular-nums; }
 .rec-h-right{ display:flex; align-items:center; gap:10px; }
-.tz-toggle{ display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:var(--tx2); background:var(--surface-2); border:1px solid var(--border-strong); border-radius:999px; padding:5px 11px; cursor:pointer; transition:all .14s; white-space:nowrap; }
-.tz-toggle:hover{ color:var(--tx); border-color:var(--accent); }
-.tz-swap{ font-size:11px; font-weight:800; color:var(--accent); transition:transform .25s; }
+.tz-toggle{ display:inline-flex; align-items:center; gap:7px; font-size:13px; font-weight:700; color:var(--tx); background:var(--surface-3); border:1px solid var(--border-strong); border-radius:10px; padding:7px 13px; cursor:pointer; transition:transform .12s var(--ease), border-color .14s, background .14s, box-shadow .14s; white-space:nowrap; box-shadow:0 1px 2px rgba(0,0,0,.22); }
+.tz-toggle:hover{ border-color:var(--accent); background:var(--surface-2); box-shadow:0 2px 8px rgba(0,0,0,.28); }
+.tz-toggle:active{ transform:scale(.96); box-shadow:0 1px 2px rgba(0,0,0,.22); }
+.tz-swap{ display:inline-flex; align-items:center; justify-content:center; width:17px; height:17px; border-radius:6px; background:var(--accent); color:#fff; font-size:11px; font-weight:800; transition:transform .25s; }
 .tz-toggle:hover .tz-swap{ transform:rotate(180deg); }
 .rec-act{ text-align:center; }
 .rec-del{ width:24px; height:24px; border:none; border-radius:6px; background:transparent; color:var(--tx2); font-size:16px; line-height:1; cursor:pointer; transition:all .12s; }
