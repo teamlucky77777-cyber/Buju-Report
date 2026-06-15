@@ -831,6 +831,8 @@ body.role-player #section-staff { display:none !important; }
 .adj-pct-input{ width:88px; padding:10px 12px; border:1px solid var(--border-strong); border-radius:9px; background:var(--surface-2); color:var(--tx); font-size:18px; font-weight:800; text-align:center; }
 .adj-pct-unit{ font-size:16px; font-weight:800; color:var(--tx); }
 .adj-pct-hint{ font-size:11.5px; color:var(--tx2); }
+.s-shift-sel{ flex:none; margin-left:8px; padding:7px 8px; border:1px solid var(--border-strong); border-radius:8px; background:var(--surface-2); color:var(--tx); font-size:12px; font-weight:700; cursor:pointer; -webkit-appearance:menulist; appearance:menulist; }
+.s-shift-sel:hover{ border-color:var(--accent); }
 </style>
 </head>
 <body>
@@ -938,7 +940,7 @@ body.role-player #section-staff { display:none !important; }
    ============================================================ */
 
 const PROTECTION_DAYS    = 3;
-const MONTH_MIN          = 30;   // 최대 -70% (기본급의 30%까지)
+const MONTH_MIN          = 70;   // 최대 -30% 차감 (기본급의 70%는 유지)
 const MONTH_MAX          = 200;
 const BIG_MISS_PER_HOUR  = 0.3;   // %/h 스케일(0.7~1.2)에 맞춤: 목표보다 0.3%/h 이상 미달이면 '크게 미달'
 const MAX_LEADER_INCENTIVE = 1200000;   // 팀장 최대 인센티브 (팀 평균 200%에서 도달) → 상한 +1.2jt
@@ -1275,6 +1277,7 @@ const T={
   adjManualD:{ko:'성과%를 직접 지정합니다. 100 = 기본급, 100 미만 = 차감, 초과 = 인센티브.',en:'Set performance % directly. 100 = base, below = deduction, above = incentive.'},
   adjPctHint:{ko:'성과%',en:'Performance %'}, adjTagM:{ko:'수정',en:'Edited'}, adjEdit:{ko:'눌러서 수정',en:'Tap to edit'},
   adjHint:{ko:'행을 눌러 휴식·수동 조정',en:'Tap a row to adjust'}, adjSaved:{ko:'수정 저장됨',en:'Saved'},
+  hUnit:{ko:'시간',en:'h'}, workHoursLabel:{ko:'근무시간 (쉬는시간 구분)',en:'Work hours (break set)'},
   death:{ko:'죽음',en:'D'},
   protectedTag:{ko:'(보호)',en:'(prot.)'},
   confirmDelClient:{ko:'이 클라이언트를 삭제할까요?',en:'Delete this client?'},
@@ -1319,12 +1322,24 @@ function targetColor(v){ const t=Math.max(0,Math.min(1,(Number(v)-0.6)/0.8)); re
    ============================================================ */
 function toMin(hhmm){ const [h,m]=String(hhmm).split(':').map(Number); return h*60+(m||0); }
 function ovMin(s,e,bs,be){ return Math.max(0, Math.min(e,be)-Math.max(s,bs)); }
-function sessionHours(r){
+// 근무시간(8/10/12)별 쉬는시간 — 8h만 다름
+function workHoursOf(s){
+  if(s && s.workHours) return Number(s.workHours);
+  const m=String(s&&s.shift||'').match(/(\d+)\s*h/i);   // "주간 10h" → 10
+  return m?Number(m[1]):12;
+}
+function breaksFor(wh){
+  return Number(wh)===8
+    ? [[900,960],[1380,1440],[420,480]]    // 8h: 15~16, 23~24, 07~08
+    : [[900,960],[300,360]];               // 10/12h: 15~16, 05~06
+}
+function sessionHours(r, breaks){
   const S=toMin(r.start), E=toMin(r.end);
   if(!isFinite(S)||!isFinite(E)) return 0;
   let span=E-S; if(span<=0)span+=1440;            // 자정 넘김
-  let brk=0;                                       // 휴식: 15:00~16:00, 05:00~06:00 (당일+다음날)
-  for(const [bs,be] of [[900,960],[300,360]]){ brk+=ovMin(S,S+span,bs,be)+ovMin(S,S+span,bs+1440,be+1440); }
+  const BR = breaks || [[900,960],[300,360]];     // 기본(10/12h)
+  let brk=0;                                       // 쉬는시간 (당일+다음날 양쪽 체크)
+  for(const [bs,be] of BR){ brk+=ovMin(S,S+span,bs,be)+ovMin(S,S+span,bs+1440,be+1440); }
   const eff=span-brk;
   return eff>0?eff/60:0;
 }
@@ -1374,10 +1389,11 @@ function compute(clients, reports, staff){
 
   const results = Object.keys(byBooster).map(booster=>{
     const sm=staffByName(staff,booster); const rate=sm?(Number(sm.rate)||0):0; const protectedUntil=sm?sm.protectedUntil:null;
+    const brk=breaksFor(workHoursOf(sm));        // 근무시간별 쉬는시간
     const sessions=byBooster[booster].slice().sort((a,b)=>(a.date+a.tag).localeCompare(b.date+b.tag));
 
     const sessionRows=sessions.map(r=>{
-      const mo=findMap(clients,r); const target=mo?Number(mo.target):null; const h=(r.tag==='status')?1:sessionHours(r);
+      const mo=findMap(clients,r); const target=mo?Number(mo.target):null; const h=(r.tag==='status')?1:sessionHours(r, brk);
       const cl=clients.find(x=>x.name===r.client); const clientNo=cl?cl.no:'';
       const adj=r.adj||null; const isRest=adj&&adj.mode==='rest'; const isManual=adj&&adj.mode==='manual';
       const effGain=(isManual&&target!=null)?(adj.pct/100)*target*h:gainedPct(r);
@@ -1393,7 +1409,7 @@ function compute(clients, reports, staff){
     let weekGain=0, weekQuota=0, anyCounted=false, totalHours=0;
     const dayRows=Object.keys(byDate).sort().map(date=>{
       const rs=byDate[date]; let gain=0,quota=0,hours=0,dead=0,hasStd=true;
-      rs.forEach(r=>{ const mo=findMap(clients,r); const h=(r.tag==='status')?1:sessionHours(r); const tg=mo?Number(mo.target):null;
+      rs.forEach(r=>{ const mo=findMap(clients,r); const h=(r.tag==='status')?1:sessionHours(r, brk); const tg=mo?Number(mo.target):null;
         const adj=r.adj||null;
         if(adj && adj.mode==='rest'){ return; }    // 휴식: 성과·시간 집계 제외 (기본급은 일급에 포함)
         const g=(adj && adj.mode==='manual' && tg!=null)?(adj.pct/100)*tg*h:gainedPct(r);
@@ -1433,7 +1449,7 @@ function compute(clients, reports, staff){
     const monthBasePay = monthBase + allowance;
     // 시급 = 일급 ÷ 하루 근무시간 (체크인 PLAY TIME 창 평균). 일급 = 월급 ÷ 30.
     const myCheckins = reports.filter(r=>r.booster===booster && r.tag==='checkin' && !isTestMap(r));
-    const shiftHours = myCheckins.length ? (myCheckins.reduce((s,r)=>s+sessionHours(r),0)/myCheckins.length) : 12;
+    const shiftHours = myCheckins.length ? (myCheckins.reduce((s,r)=>s+sessionHours(r, brk),0)/myCheckins.length) : 12;
     const dailyBase = monthBasePay/30;
     const hourlyBase = shiftHours>0 ? dailyBase/shiftHours : dailyBase/12;
     const monthRaw = monthBase + allowance + incentiveTotal - penaltyTotal;
@@ -1484,7 +1500,7 @@ function compute(clients, reports, staff){
     const teamReported = memberResults.filter(p=>p.weekPct!=null).length;
     const monthBasePay = rate + allowance;
     const _lc = reports.filter(r=>r.booster===ls.name && r.tag==='checkin');
-    const shiftHours = _lc.length ? (_lc.reduce((s,r)=>s+sessionHours(r),0)/_lc.length) : 12;
+    const shiftHours = _lc.length ? (_lc.reduce((s,r)=>s+sessionHours(r, breaksFor(workHoursOf(ls))),0)/_lc.length) : 12;
     const hourlyBase = shiftHours>0 ? dailyBase/shiftHours : dailyBase/12;
     const monthRaw = monthBasePay + incentiveTotal - penaltyTotal;
     const monthClampedPay = Math.min(monthBasePay*MONTH_MAX/100, Math.max(monthBasePay*MONTH_MIN/100, monthRaw));
@@ -2503,9 +2519,11 @@ async function renderStaff(){
 }
 function staffLine(s){
   const lead=Number(s.allowance)>0;
+  const wh=workHoursOf(s);
+  const whOpts=[8,10,12].map(n=>`<option value="${n}"${wh===n?' selected':''}>${n}${t('hUnit')}</option>`).join('');
   return `<div class="staff-line${lead?' staff-leader':''}">
     <div class="s-name-cell">
-      <div class="s-name-row">${lead?'<span class="staff-crown" title="'+t('roleLeader')+'">👑</span>':''}<input class="input s-name" value="${esc(s.name)}" onchange="updateStaff('${s.id}','name',this.value)" placeholder="${t('thName')}"></div>
+      <div class="s-name-row">${lead?'<span class="staff-crown" title="'+t('roleLeader')+'">👑</span>':''}<input class="input s-name" value="${esc(s.name)}" onchange="updateStaff('${s.id}','name',this.value)" placeholder="${t('thName')}"><select class="s-shift-sel" onchange="updateStaff('${s.id}','workHours',this.value)" title="${t('workHoursLabel')}">${whOpts}</select></div>
       ${lead?`<span class="s-allow">+ ${t('ldAllowance')} ${money(s.allowance)} · ${t('gBase')} ${money((Number(s.rate)||0)+Number(s.allowance))}</span>`:''}
     </div>
     <input class="input s-rate" type="number" value="${s.rate}" onchange="updateStaff('${s.id}','rate',this.value)" placeholder="${t('rateLabel')}">
@@ -2515,7 +2533,7 @@ function staffLine(s){
 }
 async function updateStaff(id,field,val){
   const staff=await loadStaff(); const s=staff.find(x=>x.id===id); if(!s) return;
-  s[field] = field==='rate' ? (Number(val)||0) : val;
+  s[field] = (field==='rate'||field==='workHours') ? (Number(val)||0) : val;
   await saveStaff(s);
   await renderDashboard();   // 월급 바뀌면 급여 다시 계산
 }
