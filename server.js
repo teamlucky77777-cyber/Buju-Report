@@ -659,20 +659,41 @@ app.post('/kakao', async (req, res) => {
 
 // 현재 세션 / 마지막 체크아웃 분기
 async function handleCurrentSession(res, clientDisplayName) {
-  const { data: lastAnyArr } = await supabase
+  // 최근 로그 넉넉히 — 교대근무 시 부주별 최신 상태 판단용
+  const { data: logs } = await supabase
     .from('session_logs')
     .select('*')
     .eq('client_name', clientDisplayName)
     .order('logged_at', { ascending: false })
-    .limit(1);
-  const lastAny = lastAnyArr?.[0];
+    .limit(80);
 
-  if (!lastAny) {
+  if (!logs || logs.length === 0) {
     return res.json(makeTextResponse(
       `"${clientDisplayName}" 님의 세션 기록이 없습니다.\n아직 체크인이 되지 않았을 수 있습니다.`
     ));
   }
 
+  const lastAny = logs[0];
+
+  // 교대근무: 한 부주가 체크아웃해도 다른 교대근무자가 근무중이면 "운영중".
+  // 부주(채널)별 최신 로그를 보고, CHECKOUT이 아닌 최근(20h 내) 부주가 하나라도 있으면 운영중.
+  const ACTIVE_WINDOW_MS = 20 * 60 * 60 * 1000; // 한 시프트 + 여유. 잊고 체크아웃 안 한 오래된 체크인은 무시.
+  const now = Date.now();
+  const latestByBooster = {};
+  for (const log of logs) {                      // desc 정렬 → 각 부주의 첫 등장이 최신 로그
+    const key = log.booster_channel || '?';
+    if (!latestByBooster[key]) latestByBooster[key] = log;
+  }
+  const activeLogs = Object.values(latestByBooster)
+    .filter(l => l.report_type !== 'CHECKOUT' && (now - new Date(l.logged_at).getTime()) <= ACTIVE_WINDOW_MS)
+    .sort((a, b) => new Date(b.logged_at) - new Date(a.logged_at));
+
+  if (activeLogs.length > 0) {
+    // 근무중인 교대근무자 있음 → 운영중 (가장 최근 활성 부주의 세션)
+    return await renderActiveSession(res, clientDisplayName, activeLogs[0]);
+  }
+
+  // 모든 부주가 체크아웃 → 운영 종료
   if (lastAny.report_type === 'CHECKOUT') {
     return await renderCheckoutSummary(res, clientDisplayName, lastAny);
   }
