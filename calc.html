@@ -876,6 +876,9 @@ body.no-edit-records .rec-click:hover{ background:transparent; }
 .login-role-btn.lr-player:hover{ border-color:var(--tx2); color:var(--tx); box-shadow:0 6px 18px rgba(0,0,0,.18); }
 .login-back{ margin-top:14px; background:transparent; border:none; color:var(--tx3); font-size:13px; font-weight:600; cursor:pointer; }
 .login-back:hover{ color:var(--tx2); }
+.tbl-rec tr.rec-nostd > td:first-child{ box-shadow:inset 3px 0 0 var(--warning,#e0b341); }
+.tbl-rec tr.rec-nostd > td{ background:rgba(224,179,65,.045); }
+.nostd-dash{ color:var(--warning,#e0b341); font-weight:800; cursor:help; }
 </style>
 </head>
 <body>
@@ -1324,6 +1327,7 @@ const T={
   hClient:{ko:'클라',en:'Client'}, hPc:{ko:'PC',en:'PC'}, hLv:{ko:'LV',en:'LV'}, hMap:{ko:'사냥터',en:'Map'},
   hActualExp:{ko:'실제 EXP',en:'Actual EXP'}, hTarget:{ko:'기준',en:'Target'},
   vPass:{ko:'통과',en:'Pass'}, vUnder:{ko:'미달',en:'Under'}, vBig:{ko:'크게 미달',en:'Way under'}, vNoStd:{ko:'기준없음',en:'No std'}, vProtected:{ko:'보호',en:'Protected'}, vRest:{ko:'휴식',en:'Rest'},
+  nostdWait:{ko:'기준 대기 — 기준을 넣으면 자동 채점됩니다',en:'Awaiting standard — auto-scores once a standard is set'},
   adjTitle:{ko:'기록 수정',en:'Edit record'}, adjNormal:{ko:'정상',en:'Normal'}, adjRest:{ko:'휴식 · 기본급',en:'Rest · Base'}, adjManual:{ko:'수동',en:'Manual'},
   adjNormalD:{ko:'리포트의 실제 EXP로 자동 채점합니다.',en:"Scored automatically from the report's EXP."},
   adjRestD:{ko:'이 시간은 일을 못한 것으로 처리 — 성과 집계에서 빠지고 기본급만 지급됩니다 (± 없음).',en:'Treated as downtime — excluded from scoring, base pay only (no ±).'},
@@ -2253,8 +2257,8 @@ function renderRecords(){
     const diffTxt=d.diff==null?'-':sgn(d.diff);
     const pctTxt=d.counted? d.dayPct.toFixed(0)+'%' : (d.protected? t('vProtected') : '-');
     const deadTxt=d.dead?` <span class="neg tiny">·${t('death')}${d.dead}</span>`:'';
-    return `<tr><td class="rec-staff">${esc(d.booster)}</td><td>${d.date.slice(5)}${deadTxt}</td><td class="num muted">${f2(d.hours)}h</td>
-      <td class="num">${f2(d.actualPerH)}</td><td class="num muted">${d.noStd?'-':f2(d.targetPerH)}</td>
+    return `<tr class="${d.noStd?'rec-nostd':''}"><td class="rec-staff">${esc(d.booster)}</td><td>${d.date.slice(5)}${deadTxt}</td><td class="num muted">${f2(d.hours)}h</td>
+      <td class="num">${f2(d.actualPerH)}</td><td class="num muted">${d.noStd?'<span class="nostd-dash" title="'+t('nostdWait')+'">-</span>':f2(d.targetPerH)}</td>
       <td class="num ${d.diff==null?'neu':(d.diff>=0?'pos':'neg')}">${diffTxt}</td>
       <td class="num">${pctTxt}</td><td class="num muted">${money(d.basePay)}</td>
       <td class="num" style="font-weight:600;">${money(d.actualPay)}</td>
@@ -2269,8 +2273,8 @@ function renderRecords(){
     const expCell = r.isRest ? `<span class="muted">—</span>` : `+${f2(r.actualPerH)}%`;
     const diffCell = r.isRest ? `<span class="muted">—</span>` : `<span class="${r.diff==null?'neu':(r.diff>=0?'pos':'neg')}">${r.diff==null?'-':sgn(r.diff)+'%'}</span>`;
     const tag = r.isManual ? ` <span class="tiny adj-tag">${t('adjTagM')}</span>` : '';
-    return `<tr class="rec-click${r.isRest?' rec-rest':''}" onclick="openAdjModal('${esc(r.id)}')" title="${t('adjEdit')}"><td class="rec-staff">${esc(r.booster)}</td><td class="rec-wrote">${dualTimeHtmlMs(r.wroteMs, r.wrote)}${tagB}${deadTxt}</td><td>${r.clientNo?esc(r.clientNo)+'. ':''}${esc(r.client)}</td><td>${esc(r.pc)}</td><td class="num">${r.lv}</td><td>${esc(mapTxt)}</td>
-      <td class="num">${expCell}</td><td class="num muted">${r.target==null?'-':'+'+f2(r.target)+'%'}</td>
+    return `<tr class="rec-click${r.isRest?' rec-rest':''}${(r.target==null&&!r.isRest)?' rec-nostd':''}" onclick="openAdjModal('${esc(r.id)}')" title="${t('adjEdit')}"><td class="rec-staff">${esc(r.booster)}</td><td class="rec-wrote">${dualTimeHtmlMs(r.wroteMs, r.wrote)}${tagB}${deadTxt}</td><td>${r.clientNo?esc(r.clientNo)+'. ':''}${esc(r.client)}</td><td>${esc(r.pc)}</td><td class="num">${r.lv}</td><td>${esc(mapTxt)}</td>
+      <td class="num">${expCell}</td><td class="num muted">${r.target==null?'<span class="nostd-dash" title="'+t('nostdWait')+'">-</span>':'+'+f2(r.target)+'%'}</td>
       <td class="num">${diffCell}</td>
       <td><span class="vp ${r.verdict.cls}">${t(r.verdict.key)}</span>${tag}${r.protected?' <span class="tiny v-skip">'+t('protectedTag')+'</span>':''}</td><td class="rec-act"><button class="rec-del" onclick="event.stopPropagation(); deleteRecordReport('${esc(r.id)}')" title="${t('delete')}">×</button></td></tr>`;
   }).join('');
