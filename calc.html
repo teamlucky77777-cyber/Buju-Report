@@ -819,6 +819,11 @@ body.role-player #section-staff { display:none !important; }
 .rec-click{ cursor:pointer; transition:background .12s; }
 .rec-click:hover{ background:var(--surface-2); }
 .rec-rest{ opacity:.6; }
+.rec-date-row td{ background:var(--surface-2); cursor:pointer; font-weight:800; font-size:12.5px; color:var(--tx); padding:8px 12px; border-top:1px solid var(--border-strong); letter-spacing:.2px; user-select:none; }
+.rec-date-row:hover td{ background:var(--surface-3); }
+.rec-date-caret{ display:inline-block; width:13px; color:var(--accent); font-size:11px; }
+.rec-date-cnt{ display:inline-block; min-width:18px; text-align:center; margin-left:7px; padding:1px 7px; border-radius:999px; background:var(--surface-3); color:var(--tx2); font-weight:700; font-size:11px; }
+.rec-pc-top td{ border-top:2px solid var(--border-strong); }
 .adj-tag{ color:var(--accent); border:1px solid var(--accent); border-radius:5px; padding:1px 5px; font-weight:700; }
 .rec-hint{ font-size:11px; color:var(--tx2); }
 .adj-ctx{ font-size:12.5px; color:var(--tx2); margin-bottom:14px; padding-bottom:12px; border-bottom:1px solid var(--border-strong); font-weight:600; }
@@ -2039,6 +2044,21 @@ function doRoleSwitch(){
 }
 function setRecFilter(b){ recFilter=(recFilter===b?'':b); renderRecords(); }
 
+// ── 세션 기록: 날짜 그룹 접기 상태 (사용자가 누른 것만 기억, 기본은 최신 날짜만 펼침) ──
+let recDateOpen={};
+function isRecDateOpen(date,isNewest){ return (date in recDateOpen) ? recDateOpen[date] : isNewest; }
+function toggleRecDate(date){ const cur=(date in recDateOpen)?recDateOpen[date]:false; recDateOpen[date]=!cur; renderRecords(); }
+function recDateLabel(d){
+  const p=String(d).split('-').map(Number); const dt=new Date(Date.UTC(p[0],(p[1]||1)-1,p[2]||1));
+  const todayStr=new Date().toISOString().slice(0,10);
+  const yest=new Date(Date.now()-86400000).toISOString().slice(0,10);
+  if(lang==='en'){ const wk=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getUTCDay()];
+    const rel=d===todayStr?'Today · ':d===yest?'Yesterday · ':''; return `${rel}${p[1]}/${p[2]} (${wk})`; }
+  const wk=['일','월','화','수','목','금','토'][dt.getUTCDay()];
+  const rel=d===todayStr?'오늘 · ':d===yest?'어제 · ':'';
+  return `${rel}${p[1]}월 ${p[2]}일 (${wk})`;
+}
+
 function periodPay(p){ return period==='day'?(p.latestDay?p.latestDay.actualPay:0) : period==='month'?p.monthClampedPay : p.weekActualPay; }
 function periodPct(p){
   if(period==='day') return p.latestDay?(p.latestDay.counted?p.latestDay.dayPct:null):null;
@@ -2323,7 +2343,7 @@ function renderRecords(){
       <td><span class="vp ${d.verdict.cls}">${t(d.verdict.key)}</span></td></tr>`;
   }).join('');
 
-  const sessBody=fSess.map(r=>{
+  const renderSessRow=(r,pcSep)=>{
     const tagKey={checkin:'rtCheckin',status:'rtStatus',checkout:'rtCheckout'}[r.tag]||null;
     const tagB = tagKey?` <span class="rec-tag">${t(tagKey)}</span>`:'';
     const deadTxt=r.dead?` <span class="neg tiny">·${t('death')}${r.dead}</span>`:'';
@@ -2335,10 +2355,23 @@ function renderRecords(){
     else { expCell=`+${f2(r.actualPerH)}%`; tgtCell=(r.target==null?`<span class="nostd-dash" title="${t('nostdWait')}">-</span>`:'+'+f2(r.target)+'%'); diffCell=`<span class="${r.diff==null?'neu':(r.diff>=0?'pos':'neg')}">${r.diff==null?'-':sgn(r.diff)+'%'}</span>`; }
     const tag = r.isManual ? ` <span class="tiny adj-tag">${t('adjTagM')}</span>` : '';
     const noStdRow = (r.dispKind==='perH' && r.target==null && !r.isRest) ? ' rec-nostd' : '';
-    return `<tr class="rec-click${r.isRest?' rec-rest':''}${noStdRow}" onclick="openAdjModal('${esc(r.id)}')" title="${t('adjEdit')}"><td class="rec-staff">${esc(r.booster)}</td><td class="rec-wrote">${dualTimeHtmlMs(r.wroteMs, r.wrote)}${tagB}${deadTxt}</td><td>${r.clientNo?esc(r.clientNo)+'. ':''}${esc(r.client)}</td><td>${esc(r.pc)}</td><td class="num">${r.lv}</td><td>${esc(mapTxt)}</td>
+    return `<tr class="rec-click${r.isRest?' rec-rest':''}${noStdRow}${pcSep?' rec-pc-top':''}" onclick="openAdjModal('${esc(r.id)}')" title="${t('adjEdit')}"><td class="rec-staff">${esc(r.booster)}</td><td class="rec-wrote">${dualTimeHtmlMs(r.wroteMs, r.wrote)}${tagB}${deadTxt}</td><td>${r.clientNo?esc(r.clientNo)+'. ':''}${esc(r.client)}</td><td>${esc(r.pc)}</td><td class="num">${r.lv}</td><td>${esc(mapTxt)}</td>
       <td class="num">${expCell}</td><td class="num muted">${tgtCell}</td>
       <td class="num">${diffCell}</td>
       <td><span class="vp ${r.verdict.cls}">${t(r.verdict.key)}</span>${tag}${r.protected?' <span class="tiny v-skip">'+t('protectedTag')+'</span>':''}</td><td class="rec-act"><button class="rec-del" onclick="event.stopPropagation(); deleteRecordReport('${esc(r.id)}')" title="${t('delete')}">×</button></td></tr>`;
+  };
+  // 날짜 그룹(최신순) → 날짜 안에서 PC별 정렬 → 접기. 기본: 최신 날짜만 펼침 (쌓여도 화면 가벼움)
+  const sessByDate={}; fSess.forEach(r=>(sessByDate[r.date]=sessByDate[r.date]||[]).push(r));
+  const sessDates=Object.keys(sessByDate).sort((a,b)=>String(b).localeCompare(String(a)));
+  const sessBody = sessDates.map((date,di)=>{
+    const open=isRecDateOpen(date, di===0);
+    const list=sessByDate[date].slice().sort((a,b)=>
+      (Number(a.clientNo||a.pc||0)-Number(b.clientNo||b.pc||0)) || ((a.wroteMs||0)-(b.wroteMs||0)));
+    const head=`<tr class="rec-date-row" onclick="toggleRecDate('${date}')"><td colspan="11"><span class="rec-date-caret">${open?'▾':'▸'}</span> ${recDateLabel(date)} <span class="rec-date-cnt">${list.length}</span></td></tr>`;
+    if(!open) return head;
+    let lastPc=null;
+    const body=list.map(r=>{ const pk=String(r.clientNo||r.pc||''); const sep=(lastPc!==null && pk!==lastPc); lastPc=pk; return renderSessRow(r, sep); }).join('');
+    return head+body;
   }).join('');
 
   host.innerHTML=`
