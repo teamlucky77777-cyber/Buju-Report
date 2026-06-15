@@ -1548,24 +1548,18 @@ function compute(clients, reports, staff){
     let weekGain=0, weekQuota=0, anyCounted=false, totalHours=0;
     const dayRows=Object.keys(byDate).sort().map(date=>{
       const rs=byDate[date];
-      // 시간 = 실제 시프트 시간 (PLAY TIME 창 − 휴식), 한 번만. 체크아웃 우선 → 체크인 → 폴백(현황 개수).
-      const cos = rs.filter(r=>r.tag==='checkout');
-      const cis = allRs.filter(r=>r.tag==='checkin' && r.date===date && !isTestMap(r));
-      let hours = 0;
-      if(cos.length)             hours = cos.reduce((s,r)=>s+sessionHours(r, brk),0);
-      if(hours<=0 && cis.length) hours = cis.reduce((s,r)=>s+sessionHours(r, brk),0);  // 체크아웃 PLAY TIME 비었으면 체크인 창으로
-      if(hours<=0)               hours = rs.filter(r=>r.tag==='status').length;        // 그래도 없으면 현황 1개=1시간
-      const restCount = rs.filter(r=>r.adj && r.adj.mode==='rest').length;
-      hours = Math.max(0, hours - restCount);                              // 휴식 처리한 구간만큼 시간 차감
-      // 증가량 = 라이브 텔레스코핑 합 (휴식 제외, 수동은 기준 대비 %로 치환). 기준 = 평균 target/h × 시간.
-      let gain=0, dead=0, hasStd=true; const tgts=[];
+      // 성과(시간당)는 '실제로 보고된 육성시간'으로만 측정. 정산 리포트(현황·체크아웃) 1건 = 측정된 1시간 구간.
+      //  ⮕ 근무(시프트) 시간으로 나누지 않음. 11시간 근무라도 8시간만 육성했으면 8시간 기준으로 공정 평가.
+      //  ⮕ 지웠거나 누락된 시간대는 평가에서 빠질 뿐, 남아있는 구간의 '시간당 성과'로 계산되어 불이익 없음.
+      //  (급여 시급은 별도로 시프트 시간 기준 — 근무는 근무대로 인정, 성과는 성과대로 정확히)
+      let gain=0, quota=0, hours=0, dead=0, hasStd=true;
       rs.forEach(r=>{ const mo=findMap(clients,r); const tg=mo&&Number(mo.target)>0?Number(mo.target):null;
         const adj=r.adj||null;
-        if(adj && adj.mode==='rest'){ return; }                           // 휴식: 성과 집계 제외
+        if(adj && adj.mode==='rest'){ return; }                 // 휴식: 성과·시간에서 제외
         const g=(adj && adj.mode==='manual' && tg!=null)?(adj.pct/100)*tg:(segGain[r.id]!=null?segGain[r.id]:0);
-        gain+=g; dead+=r.dead||0; if(tg!=null)tgts.push(tg); else hasStd=false; });
-      const dayTarget = tgts.length ? tgts.reduce((a,b)=>a+b,0)/tgts.length : null;
-      const quota = (hasStd && dayTarget!=null) ? dayTarget*hours : 0;
+        gain+=g; hours+=1; dead+=r.dead||0;                     // 각 구간 = 측정된 1시간
+        if(tg!=null) quota+=tg; else hasStd=false;              // 시간당 기준 합산 (시간당 비교 유지)
+      });
       const prot=isProtectedUntil(protectedUntil,date); const counted=!prot&&hasStd&&quota>0;
       const actualPerH=hours?gain/hours:0; const targetPerH=hours?quota/hours:0;
       const diff=hasStd?actualPerH-targetPerH:null; const dayPct=quota>0?gain/quota*100:null;
