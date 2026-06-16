@@ -101,6 +101,18 @@ h3 { font-size: 11px; font-weight: 600; margin: 16px 0 7px; color: var(--text-te
 .std-add { display:flex; align-items:center; justify-content:center; min-height:108px; border:1.5px dashed var(--border-strong); border-radius:10px; background:transparent; color:var(--text-secondary); font-size:14px; font-weight:600; cursor:pointer; transition:border-color .12s, color .12s; }
 .std-add:hover { border-color:var(--accent); color:var(--text); }
 .std-add:active { opacity:.6; }
+.train-bar{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin:0 0 14px; }
+.train-toggle{ display:inline-flex; align-items:center; gap:11px; padding:9px 14px; border:1px solid var(--border-strong); border-radius:12px; background:var(--surface-2); cursor:pointer; transition:border-color .14s, background .14s; }
+.train-toggle:hover{ border-color:var(--accent); }
+.train-toggle.on{ border-color:var(--accent); background:var(--accent-soft); }
+.train-sw{ position:relative; width:40px; height:22px; border-radius:999px; background:var(--surface-3); border:1px solid var(--border-strong); transition:background .16s; flex:none; }
+.train-toggle.on .train-sw{ background:var(--accent); border-color:var(--accent); }
+.train-knob{ position:absolute; top:1px; left:1px; width:18px; height:18px; border-radius:50%; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.3); transition:left .16s; }
+.train-toggle.on .train-knob{ left:19px; }
+.train-label{ display:flex; flex-direction:column; line-height:1.3; text-align:left; }
+.train-label b{ font-size:13px; color:var(--tx); font-weight:700; }
+.train-state{ font-size:11px; color:var(--tx2); font-weight:600; }
+.train-banner{ flex:1; min-width:200px; padding:9px 13px; border-radius:10px; background:var(--accent-soft); border:1px solid var(--accent); color:var(--tx); font-size:12.5px; line-height:1.45; }
 
 .edit-block { display:flex; flex-direction:column; gap:9px; }
 .f-row { display:flex; align-items:center; justify-content:space-between; gap:8px; }
@@ -840,6 +852,11 @@ body.role-player #section-staff { display:none !important; }
 .adj-pct-unit{ font-size:16px; font-weight:800; color:var(--tx); }
 .adj-pct-hint{ font-size:11.5px; color:var(--tx2); }
 .s-shift-sel{ flex:none; margin-left:8px; padding:7px 8px; border:1px solid var(--border-strong); border-radius:8px; background:var(--surface-2); color:var(--tx); font-size:12px; font-weight:700; cursor:pointer; -webkit-appearance:menulist; appearance:menulist; }
+.s-team-row{ display:flex; align-items:center; gap:8px; margin-top:5px; flex-wrap:wrap; }
+.s-role-sel{ padding:4px 8px; border:1px solid var(--border-strong); border-radius:7px; background:var(--surface-2); color:var(--tx2); font-size:11.5px; font-weight:700; cursor:pointer; -webkit-appearance:menulist; appearance:menulist; }
+.staff-leader .s-role-sel{ color:var(--accent); border-color:var(--accent); }
+.s-allow-wrap{ display:inline-flex; align-items:center; gap:5px; font-size:11px; color:var(--tx2); font-weight:600; }
+.s-allow-input{ width:84px; padding:4px 7px; border:1px solid var(--border-strong); border-radius:7px; background:var(--surface-2); color:var(--tx); font-size:11.5px; font-variant-numeric:tabular-nums; text-align:right; }
 .s-shift-sel:hover{ border-color:var(--accent); }
 .rec-tag{ font-size:10px; font-weight:700; color:var(--tx2); background:var(--surface-3); border-radius:4px; padding:1px 5px; margin-left:3px; }
 .rec-wrote{ white-space:nowrap; font-variant-numeric:tabular-nums; }
@@ -924,6 +941,7 @@ body.no-edit-records .rec-click:hover{ background:transparent; }
         <h2 id="app-sec1"></h2>
         <p class="muted" id="app-sec1desc"></p>
       </div>
+      <div id="train-bar" class="train-bar"></div>
       <div id="game-tabs" class="game-tabs"></div>
       <div class="std-grid" id="standards-grid"></div>
       <datalist id="map-ko-list"></datalist>
@@ -1046,9 +1064,10 @@ const MAP_PRESETS = [
 
 // 직원: name(=리포트의 booster와 일치), rate(월급), protectedUntil(보호 종료일), shift(참고)
 //   leader = 소속 팀장 이름 ('' = 본인이 팀장),  allowance = 리더 수당(팀장만, 팀 성과 연동)
-// 팀: CLAWS=주간팀장, ACE=야간팀장. 성과/기록은 리포트 연동 시 채워짐 (현재 실데이터는 KAIJI만)
+// 팀: ACE=야간팀장. CLAWS는 리더에서 내려와 일반 플레이어(무소속)로 전환됨.
+//  ※ 직원 관리 화면의 '역할/팀' 선택으로 라이브 변경 가능 (주간팀 새 팀장 지정도 거기서).
 let MOCK_STAFF = [
-  { id:'st-claws', name:'CLAWS', shift:'주간 10h',    rate:3000000, protectedUntil:'',           leader:'',      allowance:300000 },
+  { id:'st-claws', name:'CLAWS', shift:'주간 10h',    rate:3000000, protectedUntil:'',           leader:'',      allowance:0 },
   { id:'st-ace',   name:'ACE',   shift:'야간 12h',    rate:4000000, protectedUntil:'2026-05-20', leader:'',      allowance:300000 },
   { id:'st-sid',   name:'SID',   shift:'야간 12h',    rate:4000000, protectedUntil:'2026-05-18', leader:'ACE'   },
   { id:'st-kaiji', name:'KAIJI', shift:'야간 12h',    rate:4000000, protectedUntil:'2026-05-15', leader:'ACE'   },
@@ -1322,6 +1341,7 @@ const T={
   pending:{ko:'기록 없음',en:'No records yet'},
   roleLeader:{ko:'팀장',en:'Leader'},
   ldAllowance:{ko:'리더 수당',en:'Leader allowance'},
+  sRoleLeader:{ko:'👑 팀장',en:'👑 Leader'}, sRoleNone:{ko:'무소속',en:'No team'}, sRoleTeam:{ko:'팀',en:'team'}, sRoleLabel:{ko:'역할/팀',en:'Role/Team'},
   ldTeamAvg:{ko:'팀 평균 성과',en:'Team avg'},
   ldTeam:{ko:'팀',en:'Team'},
   ldBasis:{ko:'팀 성과로 수당이 정산됩니다 (미달 시 차감 · 초과 시 추가)',en:'Allowance settled by team performance (docked if below, extra if above)'},
@@ -1349,6 +1369,10 @@ const T={
   hClient:{ko:'클라',en:'Client'}, hPc:{ko:'PC',en:'PC'}, hLv:{ko:'LV',en:'LV'}, hMap:{ko:'사냥터',en:'Map'},
   hActualExp:{ko:'실제 EXP',en:'Actual EXP'}, hTarget:{ko:'기준',en:'Target'},
   vPass:{ko:'통과',en:'Pass'}, vUnder:{ko:'미달',en:'Under'}, vBig:{ko:'크게 미달',en:'Way under'}, vNoStd:{ko:'기준없음',en:'No std'}, vProtected:{ko:'보호',en:'Protected'}, vRest:{ko:'휴식',en:'Rest'},
+  vTraining:{ko:'교육중',en:'Training'},
+  trainToggle:{ko:'교육 기간 모드',en:'Training mode'}, trainOn:{ko:'ON · 기준 미적용 (전원 기본급)',en:'ON · standards off (all base pay)'}, trainOff:{ko:'OFF · 기준 적용중',en:'OFF · standards applied'},
+  trainBanner:{ko:'교육 기간 모드 — 기준 미적용 중. 전원 기본급으로 정산되고 미달·감점이 없습니다. (기준은 그대로 저장돼 있어요)',en:'Training mode — standards not applied. Everyone is paid base, no penalties. (Standards are kept.)'},
+  trainOnMsg:{ko:'교육 기간 모드 ON — 전원 기본급',en:'Training mode ON — all base pay'}, trainOffMsg:{ko:'교육 기간 모드 OFF — 기준 적용',en:'Training mode OFF — standards applied'},
   nostdWait:{ko:'기준 대기 — 기준을 넣으면 자동 채점됩니다',en:'Awaiting standard — auto-scores once a standard is set'},
   vCheckin:{ko:'시작',en:'Start'}, vTest:{ko:'정산제외',en:'Excluded'}, vDup:{ko:'중복',en:'Duplicate'},
   adjTitle:{ko:'기록 수정',en:'Edit record'}, adjNormal:{ko:'정상',en:'Normal'}, adjRest:{ko:'휴식 · 기본급',en:'Rest · Base'}, adjManual:{ko:'수동',en:'Manual'},
@@ -1559,7 +1583,7 @@ function compute(clients, reports, staff){
       if(isTest)    return Object.assign(base,{ dispKind:'test',  actualPerH:gainedPct(r), target:null, diff:null, verdict:{key:'vTest',cls:'v-skip'} });
       const effGain=(isManual&&target!=null)?(adj.pct/100)*target:(isRest?null:(segGain[r.id]!=null?segGain[r.id]:gainedPct(r)));
       const actualPerH=isRest?null:effGain; const diff=(isRest||target==null)?null:actualPerH-target;
-      const vd=isRest?{key:'vRest',cls:'v-skip'}:(target==null?{key:'vNoStd',cls:'v-skip'}:verdict(diff));
+      const vd=isRest?{key:'vRest',cls:'v-skip'}:(trainingMode?{key:'vTraining',cls:'v-skip'}:(target==null?{key:'vNoStd',cls:'v-skip'}:verdict(diff)));
       return Object.assign(base,{ dispKind:'perH', actualPerH, target, diff, verdict:vd });
     });
 
@@ -1594,14 +1618,14 @@ function compute(clients, reports, staff){
         gain+=g; hours+=1; dead+=r.dead||0;                     // 각 구간 = 측정된 1시간
         if(tg!=null) quota+=tg; else hasStd=false;              // 시간당 기준 합산 (시간당 비교 유지)
       });
-      const prot=isProtectedUntil(protectedUntil,date); const counted=!prot&&hasStd&&quota>0;
+      const prot=isProtectedUntil(protectedUntil,date); const counted=!prot&&hasStd&&quota>0&&!trainingMode;
       const actualPerH=hours?gain/hours:0; const targetPerH=hours?quota/hours:0;
       const diff=hasStd?actualPerH-targetPerH:null; const dayPct=quota>0?gain/quota*100:null;
-      const payPct = counted ? dayPct : 100;          // 보호/기준없음 = 기본급(100%)
+      const payPct = counted ? dayPct : 100;          // 보호/기준없음/교육모드 = 기본급(100%)
       totalHours+=hours;
       if(counted){ weekGain+=gain; weekQuota+=quota; anyCounted=true; }
       return { date, hours, dead, gain, quota, actualPerH, targetPerH, diff, dayPct, payPct, basePay:0, actualPay:0, protected:prot, noStd:!hasStd, counted,
-        verdict:!hasStd?{key:'vNoStd',cls:'v-skip'}:prot?{key:'vProtected',cls:'v-skip'}:verdict(diff) };
+        verdict:trainingMode?{key:'vTraining',cls:'v-skip'}:(!hasStd?{key:'vNoStd',cls:'v-skip'}:prot?{key:'vProtected',cls:'v-skip'}:verdict(diff)) };
     });
 
     // 일급 = 월급(rate) ÷ 30. 근무한 하루마다 일급을 기준으로
@@ -1651,7 +1675,7 @@ function compute(clients, reports, staff){
     results.push({ booster:s.name, baseRate:base, sessionRows:[], dayRows:[],
       weekPct:null, weekGain:0, weekQuota:0, weekActualPay:0, weekBasePay:0,
       monthClampedPay:0, monthBasePay:0, monthClampedPct:null, latestDay:null,
-      incentiveTotal:0, penaltyTotal:0, noData:true });
+      incentiveTotal:0, penaltyTotal:0, isLeader:false, noData:true });
   });
 
   // ── 팀장 정산: 본인 플레이가 아니라 "팀원들의 성과"를 일급 방식으로 월급에 반영 ──
@@ -1777,6 +1801,8 @@ let editingId=null, editBuf=null, clientCache=[];
 
 async function renderStandards(){
   clientCache=await loadClients();
+  const tb=document.getElementById('train-bar');
+  if(tb){ tb.innerHTML=`<button class="train-toggle${trainingMode?' on':''}" onclick="toggleTraining()"><span class="train-sw"><span class="train-knob"></span></span><span class="train-label"><b>${t('trainToggle')}</b><span class="train-state">${trainingMode?t('trainOn'):t('trainOff')}</span></span></button>${trainingMode?`<div class="train-banner">${t('trainBanner')}</div>`:''}`; }
   clientCache.sort((a,b)=>((Number(a.no)||0)-(Number(b.no)||0)) || (a.name||'').localeCompare(b.name||''));
   if(!GAMES.find(g=>g.id===currentGame)) currentGame='lineage';
   renderGameTabs();
@@ -1976,6 +2002,8 @@ async function deleteClient(){
    직원 급여 & 성과
    ============================================================ */
 let perfCache=[], selectedBooster=null, empFilter='', period='week', recFilter='';
+let trainingMode=false;   // 교육 기간 모드: ON이면 기준 미적용(전원 기본급, 미달/감점 없음). 기준은 보존됨.
+function toggleTraining(){ trainingMode=!trainingMode; try{localStorage.setItem('buju_training',trainingMode?'1':'0');}catch(e){} renderDashboard(); renderRecords&&renderRecords(); renderStandards&&renderStandards(); showToast(trainingMode?t('trainOnMsg'):t('trainOffMsg')); }
 /* ===== 간단 로그인 게이트 (비밀번호 2종) — 소스에 노출되는 가벼운 차단막입니다 ===== */
 // ── 접속 비밀번호 (역할별 3개 — 여기서 수정) ──
 const PASSWORDS = { admin:'admin7', opteam:'opteam7', player:'player7' };
@@ -2905,28 +2933,40 @@ function showToast(msg){ const el=document.getElementById('toast'); if(!el) retu
 async function renderStaff(){
   const staff=await loadStaff();
   const host=document.getElementById('staff-list'); if(!host) return;
+  const leaders=staff.filter(s=>Number(s.allowance)>0);
   const head=`<div class="staff-head"><span>${t('thName')}</span><span class="h-rate">${t('rateLabel')} (${CURRENCY.trim()})</span><span>${t('startLabel')}</span><span></span></div>`;
-  host.innerHTML=`<div class="staff-table">${head}${staff.map(staffLine).join('')}<div class="staff-add" onclick="addStaff()">${t('addStaff')}</div></div>`;
+  host.innerHTML=`<div class="staff-table">${head}${staff.map(s=>staffLine(s,leaders)).join('')}<div class="staff-add" onclick="addStaff()">${t('addStaff')}</div></div>`;
 }
-function staffLine(s){
+function staffLine(s,leaders){
   const lead=Number(s.allowance)>0;
   const wh=workHoursOf(s);
   const whOpts=[8,10,12].map(n=>`<option value="${n}"${wh===n?' selected':''}>${n}${t('hUnit')}</option>`).join('');
+  const roleOpts=`<option value="leader"${lead?' selected':''}>${t('sRoleLeader')}</option>`
+    + (leaders||[]).filter(L=>L.id!==s.id).map(L=>`<option value="team:${esc(L.name)}"${(!lead&&s.leader===L.name)?' selected':''}>${esc(L.name)} ${t('sRoleTeam')}</option>`).join('')
+    + `<option value="none"${(!lead&&!s.leader)?' selected':''}>${t('sRoleNone')}</option>`;
   return `<div class="staff-line${lead?' staff-leader':''}">
     <div class="s-name-cell">
       <div class="s-name-row">${lead?'<span class="staff-crown" title="'+t('roleLeader')+'">👑</span>':''}<input class="input s-name" value="${esc(s.name)}" onchange="updateStaff('${s.id}','name',this.value)" placeholder="${t('thName')}"><select class="s-shift-sel" onchange="updateStaff('${s.id}','workHours',this.value)" title="${t('workHoursLabel')}">${whOpts}</select></div>
-      ${lead?`<span class="s-allow">+ ${t('ldAllowance')} ${money(s.allowance)} · ${t('gBase')} ${money((Number(s.rate)||0)+Number(s.allowance))}</span>`:''}
+      <div class="s-team-row"><select class="s-role-sel" onchange="setStaffRole('${s.id}',this.value)" title="${t('sRoleLabel')}">${roleOpts}</select>${lead?`<span class="s-allow-wrap">${t('ldAllowance')} <input class="input s-allow-input" type="number" value="${Number(s.allowance)||0}" onchange="updateStaff('${s.id}','allowance',this.value)"></span>`:''}</div>
     </div>
     <input class="input s-rate" type="number" value="${s.rate}" onchange="updateStaff('${s.id}','rate',this.value)" placeholder="${t('rateLabel')}">
     <input class="input s-date" type="date" value="${esc(s.protectedUntil||'')}" onchange="updateStaff('${s.id}','protectedUntil',this.value)">
     <button class="staff-del" onclick="deleteStaff('${s.id}')" aria-label="remove">×</button>
   </div>`;
 }
+async function setStaffRole(id,value){
+  const staff=await loadStaff(); const s=staff.find(x=>x.id===id); if(!s) return;
+  if(value==='leader'){ s.leader=''; s.allowance=(Number(s.allowance)>0?Number(s.allowance):300000); }   // 팀장 (수당 기본 300k)
+  else if(value==='none'){ s.leader=''; s.allowance=0; }                                                  // 무소속 (개인 정산)
+  else if(String(value).startsWith('team:')){ s.leader=String(value).slice(5); s.allowance=0; }           // 팀원 (해당 팀장 소속)
+  await saveStaff(s);
+  await renderStaff(); await renderDashboard();
+}
 async function updateStaff(id,field,val){
   const staff=await loadStaff(); const s=staff.find(x=>x.id===id); if(!s) return;
-  s[field] = (field==='rate'||field==='workHours') ? (Number(val)||0) : val;
+  s[field] = (field==='rate'||field==='workHours'||field==='allowance') ? (Number(val)||0) : val;
   await saveStaff(s);
-  await renderDashboard();   // 월급 바뀌면 급여 다시 계산
+  await renderStaff(); await renderDashboard();   // 역할/수당 바뀌면 팀 구조·급여 다시 계산
 }
 async function addStaff(){
   await saveStaff({ id:'st_'+Date.now(), name:'', rate:0, start:'' });
@@ -2989,6 +3029,7 @@ function startSyncPolling(){
   try{ const sv=localStorage.getItem('buju_lang'); if(sv==='en'||sv==='ko') lang=sv; }catch(e){}
   try{ const g=localStorage.getItem('buju_game'); if(g) currentGame=g; }catch(e){}
   try{ const z=localStorage.getItem('buju_tz'); if(z==='kr'||z==='id') tzAll=z; }catch(e){}
+  try{ trainingMode = localStorage.getItem('buju_training')==='1'; }catch(e){}
   ['seg-ko','login-seg-ko'].forEach(id=>{ const e=document.getElementById(id); if(e) e.classList.toggle('active', lang==='ko'); });
   ['seg-en','login-seg-en'].forEach(id=>{ const e=document.getElementById(id); if(e) e.classList.toggle('active', lang==='en'); });
   applyStaticText(); buildDatalists(); await syncFromServer(); await renderStandards(); await renderStaff(); await renderDashboard(); renderReport(); startSyncPolling(); })();
