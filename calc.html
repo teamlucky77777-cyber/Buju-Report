@@ -1162,9 +1162,13 @@ async function saveReport(r) {
     const fd=new FormData(); fd.append('type',type); fd.append('fields',JSON.stringify(fields));
     if(rpShot){ fd.append('screenshot', rpShot, (rpShot.name||'screenshot.png')); }
     const res=await fetch('/api/report',{method:'POST',body:fd});
-    if(!res.ok){ let msg=res.status; try{const e=await res.json(); msg=e.error||msg;}catch(_){ } console.error('Discord 전송 실패:',msg); return {ok:false,error:msg}; }
+    if(!res.ok){
+      console.error('Discord 전송 실패: HTTP', res.status);                       // 응답 본문(HTML)은 화면에 노출하지 않음
+      const friendly = res.status===429 ? t('rpRateLimited') : (t('rpDiscordFail')+' (HTTP '+res.status+')');
+      return {ok:false, status:res.status, error:friendly};
+    }
     return {ok:true};
-  } catch(err){ console.error('Discord 전송 오류:',err); return {ok:false,error:'네트워크 오류'}; }
+  } catch(err){ console.error('Discord 전송 오류:',err&&err.message); return {ok:false, error:t('rpDiscordFail')+' ('+t('rpNetErr')+')'}; }
 }
 async function removeReport(id) {
   MOCK_REPORTS = MOCK_REPORTS.filter(x => x.id !== id);
@@ -1308,6 +1312,9 @@ const T={
   rpDeadTot:{ko:'총 죽음',en:'Total deaths'}, rpPotionTot:{ko:'총 물약',en:'Total potions'},
   rpDoCheckin:{ko:'체크인',en:'Check in'}, rpDoStatus:{ko:'현황 보고',en:'Report status'}, rpDoCheckout:{ko:'체크아웃 · 정산',en:'Check out · settle'},
   rpDupBlock:{ko:'중복 — 같은 보고가 방금 전송됐어요',en:'Duplicate — same report just sent'},
+  rpRateLimited:{ko:'기록 저장됨 ✓ · 디스코드 전송이 잠시 제한됨(429) — 잠시 후 정상화돼요',en:'Saved ✓ · Discord rate-limited (429) — recovers shortly'},
+  rpDiscordFail:{ko:'기록 저장됨 ✓ · 디스코드 전송만 실패',en:'Saved ✓ · Discord send failed'},
+  rpNetErr:{ko:'네트워크',en:'network'},
   rpCheckinOk:{ko:'체크인 완료 ✓',en:'Checked in ✓'}, rpStatusOk:{ko:'현황 보고됨 ✓',en:'Status reported ✓'}, rpCheckoutOk:{ko:'체크아웃 — 정산 반영 ✓',en:'Checked out — settled ✓'},
   rpHintCheckin:{ko:'시프트 시작 상태를 기록합니다. (급여 정산엔 미반영)',en:'Records shift start. (not counted for pay)'},
   rpHintStatus:{ko:'중간 현황 스냅샷. (급여 정산엔 미반영)',en:'Mid-shift snapshot. (not counted for pay)'},
@@ -2860,7 +2867,7 @@ async function submitCheckin(){
     lvBefore:lv, expBefore:f.exp, lvAfter:lv, expAfter:f.exp, adena:f.adena, dead:0, potion:f.potion, drop:0, note:f.note });
   if(r.blocked) return;
   if(r.ok){ const _c={exp:f.exp, adena:f.adena, level:lv, start:ciStart, ts:Date.now()}; setLocalPrev(f.c.no,'last',_c); setLocalPrev(f.c.no,'checkin',_c); }
-  afterSubmit(r.ok ? t('rpCheckinOk') : ('⚠ Discord 전송 실패: '+(r.error||'')));
+  afterSubmit(r.ok ? t('rpCheckinOk') : ('⚠ '+(r.error||t('rpDiscordFail'))));
 }
 async function submitStatus(){
   const f=rpCommon(); if(!f.booster||!f.c){ showToast(t('rpNeed')); return; }
@@ -2876,7 +2883,7 @@ async function submitStatus(){
     lvBefore:prevLv, expBefore:prevExp, lvAfter:lv, expAfter:f.exp, adena:f.adena, prevAdena:prevAdena, dead:f.dead, potion:f.potion, drop:f.drop, note:f.note });
   if(r.blocked) return;
   if(r.ok){ setLocalPrev(f.c.no,'last',{exp:f.exp, adena:f.adena, level:lv, start:tm, ts:Date.now()}); }
-  afterSubmit(r.ok ? t('rpStatusOk') : ('⚠ Discord 전송 실패: '+(r.error||'')));
+  afterSubmit(r.ok ? t('rpStatusOk') : ('⚠ '+(r.error||t('rpDiscordFail'))));
 }
 async function submitCheckout(){
   const f=rpCommon();
@@ -2893,7 +2900,7 @@ async function submitCheckout(){
     date:f.date, map:f.map, start, end:document.getElementById('rp-end')?.value||'09:00',
     lvBefore:startLv, expBefore:startExp, lvAfter:lv, expAfter:f.exp, adena:f.adena, prevAdena:startAdena, dead:f.dead, potion:f.potion, drop:f.drop, note:f.note });
   if(r.blocked) return;
-  afterSubmit(r.ok ? t('rpCheckoutOk') : ('⚠ Discord 전송 실패: '+(r.error||'')));
+  afterSubmit(r.ok ? t('rpCheckoutOk') : ('⚠ '+(r.error||t('rpDiscordFail'))));
 }
 function renderReportList(){
   const host=document.getElementById('report-recent'); if(!host) return;
