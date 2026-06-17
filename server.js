@@ -384,6 +384,7 @@ let _whBusy = false;
 let _whPausedUntil = 0;        // 이 시각까지 모든 웹훅 전송 정지 (서킷브레이커)
 let _wh429Streak = 0;          // 연속 429 횟수 → 정지 시간 점증
 const WH_GAP = 700;            // 전송 간 최소 간격(ms)
+const MAX_PAUSE = 30 * 60 * 1000;   // 정지 시간 상한 30분 — retry-after가 8시간처럼 비정상적으로 길어도 최대 30분만 멈추고 저빈도로 재시도
 const _PAUSE_STEPS = [60000, 120000, 300000, 600000, 900000];   // 429 반복 시 1→2→5→10→15분 정지
 async function _whWorker() {
   if (_whBusy) return;
@@ -403,7 +404,7 @@ async function _whWorker() {
           if (h) ra = parseFloat(h) * 1000;
           else { try { const j = await r.clone().json(); if (j && j.retry_after) ra = j.retry_after * 1000; } catch (_) {} }
           const step = _PAUSE_STEPS[Math.min(_wh429Streak - 1, _PAUSE_STEPS.length - 1)];
-          _whPausedUntil = Date.now() + Math.max(ra, step);        // 전체 전송 정지 시각 갱신
+          _whPausedUntil = Date.now() + Math.min(Math.max(ra, step), MAX_PAUSE);   // 아무리 길어도 최대 30분만 정지 → 이후 30분마다 1회 재시도(저빈도)
           console.warn(`[Webhook] 429 — 전체 전송 ${Math.round((_whPausedUntil - Date.now()) / 1000)}s 정지 (연속 ${_wh429Streak})`);
           if (banTries >= 8) { console.error('[Webhook] 429 지속 — 이 건 포기(데이터는 웹앱에 저장됨):', job.label); done = true; }
         } else if (r.status >= 500) {
