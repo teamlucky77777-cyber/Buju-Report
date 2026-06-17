@@ -375,6 +375,50 @@ app.get('/api/last-session-by-no/:num', async (req, res) => {
 });
 
 // 리포트 제출 → Discord 웹훅으로 발송
+// ── 디스코드 웹훅 전송 큐: 직렬화 + 간격 두기 + 429/5xx 재시도(retry-after 존중) ──
+//    여러 부주가 동시에 보고해도 버스트가 안 생겨 Cloudflare(1015) 차단을 피하고, 일시 제한돼도 자동 재전송.
+const _sleep = ms => new Promise(r => setTimeout(r, ms));
+const _whQueue = [];
+let _whBusy = false;
+const WH_GAP = 600;          // 전송 간 최소 간격(ms)
+async function _whWorker() {
+  if (_whBusy) return;
+  _whBusy = true;
+  while (_whQueue.length) {
+    const job = _whQueue[0];
+    let delivered = false;
+    for (let attempt = 0; attempt < job.maxAttempts && !delivered; attempt++) {
+      try {
+        const r = await fetch(job.endpoint, { method: 'POST', body: job.makeForm() });
+        if (r.ok) { delivered = true; break; }
+        if (r.status === 429 || r.status >= 500) {
+          let ra = 0;
+          const h = r.headers.get && r.headers.get('retry-after');
+          if (h) ra = parseFloat(h) * 1000;
+          else { try { const j = await r.clone().json(); if (j && j.retry_after) ra = j.retry_after * 1000; } catch (_) {} }
+          const backoff = Math.min(Math.max(ra, 1500 * Math.pow(2, attempt)), 60000);  // 최소 1.5→3→6…, 최대 60s, retry-after 우선
+          console.warn(`[Webhook] ${r.status} — ${Math.round(backoff)}ms 후 재시도 (${attempt + 1}/${job.maxAttempts}) ${job.label}`);
+          await _sleep(backoff);
+        } else {
+          console.error(`[Webhook] 재시도 불가 ${r.status} — ${job.label}`);   // 본문(HTML)은 로그/응답에 싣지 않음
+          break;
+        }
+      } catch (e) {
+        console.error('[Webhook] 네트워크 오류', e && e.message);
+        await _sleep(Math.min(1500 * Math.pow(2, attempt), 30000));
+      }
+    }
+    if (!delivered) console.error('[Webhook] 최종 전송 실패(포기):', job.label);
+    _whQueue.shift();
+    if (_whQueue.length) await _sleep(WH_GAP);
+  }
+  _whBusy = false;
+}
+function enqueueWebhook(endpoint, makeForm, label) {
+  _whQueue.push({ endpoint, makeForm, label, maxAttempts: 8 });   // 8회(최대 수 분) 재시도 → 일시 차단 풀릴 때까지 버팀
+  _whWorker();
+}
+
 app.post('/api/report', upload.single('screenshot'), async (req, res) => {
   try {
     const { type } = req.body;
@@ -426,23 +470,21 @@ app.post('/api/report', upload.single('screenshot'), async (req, res) => {
       payloadObj.thread_name = `[${typeLabel}] PC${fields.pc} ${fields.nickname} ${dateStr}`.slice(0, 100);
     }
 
-    const form = new FormData();
-    form.append('payload_json', JSON.stringify(payloadObj));
-    if (req.file) {
-      const blob = new Blob([req.file.buffer], { type: req.file.mimetype });
-      form.append('files[0]', blob, req.file.originalname || 'screenshot.png');
-    }
+    // 디스코드 전송은 백그라운드 큐로 (직렬화 + 간격 + 429/5xx 재시도) → 버스트로 인한 Cloudflare 차단 방지, 일시 제한돼도 자동 재전송
+    enqueueWebhook(webhookEndpoint, () => {
+      const form = new FormData();
+      form.append('payload_json', JSON.stringify(payloadObj));
+      if (req.file) {
+        const blob = new Blob([req.file.buffer], { type: req.file.mimetype });
+        form.append('files[0]', blob, req.file.originalname || 'screenshot.png');
+      }
+      return form;
+    }, `${type} PC${fields.pc} ${fields.nickname}`);
 
-    const r = await fetch(webhookEndpoint, { method: 'POST', body: form });
-    if (!r.ok) {
-      const errText = await r.text();
-      throw new Error(`Discord 웹훅 실패: ${r.status} ${errText}`);
-    }
-
-    res.json({ ok: true });
+    res.json({ ok: true });   // 기록은 즉시 접수 — 디스코드 전송은 백그라운드에서 보장(재시도)
   } catch (err) {
-    console.error('[Report Error]', err);
-    res.status(500).json({ error: err.message });
+    console.error('[Report Error]', err && err.message);
+    res.status(500).json({ error: '리포트 처리 오류' });   // 응답 본문(HTML 등) 절대 노출 안 함
   }
 });
 
