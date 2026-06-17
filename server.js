@@ -375,47 +375,55 @@ app.get('/api/last-session-by-no/:num', async (req, res) => {
 });
 
 // 리포트 제출 → Discord 웹훅으로 발송
-// ── 디스코드 웹훅 전송 큐: 직렬화 + 간격 두기 + 429/5xx 재시도(retry-after 존중) ──
-//    여러 부주가 동시에 보고해도 버스트가 안 생겨 Cloudflare(1015) 차단을 피하고, 일시 제한돼도 자동 재전송.
+// ── 디스코드 웹훅 전송 큐: 직렬화 + 간격 + 서킷브레이커(429 시 전체 전송 정지) ──
+//    핵심: 차단(429) 상태에서 재시도를 폭주시키면 Cloudflare 차단이 더 길어짐.
+//    → 429가 뜨면 '모든' 전송을 한동안 통째로 멈춰서(요청 최소화) 차단이 빨리 풀리게 함.
 const _sleep = ms => new Promise(r => setTimeout(r, ms));
 const _whQueue = [];
 let _whBusy = false;
-const WH_GAP = 600;          // 전송 간 최소 간격(ms)
+let _whPausedUntil = 0;        // 이 시각까지 모든 웹훅 전송 정지 (서킷브레이커)
+let _wh429Streak = 0;          // 연속 429 횟수 → 정지 시간 점증
+const WH_GAP = 700;            // 전송 간 최소 간격(ms)
+const _PAUSE_STEPS = [60000, 120000, 300000, 600000, 900000];   // 429 반복 시 1→2→5→10→15분 정지
 async function _whWorker() {
   if (_whBusy) return;
   _whBusy = true;
   while (_whQueue.length) {
     const job = _whQueue[0];
-    let delivered = false;
-    for (let attempt = 0; attempt < job.maxAttempts && !delivered; attempt++) {
+    let done = false, soft = 0, banTries = 0;
+    while (!done) {
+      const pauseLeft = _whPausedUntil - Date.now();
+      if (pauseLeft > 0) await _sleep(pauseLeft);                 // 서킷브레이커: 정지 중이면 대기
       try {
         const r = await fetch(job.endpoint, { method: 'POST', body: job.makeForm() });
-        if (r.ok) { delivered = true; break; }
-        if (r.status === 429 || r.status >= 500) {
-          let ra = 0;
-          const h = r.headers.get && r.headers.get('retry-after');
+        if (r.ok) { _wh429Streak = 0; done = true; break; }
+        if (r.status === 429) {
+          _wh429Streak++; banTries++;
+          let ra = 0; const h = r.headers.get && r.headers.get('retry-after');
           if (h) ra = parseFloat(h) * 1000;
           else { try { const j = await r.clone().json(); if (j && j.retry_after) ra = j.retry_after * 1000; } catch (_) {} }
-          const backoff = Math.min(Math.max(ra, 1500 * Math.pow(2, attempt)), 60000);  // 최소 1.5→3→6…, 최대 60s, retry-after 우선
-          console.warn(`[Webhook] ${r.status} — ${Math.round(backoff)}ms 후 재시도 (${attempt + 1}/${job.maxAttempts}) ${job.label}`);
-          await _sleep(backoff);
+          const step = _PAUSE_STEPS[Math.min(_wh429Streak - 1, _PAUSE_STEPS.length - 1)];
+          _whPausedUntil = Date.now() + Math.max(ra, step);        // 전체 전송 정지 시각 갱신
+          console.warn(`[Webhook] 429 — 전체 전송 ${Math.round((_whPausedUntil - Date.now()) / 1000)}s 정지 (연속 ${_wh429Streak})`);
+          if (banTries >= 8) { console.error('[Webhook] 429 지속 — 이 건 포기(데이터는 웹앱에 저장됨):', job.label); done = true; }
+        } else if (r.status >= 500) {
+          if (++soft > 5) { console.error('[Webhook] 5xx 반복 — 포기:', job.label); done = true; }
+          else await _sleep(Math.min(1500 * Math.pow(2, soft), 30000));
         } else {
-          console.error(`[Webhook] 재시도 불가 ${r.status} — ${job.label}`);   // 본문(HTML)은 로그/응답에 싣지 않음
-          break;
+          console.error(`[Webhook] 재시도 불가 ${r.status} — ${job.label}`); done = true;   // 본문(HTML)은 싣지 않음
         }
       } catch (e) {
-        console.error('[Webhook] 네트워크 오류', e && e.message);
-        await _sleep(Math.min(1500 * Math.pow(2, attempt), 30000));
+        if (++soft > 5) { console.error('[Webhook] 네트워크 반복 — 포기:', job.label); done = true; }
+        else { console.error('[Webhook] 네트워크 오류', e && e.message); await _sleep(Math.min(1500 * Math.pow(2, soft), 30000)); }
       }
     }
-    if (!delivered) console.error('[Webhook] 최종 전송 실패(포기):', job.label);
     _whQueue.shift();
     if (_whQueue.length) await _sleep(WH_GAP);
   }
   _whBusy = false;
 }
 function enqueueWebhook(endpoint, makeForm, label) {
-  _whQueue.push({ endpoint, makeForm, label, maxAttempts: 8 });   // 8회(최대 수 분) 재시도 → 일시 차단 풀릴 때까지 버팀
+  _whQueue.push({ endpoint, makeForm, label });
   _whWorker();
 }
 
@@ -424,6 +432,11 @@ app.get('/api/webhook-test', async (req, res) => {
   const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
   if (!webhookUrl) {
     return res.json({ ok: false, envSet: false, hint: 'DISCORD_WEBHOOK_URL 환경변수가 비어 있습니다. Render → Environment 에서 웹훅 URL을 넣어주세요.' });
+  }
+  const pauseLeft = _whPausedUntil - Date.now();
+  if (pauseLeft > 0) {   // 차단 회복 중 — 테스트조차 요청을 더 날리면 차단이 길어지므로 전송하지 않음
+    return res.json({ ok: false, envSet: true, paused: true, resumeInSec: Math.round(pauseLeft / 1000),
+      hint: `⏳ 차단(429) 회복 중 — 요청을 더 보내면 길어져서 테스트도 잠시 멈춥니다. 약 ${Math.round(pauseLeft / 1000)}초 후 다시 열어보세요. (그때까지 보고도 보내지 마세요)` });
   }
   try {
     const nowKst = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(5, 16).replace('T', ' ');
@@ -436,7 +449,11 @@ app.get('/api/webhook-test', async (req, res) => {
     let hint;
     if (r.ok) hint = '✓ 정상! 디스코드 채널에 테스트 메시지가 도착했는지 확인하세요. (도착했으면 웹훅은 문제 없음 → 실제 보고도 곧 들어옵니다)';
     else if (r.status === 401 || r.status === 403 || r.status === 404) hint = '⚠ 웹훅 URL이 만료/삭제됨 → 디스코드 채널 설정에서 새 웹훅을 만들고, Render 환경변수 DISCORD_WEBHOOK_URL 을 새 URL로 교체하세요.';
-    else if (r.status === 429) hint = '⚠ 아직 rate-limit(429) — Cloudflare 일시 차단 상태입니다. 몇 분 더 기다리면 자동으로 풀립니다.';
+    else if (r.status === 429) {
+      _wh429Streak++;
+      _whPausedUntil = Date.now() + _PAUSE_STEPS[Math.min(_wh429Streak - 1, _PAUSE_STEPS.length - 1)];   // 테스트의 429도 전체 정지에 반영
+      hint = `⚠ 아직 rate-limit(429) — Cloudflare 일시 차단 상태입니다. 약 ${Math.round((_whPausedUntil - Date.now()) / 1000)}초간 전송을 멈추고 회복을 기다립니다. (그동안 보고/테스트를 보내지 마세요)`;
+    }
     else hint = `⚠ 디스코드가 HTTP ${r.status} 반환 — 잠시 후 다시 시도하세요.`;
     res.json({ ok: r.ok, envSet: true, status: r.status, urlTail: '...' + webhookUrl.slice(-10), hint });
   } catch (e) {
