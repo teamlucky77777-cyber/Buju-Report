@@ -419,6 +419,31 @@ function enqueueWebhook(endpoint, makeForm, label) {
   _whWorker();
 }
 
+// ── 진단: 웹훅이 실제로 되는지 한 번 테스트 (브라우저에서 /api/webhook-test 열면 정확한 원인 표시) ──
+app.get('/api/webhook-test', async (req, res) => {
+  const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
+  if (!webhookUrl) {
+    return res.json({ ok: false, envSet: false, hint: 'DISCORD_WEBHOOK_URL 환경변수가 비어 있습니다. Render → Environment 에서 웹훅 URL을 넣어주세요.' });
+  }
+  try {
+    const nowKst = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(5, 16).replace('T', ' ');
+    const form = new FormData();
+    form.append('payload_json', JSON.stringify({
+      content: '```ansi\n\u001b[2;32m[웹훅 테스트] 서버 → 디스코드 연결 정상 ✓\u001b[0m\n```',
+      thread_name: `[웹훅 테스트] ${nowKst}`     // 포럼 채널 대응
+    }));
+    const r = await fetch(webhookUrl, { method: 'POST', body: form });
+    let hint;
+    if (r.ok) hint = '✓ 정상! 디스코드 채널에 테스트 메시지가 도착했는지 확인하세요. (도착했으면 웹훅은 문제 없음 → 실제 보고도 곧 들어옵니다)';
+    else if (r.status === 401 || r.status === 403 || r.status === 404) hint = '⚠ 웹훅 URL이 만료/삭제됨 → 디스코드 채널 설정에서 새 웹훅을 만들고, Render 환경변수 DISCORD_WEBHOOK_URL 을 새 URL로 교체하세요.';
+    else if (r.status === 429) hint = '⚠ 아직 rate-limit(429) — Cloudflare 일시 차단 상태입니다. 몇 분 더 기다리면 자동으로 풀립니다.';
+    else hint = `⚠ 디스코드가 HTTP ${r.status} 반환 — 잠시 후 다시 시도하세요.`;
+    res.json({ ok: r.ok, envSet: true, status: r.status, urlTail: '...' + webhookUrl.slice(-10), hint });
+  } catch (e) {
+    res.json({ ok: false, envSet: true, error: 'fetch 실패', detail: e && e.message, hint: '⚠ 서버가 디스코드에 연결조차 못 했습니다 (네트워크/DNS). 잠시 후 재시도.' });
+  }
+});
+
 app.post('/api/report', upload.single('screenshot'), async (req, res) => {
   try {
     const { type } = req.body;
