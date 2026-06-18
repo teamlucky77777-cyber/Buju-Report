@@ -1800,6 +1800,10 @@ function showSection(id){
   document.querySelectorAll('.section-panel').forEach(s=>s.classList.toggle('active', s.id===id));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active', n.dataset.sec===id));
   const m=document.querySelector('.main'); if(m) m.scrollTop=0;
+  if(id==='section-report'){   // 보고 화면 들어올 때 클라 카드/직업을 최신 데이터로 다시 그림(저장된 직업 반영)
+    const g=document.getElementById('rp-client-grid'); if(g) g.innerHTML=clientGridHtml();
+    const j=document.getElementById('rp-jobinfo'); if(j) j.innerHTML=jobInfoHtml();
+  }
   if(typeof window!=='undefined'&&window.scrollTo) window.scrollTo({top:0});
 }
 function scrollToSection(id){ showSection(id); }
@@ -3074,7 +3078,10 @@ function startSyncPolling(){
     const ae=document.activeElement;
     if(ae && (ae.tagName==='INPUT'||ae.tagName==='SELECT'||ae.tagName==='TEXTAREA')) return; // 입력 중 건너뜀
     const changed=await syncFromServer();
-    if(changed){ await renderStandards(); await renderStaff(); await renderDashboard(); }
+    if(changed){ await renderStandards(); await renderStaff(); await renderDashboard();
+      const g=document.getElementById('rp-client-grid'); if(g) g.innerHTML=clientGridHtml();   // 보고 화면 클라 카드도 최신화(직업 등)
+      const j=document.getElementById('rp-jobinfo'); if(j) j.innerHTML=jobInfoHtml();
+    }
   }, 8000);
 }
 (async function init(){
