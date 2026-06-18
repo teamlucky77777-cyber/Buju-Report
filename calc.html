@@ -1133,6 +1133,24 @@ async function loadReports() {
   // TODO(친구): return (await supabase.from('reports').select('*')).data;
   return MOCK_REPORTS.slice();
 }
+// 저장 전 서버 최신 리포트와 id 기준 병합 → 여러 기기가 동시에 작성/삭제해도 서로 덮어쓰기(유실) 방지.
+// removedId 가 있으면 병합 후 그 id는 제외(삭제 반영).
+async function _saveReportsMerged(removedId){
+  try{
+    const rr=await fetch('/api/calc-data/reports');
+    const jr=await rr.json().catch(()=>null);
+    if(jr && Array.isArray(jr.value)){
+      const byId={};
+      jr.value.forEach(x=>{ if(x&&x.id) byId[x.id]=x; });       // 서버 것 먼저
+      MOCK_REPORTS.forEach(x=>{ if(x&&x.id) byId[x.id]=x; });   // 로컬(신규/수정)이 우선
+      if(removedId) delete byId[removedId];
+      MOCK_REPORTS=Object.values(byId);
+    } else if(removedId){
+      MOCK_REPORTS=MOCK_REPORTS.filter(x=>x&&x.id!==removedId);
+    }
+  }catch(e){}
+  const _ts=await _putData('reports', MOCK_REPORTS); if(_ts)_syncTs.reports=_ts;
+}
 async function saveReport(r) {
   // 재발 방지: 같은 보고(부주+클라+타입+레벨+경험치)가 25초 내 이미 저장됐으면 렉 중복클릭으로 보고 차단
   const now=Date.now();
@@ -1144,7 +1162,7 @@ async function saveReport(r) {
     (now - (Number(String(x.id||'').replace(/^rpt-/,''))||0)) < 25000);
   if(dupRecent){ showToast(t('rpDupBlock')); return {ok:false, blocked:true}; }
   MOCK_REPORTS.push(r);
-  const _ts=await _putData('reports', MOCK_REPORTS); if(_ts)_syncTs.reports=_ts;   // 리포트도 Supabase에 영구 저장
+  await _saveReportsMerged();   // 서버와 병합 저장(다른 기기 리포트 보존)
   // Discord/카톡 전송: 기존 /api/report 파이프라인 사용 (→ Discord → 봇 → Supabase → /kakao)
   try {
     const typeMap={ checkin:'checkin', status:'hourly', checkout:'checkout' };
@@ -1172,7 +1190,7 @@ async function saveReport(r) {
 }
 async function removeReport(id) {
   MOCK_REPORTS = MOCK_REPORTS.filter(x => x.id !== id);
-  const _ts=await _putData('reports', MOCK_REPORTS); if(_ts)_syncTs.reports=_ts;   // 삭제도 영구 반영
+  await _saveReportsMerged(id);   // 서버와 병합 후 해당 id만 삭제 반영
 }
 // ───────── 기록 수정 (휴식=기본급 / 수동 ± / 정상) ─────────
 let adjId=null, adjMode='normal', adjPct=100;
@@ -1217,7 +1235,7 @@ async function saveAdj(id, mode, pct){
   if(mode==='normal'){ delete r.adj; }
   else if(mode==='rest'){ r.adj={ mode:'rest' }; }
   else { const v=Math.max(MONTH_MIN, Math.min(MONTH_MAX, Number(pct)||100)); r.adj={ mode:'manual', pct:v }; }
-  const _ts=await _putData('reports', MOCK_REPORTS); if(_ts)_syncTs.reports=_ts;
+  await _saveReportsMerged();   // 서버와 병합 저장(다른 기기 리포트 보존)
   closeAdjModal();
   if(typeof renderDashboard==='function') renderDashboard();
   if(typeof renderLeaderboard==='function') renderLeaderboard();
@@ -1293,7 +1311,7 @@ const T={
   navReport:{ko:'보고',en:'Report'},
   sec6:{ko:'📝 시프트 보고',en:'📝 Shift Report'},
   sec6desc:{ko:'한 타임 끝나고 결과를 입력하면 대시보드·기록·리더보드에 바로 반영돼요.',en:'Log a finished shift — it updates the dashboard, records, and leaderboard instantly.'},
-  rpBooster:{ko:'직원',en:'Booster'}, rpClient:{ko:'클라이언트 (PC)',en:'Client (PC)'}, rpMap:{ko:'사냥터',en:'Map'},
+  rpBooster:{ko:'직원',en:'Player'}, rpClient:{ko:'클라이언트 (PC)',en:'Client (PC)'}, rpMap:{ko:'사냥터',en:'Map'},
   rpDate:{ko:'날짜',en:'Date'}, rpStart:{ko:'시작',en:'Start'}, rpEnd:{ko:'종료',en:'End'},
   rpLevel:{ko:'레벨',en:'Level'}, rpGained:{ko:'획득 EXP %',en:'EXP gained %'}, rpDead:{ko:'죽음',en:'Deaths'}, rpPotion:{ko:'물약',en:'Potions'}, rpNote:{ko:'메모',en:'Note'},
   rpSubmit:{ko:'보고 제출',en:'Submit report'}, rpPreview:{ko:'예상 성과',en:'Est. performance'},
@@ -2658,7 +2676,7 @@ function tpStep(id, mins){
   el.classList.remove('invalid');
 }
 function clientGridHtml(){
-  return MOCK_CLIENTS.map(c=>`<button class="rep-pick rep-pick-c${rpDraft.clientId===c.id?' active':''}" onclick="pickClient('${esc(c.id)}')">
+  return MOCK_CLIENTS.slice().sort((a,b)=>((Number(a.pc)||0)-(Number(b.pc)||0)) || ((Number(a.no)||0)-(Number(b.no)||0))).map(c=>`<button class="rep-pick rep-pick-c${rpDraft.clientId===c.id?' active':''}" onclick="pickClient('${esc(c.id)}')">
     <span class="rp-c-pc">PC${c.pc}</span><span class="rp-c-name">${esc(c.name)}</span><span class="rp-c-lv">Lv${c.level} · ${esc(c.job||'')}</span></button>`).join('');
 }
 function mapGridHtml(){
