@@ -2691,7 +2691,7 @@ function renderReport(){
   const fAdena=`<label class="rep-f sm"><span>${t('rpAdena')}</span><input id="rp-adena" type="text" inputmode="numeric" class="input" placeholder="예: 1124440" oninput="rpAdenaFmt(this);rpGainPv()"></label>`;
   const fDrop=`<label class="rep-f sm"><span>${t('rpDrop')}</span><input id="rp-drop" type="number" class="input" value="0"></label>`;
   const fNote=`<label class="rep-f wide"><span>${t('rpNote')}</span><input id="rp-note" type="text" class="input" placeholder="…"></label>`;
-  const fPrevExp=`<label class="rep-f sm"><span>${t('rpPrevExpL')}</span><input id="rp-prev-exp" type="text" inputmode="numeric" maxlength="4" class="input" placeholder="${t('rpAutoEdit')}" oninput="rpExpLimit(this);rpPrevExpPv()"><div id="rp-prev-exp-pv" class="rp-mini muted"></div></label>`;
+  const fPrevExp=`<label class="rep-f sm"><span>${t('rpPrevExpL')}</span><input id="rp-prev-exp" type="text" inputmode="numeric" maxlength="4" class="input" placeholder="${t('rpAutoEdit')}" oninput="rpExpLimit(this);rpPrevExpPv();rpGainPv()"><div id="rp-prev-exp-pv" class="rp-mini muted"></div></label>`;
   const fPrevAdena=`<label class="rep-f sm"><span>${t('rpPrevAdenaL')}</span><input id="rp-prev-adena" type="text" inputmode="numeric" class="input" placeholder="${t('rpAutoEdit')}" oninput="rpAdenaFmt(this);rpGainPv()"></label>`;
   if(reportType==='checkin'){
     hint=t('rpHintCheckin'); submitLbl=t('rpDoCheckin'); submitFn='submitCheckin()';
@@ -2702,14 +2702,14 @@ function renderReport(){
       ${fAdena}<label class="rep-f sm"><span>${t('rpRedPotion')}</span><input id="rp-potion" type="number" class="input" value="0"></label>${fNote}`;
   } else if(reportType==='status'){
     hint=t('rpHintStatus'); submitLbl=t('rpDoStatus'); submitFn='submitStatus()';
-    typed=`<label class="rep-f sm"><span>${t('rpCurExp')}</span><input id="rp-exp" type="text" inputmode="numeric" maxlength="4" class="input" placeholder="예: 2323" oninput="rpExpLimit(this);rpExpPv();rpGainPv()"><div id="rp-exp-pv" class="rp-mini muted"></div></label>
-      ${fAdena}<label class="rep-f sm"><span>${t('rpRedPotion')}</span><input id="rp-potion" type="number" class="input" value="0"></label>
+    typed=`${fPrevExp}<label class="rep-f sm"><span>${t('rpCurExp')}</span><input id="rp-exp" type="text" inputmode="numeric" maxlength="4" class="input" placeholder="예: 2323" oninput="rpExpLimit(this);rpExpPv();rpGainPv()"><div id="rp-exp-pv" class="rp-mini muted"></div></label>
+      ${fPrevAdena}${fAdena}<label class="rep-f sm"><span>${t('rpRedPotion')}</span><input id="rp-potion" type="number" class="input" value="0"></label>
       ${fDrop}<label class="rep-f sm"><span>${t('rpDead')}</span><input id="rp-dead" type="number" class="input" value="0"></label>${fNote}`;
   } else {
     hint=t('rpHintCheckout'); submitLbl=t('rpDoCheckout'); submitFn='submitCheckout()';
     typed=`<div class="rep-f"><span>${t('rpEndTime')}</span>${timeToggleHtml('rp-end','09:00','updateReportPreview')}</div>
-      <label class="rep-f sm"><span>${t('rpEndExp')}</span><input id="rp-exp" type="text" inputmode="numeric" maxlength="4" class="input" placeholder="예: 2323" oninput="rpExpLimit(this);rpExpPv();updateReportPreview();rpGainPv()"><div id="rp-exp-pv" class="rp-mini muted"></div></label>
-      ${fAdena}<label class="rep-f sm"><span>${t('rpRedPotion')}</span><input id="rp-potion" type="number" class="input" value="0"></label>
+      ${fPrevExp}<label class="rep-f sm"><span>${t('rpEndExp')}</span><input id="rp-exp" type="text" inputmode="numeric" maxlength="4" class="input" placeholder="예: 2323" oninput="rpExpLimit(this);rpExpPv();updateReportPreview();rpGainPv()"><div id="rp-exp-pv" class="rp-mini muted"></div></label>
+      ${fPrevAdena}${fAdena}<label class="rep-f sm"><span>${t('rpRedPotion')}</span><input id="rp-potion" type="number" class="input" value="0"></label>
       ${fDrop}<label class="rep-f sm"><span>${t('rpDeadTot')}</span><input id="rp-dead" type="number" class="input" value="0"></label>${fNote}`;
   }
   host.innerHTML=`
@@ -2811,8 +2811,8 @@ function rpGainPv(){
   const expRaw=document.getElementById('rp-exp')?.value, adRaw=document.getElementById('rp-adena')?.value;
   const curExp=(Number(expRaw)||0)/100;
   const curAdena=Number((adRaw||'').replace(/[^\d]/g,''))||0;
-  const pExp=(rpDraft.prevExp!=null)?Number(rpDraft.prevExp):null;
-  const pAdena=(rpDraft.prevAdena!=null)?Number(rpDraft.prevAdena):null;
+  const pExp=rpPrevExpVal();
+  const pAdena=rpPrevAdenaVal();
   const parts=[];
   if(pExp!=null && expRaw!==''&&expRaw!=null){ const lvUp=(curExp<pExp)?1:0; const g=lvUp*100+(curExp-pExp); parts.push(`<span class="gl">EXP</span> <b class="${g>=0?'pos':'neg'}">${g>=0?'+':''}${g.toFixed(2)}%</b>`); }
   if(pAdena!=null && adRaw!==''&&adRaw!=null){ const g=curAdena-pAdena; parts.push(`<span class="gl">${lang==='en'?'Adena':'아덴'}</span> <b class="${g>=0?'pos':'neg'}">${g>=0?'+':''}${g.toLocaleString('en-US')}</b>`); }
@@ -2821,6 +2821,13 @@ function rpGainPv(){
 // === 아덴 입력 라이브 포맷 (1124440 → 1.124.440) ===
 function rpAdenaFmt(el){ const d=(el.value||'').replace(/[^\d]/g,''); el.value=d?Number(d).toLocaleString('en-US'):''; }
 function rpPrevExpPv(){ const e=document.getElementById('rp-prev-exp'), pv=document.getElementById('rp-prev-exp-pv'); if(!e||!pv) return; const v=Number(e.value); pv.textContent=(e.value!==''&&!isNaN(v))?('= '+(v/100).toFixed(2)+'%'):''; }
+// 화면의 '이전' 입력칸을 우선 사용(직원이 보고 수정 가능), 비어있으면 자동로딩값(rpDraft) 사용
+function rpPrevExpVal(){ const e=document.getElementById('rp-prev-exp'); if(e && e.value!==''){ const v=Number(e.value); if(!isNaN(v)) return v/100; } return (rpDraft.prevExp!=null)?Number(rpDraft.prevExp):null; }
+function rpPrevAdenaVal(){ const e=document.getElementById('rp-prev-adena'); if(e && e.value!==''){ const v=Number((e.value||'').replace(/[^\d]/g,'')); if(!isNaN(v)) return v; } return (rpDraft.prevAdena!=null)?Number(rpDraft.prevAdena):null; }
+function rpFillPrevInputs(){   // 자동로딩된 이전값을 입력칸에 채워 직원이 눈으로 확인·수정하게
+  const pe=document.getElementById('rp-prev-exp'); if(pe){ pe.value=(rpDraft.prevExp!=null)?Math.round(Number(rpDraft.prevExp)*100):''; rpPrevExpPv(); }
+  const pa=document.getElementById('rp-prev-adena'); if(pa){ pa.value=(rpDraft.prevAdena!=null)?Number(rpDraft.prevAdena).toLocaleString('en-US'):''; }
+}
 // 직전 보고값을 서버(Supabase)에서 불러와 '이전' 칸을 자동으로 채움 (비어있을 때만 → 수정값 보존)
 // ── 직전값 로컬 캐시 (서버 저장이 늦거나 끊겨도 1시간→1시간 자동 연결, 새로고침에도 유지) ──
 function getLocalPrev(no, kind){ try { return JSON.parse(localStorage.getItem('buju_'+kind+'_no'+no) || 'null'); } catch(e){ return null; } }
@@ -2845,6 +2852,7 @@ async function loadPrevForReport(){
       }
     }
   }catch(e){}
+  rpFillPrevInputs();
   updateReportPreview();
   rpGainPv();
 }
@@ -2872,8 +2880,8 @@ async function submitCheckin(){
 async function submitStatus(){
   const f=rpCommon(); if(!f.booster||!f.c){ showToast(t('rpNeed')); return; }
   const tm=new Date().toTimeString().slice(0,5);
-  const prevExp=(rpDraft.prevExp!=null)?rpDraft.prevExp:f.exp;
-  const prevAdena=(rpDraft.prevAdena!=null)?rpDraft.prevAdena:f.adena;
+  const pvE=rpPrevExpVal();   const prevExp=(pvE!=null)?pvE:f.exp;          // 화면 '이전' 칸 우선(직원 수정 가능)
+  const pvA=rpPrevAdenaVal(); const prevAdena=(pvA!=null)?pvA:f.adena;
   const prevLv=(rpDraft.prevLv!=null)?rpDraft.prevLv:(f.c.level);
   const lvUp=(f.exp<prevExp)?1:0;                 // EXP로 레벨업 자동 감지
   const lv=prevLv+lvUp;
@@ -2889,8 +2897,8 @@ async function submitCheckout(){
   const f=rpCommon();
   if(!f.booster||!f.c||!f.exp){ showToast(t('rpNeedCheckout')); return; }
   const ci=latestCheckin(f.booster,f.c.name,f.date);
-  const startExp=(rpDraft.prevExp!=null)?rpDraft.prevExp:(ci?Number(ci.expBefore):f.exp);
-  const startAdena=(rpDraft.prevAdena!=null)?rpDraft.prevAdena:(ci?Number(ci.adena):f.adena);
+  const pvE=rpPrevExpVal();   const startExp=(pvE!=null)?pvE:(ci?Number(ci.expBefore):f.exp);     // 화면 '이전' 칸 우선
+  const pvA=rpPrevAdenaVal(); const startAdena=(pvA!=null)?pvA:(ci?Number(ci.adena):f.adena);
   const startLv=(rpDraft.prevLv!=null)?rpDraft.prevLv:(ci?Number(ci.lvBefore):f.c.level);
   const start=rpDraft.prevStart||(ci?ci.start:'21:00');
   const levelUp=(f.exp<startExp)?1:0;             // 레벨칸 제거 → EXP로 레벨업 자동 감지
