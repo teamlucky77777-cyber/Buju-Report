@@ -1747,7 +1747,8 @@ function compute(clients, reports, staff){
     const monthClampedPay = Math.min(monthBasePay*MONTH_MAX/100, Math.max(monthBasePay*MONTH_MIN/100, monthRaw));
     const monthClampedPct = monthBasePay>0 ? Math.min(MONTH_MAX, Math.max(MONTH_MIN, monthRaw/monthBasePay*100)) : null;
     const latestDay = dayRows.length?dayRows[dayRows.length-1]:null;
-    const leaderResult = { booster:ls.name, baseRate:rate, sessionRows:[], dayRows,
+    const ownPrev = results.find(p=>p.booster===ls.name);   // 팀장 본인 리포트(체크인 등) 보존
+    const leaderResult = { booster:ls.name, baseRate:rate, sessionRows:(ownPrev&&ownPrev.sessionRows)?ownPrev.sessionRows:[], dayRows,
       weekPct:teamAvg, weekGain:0, weekQuota:0, weekActualPay:monthRaw, weekBasePay:monthBasePay,
       monthClampedPay, monthBasePay, monthClampedPct, latestDay,
       incentiveTotal, penaltyTotal, isLeader:true, allowance, teamSize:teamMembers.length, teamMembers,
