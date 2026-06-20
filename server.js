@@ -16,6 +16,22 @@ const { Client, GatewayIntentBits } = require('discord.js');
 const app = express();
 app.use(express.json());
 
+// ── CORS: allow the Lucky7 ERP (GitHub Pages) to call this API ──
+// Same-origin calls (the calc page served from this server) are unaffected.
+app.use((req, res, next) => {
+  const allowed = [
+    'https://teamlucky77777-cyber.github.io',
+    'http://localhost:3000',
+    'http://127.0.0.1:5500'
+  ];
+  const origin = req.headers.origin;
+  if (allowed.includes(origin)) res.header('Access-Control-Allow-Origin', origin);
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  next();
+});
+
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_KEY
