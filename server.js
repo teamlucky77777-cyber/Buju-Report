@@ -14,7 +14,7 @@ const { createClient } = require('@supabase/supabase-js');
 const { Client, GatewayIntentBits } = require('discord.js');
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: '25mb' }));
 
 // ── CORS: allow the Lucky7 ERP (GitHub Pages) to call this API ──
 // Same-origin calls (the calc page served from this server) are unaffected.
@@ -249,6 +249,21 @@ app.put('/api/calc-data/:key', async (req, res) => {
     if (error) throw error;
     res.json({ ok: true, updated_at: now });
   } catch (err) { console.error('[/api/calc-data PUT]', err); res.status(500).json({ error: err.message }); }
+});
+// Append items to a calc-data array server-side. The client sends ONLY the new items, so the request body
+// stays tiny (no 100KB cap), and we don't make the browser re-upload the whole array. Read-modify-write.
+app.post('/api/calc-data/:key/append', async (req, res) => {
+  try {
+    const items = Array.isArray(req.body.items) ? req.body.items : [];
+    const { data, error: gErr } = await supabase.from('calc_data').select('value').eq('key', req.params.key).maybeSingle();
+    if (gErr) throw gErr;
+    const arr = Array.isArray(data && data.value) ? data.value : [];
+    const merged = arr.concat(items);
+    const now = new Date().toISOString();
+    const { error } = await supabase.from('calc_data').upsert({ key: req.params.key, value: merged, updated_at: now });
+    if (error) throw error;
+    res.json({ ok: true, count: merged.length });
+  } catch (err) { console.error('[/api/calc-data append]', err); res.status(500).json({ error: err.message }); }
 });
 
 app.get('/api/clients', async (req, res) => {
