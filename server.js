@@ -502,6 +502,7 @@ async function tryUnarchiveThread(threadId) {
 async function postWebhookNow(endpoint, makeForm, threadId) {
   let triedUnarchive = false;
   let _lastWhError = null;
+  let _last429RetryAfterSec = null;   // [v278] 429로 재시도 소진됐을 때, status:0이 아니라 진짜 사유를 남기기 위함
   for (let i = 0; i < 6; i++) {
     const wait = _whPausedUntil - Date.now();
     if (wait > 0) await new Promise(r => setTimeout(r, Math.min(wait, 12000)));
@@ -511,8 +512,11 @@ async function postWebhookNow(endpoint, makeForm, threadId) {
       if (resp.status === 429) {
         let ra = parseFloat(resp.headers.get('retry-after') || '');
         if (!(ra >= 0)) ra = 2;
-        const ms = Math.min(ra * 1000 + 300, 15000);
+        _last429RetryAfterSec = ra;
+        // [v278] 15초 캡은 진짜 rate-limit(보통 몇십 초 이상)엔 너무 짧음 — Discord가 알려준 시간만큼 더 기다림(최대 20초/회).
+        const ms = Math.min(ra * 1000 + 300, 20000);
         _wh429Streak++; _whPausedUntil = Date.now() + ms;
+        console.warn(`[Discord] 429 rate-limit (시도 ${i + 1}/6) — Discord가 ${ra}s 대기 요청`);
         await new Promise(r => setTimeout(r, ms));
         continue;
       }
@@ -532,6 +536,10 @@ async function postWebhookNow(endpoint, makeForm, threadId) {
       _lastWhError = (e && (e.name + ': ' + e.message)) || String(e);
       await new Promise(r => setTimeout(r, Math.min(1500 * (i + 1), 8000)));
     }
+  }
+  // [v278] 6번 다 429만 받다가 끝났으면 — 진짜 원인은 rate-limit. status:0(원인불명)으로 숨기지 않고 그대로 보여줌.
+  if (_last429RetryAfterSec != null && !_lastWhError) {
+    return { ok: false, status: 429, error: `rate-limited — Discord retry-after ${_last429RetryAfterSec}s, 6회 재시도 후 포기` };
   }
   return { ok: false, status: 0, error: _lastWhError };
 }
