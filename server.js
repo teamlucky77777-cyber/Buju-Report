@@ -458,6 +458,31 @@ function enqueueWebhook(endpoint, makeForm, label) {
   _whQueue.push({ endpoint, makeForm, label });
   _whWorker();
 }
+// [v271] Post one webhook NOW, synchronously, with retry-after handling + a shared cool-down so concurrent
+// posts back off together. No in-memory queue → a restart can't drop a pending card. Returns the real result.
+async function postWebhookNow(endpoint, makeForm) {
+  for (let i = 0; i < 6; i++) {
+    const wait = _whPausedUntil - Date.now();
+    if (wait > 0) await new Promise(r => setTimeout(r, Math.min(wait, 12000)));
+    try {
+      const resp = await fetch(endpoint, { method: 'POST', body: makeForm() });
+      if (resp.ok) { _wh429Streak = 0; return { ok: true, status: resp.status }; }
+      if (resp.status === 429) {
+        let ra = parseFloat(resp.headers.get('retry-after') || '');
+        if (!(ra >= 0)) ra = 2;
+        const ms = Math.min(ra * 1000 + 300, 15000);
+        _wh429Streak++; _whPausedUntil = Date.now() + ms;
+        await new Promise(r => setTimeout(r, ms));
+        continue;
+      }
+      if (resp.status >= 500) { await new Promise(r => setTimeout(r, Math.min(1500 * (i + 1), 8000))); continue; }
+      return { ok: false, status: resp.status };   // 4xx (bad thread / expired webhook) — retry won't help
+    } catch (e) {
+      await new Promise(r => setTimeout(r, Math.min(1500 * (i + 1), 8000)));
+    }
+  }
+  return { ok: false, status: 0 };
+}
 
 // ── 진단: 웹훅이 실제로 되는지 한 번 테스트 (브라우저에서 /api/webhook-test 열면 정확한 원인 표시) ──
 app.get('/api/webhook-test', async (req, res) => {
@@ -500,13 +525,9 @@ app.post('/api/report', upload.single('screenshot'), async (req, res) => {
     const fields = JSON.parse(req.body.fields);
     fields.hasScreenshot = !!req.file;
 
-    // [v270] Idempotency: the client sends a unique postId per submit and retries reuse it. If we've already
-    // accepted this postId, skip — this prevents a retry (after a slow/lost response) from posting a duplicate.
-    if (fields.postId) {
-      if (_seenPosts.has(fields.postId)) return res.json({ ok: true, deduped: true });
-      _seenPosts.add(fields.postId);
-      setTimeout(() => _seenPosts.delete(fields.postId), 10 * 60 * 1000);
-    }
+    // [v270/271] Idempotency: skip if this postId already posted successfully (the mark happens after a
+    // successful send below). Prevents a retry from duplicating, without losing a failed one.
+    if (fields.postId && _seenPosts.has(fields.postId)) return res.json({ ok: true, deduped: true });
 
     // clientNo → 캐릭터 이름 (계산기는 nickname 직접 전달, 구 폼은 백엔드 조회)
     if (fields.nickname) {
@@ -553,8 +574,9 @@ app.post('/api/report', upload.single('screenshot'), async (req, res) => {
       payloadObj.thread_name = `[${typeLabel}] PC${fields.pc} ${fields.nickname} ${dateStr}`.slice(0, 100);
     }
 
-    // 디스코드 전송은 백그라운드 큐로 (직렬화 + 간격 + 429/5xx 재시도) → 버스트로 인한 Cloudflare 차단 방지, 일시 제한돼도 자동 재전송
-    enqueueWebhook(webhookEndpoint, () => {
+    // [v271] Send to Discord NOW and return the real result — no queue to lose on restart. On success, mark
+    // the postId so a retry won't duplicate; on failure, leave it unmarked so a retry can try again.
+    const makeForm = () => {
       const form = new FormData();
       form.append('payload_json', JSON.stringify(payloadObj));
       if (req.file) {
@@ -562,9 +584,10 @@ app.post('/api/report', upload.single('screenshot'), async (req, res) => {
         form.append('files[0]', blob, req.file.originalname || 'screenshot.png');
       }
       return form;
-    }, `${type} PC${fields.pc} ${fields.nickname}`);
-
-    res.json({ ok: true });   // 기록은 즉시 접수 — 디스코드 전송은 백그라운드에서 보장(재시도)
+    };
+    const result = await postWebhookNow(webhookEndpoint, makeForm);
+    if (result.ok && fields.postId) { _seenPosts.add(fields.postId); setTimeout(() => _seenPosts.delete(fields.postId), 10 * 60 * 1000); }
+    res.json({ ok: result.ok, status: result.status });
   } catch (err) {
     console.error('[Report Error]', err && err.message);
     res.status(500).json({ error: '리포트 처리 오류' });   // 응답 본문(HTML 등) 절대 노출 안 함
