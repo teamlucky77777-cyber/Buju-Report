@@ -412,11 +412,16 @@ app.get('/api/last-session-by-no/:num', async (req, res) => {
 const _sleep = ms => new Promise(r => setTimeout(r, ms));
 const _whQueue = [];
 let _whBusy = false;
-let _whPausedUntil = 0;        // 이 시각까지 모든 웹훅 전송 정지 (서킷브레이커)
-let _wh429Streak = 0;          // 연속 429 횟수 → 정지 시간 점증
-const WH_GAP = 700;            // 전송 간 최소 간격(ms)
-const MAX_PAUSE = 30 * 60 * 1000;   // 정지 시간 상한 30분 — retry-after가 8시간처럼 비정상적으로 길어도 최대 30분만 멈추고 저빈도로 재시도
-const _PAUSE_STEPS = [60000, 120000, 300000, 600000, 900000];   // 429 반복 시 1→2→5→10→15분 정지
+let _whPausedUntil = 0;
+let _wh429Streak = 0;
+const WH_GAP = 700;
+const MAX_PAUSE = 30 * 60 * 1000;
+const _PAUSE_STEPS = [60000, 120000, 300000, 600000, 900000];
+const _recentDiscord = [];   // [v274] track last 10 Discord post results for /api/debug-discord
+function _trackDiscord(label, ok, status){
+  _recentDiscord.unshift({ t: new Date().toISOString(), label, ok, status });
+  if(_recentDiscord.length > 10) _recentDiscord.pop();
+}
 async function _whWorker() {
   if (_whBusy) return;
   _whBusy = true;
@@ -519,6 +524,19 @@ app.get('/api/webhook-test', async (req, res) => {
 });
 
 const _seenPosts = new Set();   // [v270] postIds already accepted, for idempotent /api/report (retry-safe)
+// [v274] Live Discord diagnostics — open in browser to see current state immediately
+app.get('/api/debug-discord', (req, res) => {
+  const pauseLeft = Math.max(0, Math.round((_whPausedUntil - Date.now()) / 1000));
+  res.json({
+    paused: pauseLeft > 0,
+    pausedUntil: pauseLeft > 0 ? `${pauseLeft}s remaining` : 'not paused',
+    streak429: _wh429Streak,
+    webhookSet: !!process.env.DISCORD_WEBHOOK_URL,
+    webhookTail: process.env.DISCORD_WEBHOOK_URL ? '...' + process.env.DISCORD_WEBHOOK_URL.slice(-12) : null,
+    recentPosts: _recentDiscord
+  });
+});
+
 app.post('/api/report', upload.single('screenshot'), async (req, res) => {
   try {
     const { type } = req.body;
@@ -594,8 +612,9 @@ app.post('/api/report', upload.single('screenshot'), async (req, res) => {
     }
     res.json({ ok: true });
     postWebhookNow(webhookEndpoint, makeForm).then(result => {
+      _trackDiscord(`${type} PC${fields.pc} ${fields.nickname}`, result.ok, result.status);
       if (!result.ok) console.warn(`[Discord] card not posted ${type} PC${fields.pc} ${fields.nickname}: ${result.status}`);
-    }).catch(err => { console.error('[Discord] postWebhookNow error:', err && err.message); });
+    }).catch(err => { _trackDiscord(`${type} ERROR`, false, 0); console.error('[Discord] postWebhookNow error:', err && err.message); });
   } catch (err) {
     console.error('[Report Error]', err && err.message);
     res.status(500).json({ error: '리포트 처리 오류' });   // 응답 본문(HTML 등) 절대 노출 안 함
