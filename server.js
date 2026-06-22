@@ -463,9 +463,30 @@ function enqueueWebhook(endpoint, makeForm, label) {
   _whQueue.push({ endpoint, makeForm, label });
   _whWorker();
 }
+// [v276] 보관(archived)된 스레드에 webhook으로 보내면 Discord가 항상 400을 반환함 — 일반 봇 메시지는
+// archived 스레드를 자동으로 깨우지만(unarchive), webhook은 그렇게 못 함. 1시간마다 오는 정기 리포트라
+// 스레드의 Auto Archive Duration(특히 1시간으로 설정된 경우)을 넘기면 매번 이 문제가 재발한다.
+// 서버에 이미 로그인된 discord.js 봇(client)으로 해당 스레드를 직접 unarchive한 뒤 한 번만 재전송한다.
+async function tryUnarchiveThread(threadId) {
+  if (!threadId) return false;
+  try {
+    const thread = await client.channels.fetch(threadId);
+    if (thread && thread.isThread && thread.isThread() && thread.archived) {
+      await thread.setArchived(false, 'Report webhook — auto-unarchive to deliver report');
+      console.log(`[Discord] 스레드 ${threadId} 보관 해제 — 재전송 시도`);
+      return true;
+    }
+    return false;   // 스레드가 archived 상태가 아님 → 400의 다른 원인 (재시도해도 소용없음)
+  } catch (e) {
+    console.warn('[Discord] 스레드 보관 해제 실패 (봇 권한/접근 확인 필요):', e && e.message);
+    return false;
+  }
+}
+
 // [v271] Post one webhook NOW, synchronously, with retry-after handling + a shared cool-down so concurrent
 // posts back off together. No in-memory queue → a restart can't drop a pending card. Returns the real result.
-async function postWebhookNow(endpoint, makeForm) {
+async function postWebhookNow(endpoint, makeForm, threadId) {
+  let triedUnarchive = false;
   for (let i = 0; i < 6; i++) {
     const wait = _whPausedUntil - Date.now();
     if (wait > 0) await new Promise(r => setTimeout(r, Math.min(wait, 12000)));
@@ -481,6 +502,12 @@ async function postWebhookNow(endpoint, makeForm) {
         continue;
       }
       if (resp.status >= 500) { await new Promise(r => setTimeout(r, Math.min(1500 * (i + 1), 8000))); continue; }
+      // [v276] 400 + 지정된 thread_id → archived 스레드일 가능성. 한 번만 unarchive 후 재시도.
+      if (resp.status === 400 && threadId && !triedUnarchive) {
+        triedUnarchive = true;
+        const unarchived = await tryUnarchiveThread(threadId);
+        if (unarchived) { await new Promise(r => setTimeout(r, 500)); continue; }
+      }
       return { ok: false, status: resp.status };   // 4xx (bad thread / expired webhook) — retry won't help
     } catch (e) {
       await new Promise(r => setTimeout(r, Math.min(1500 * (i + 1), 8000)));
@@ -611,7 +638,7 @@ app.post('/api/report', upload.single('screenshot'), async (req, res) => {
       setTimeout(() => _seenPosts.delete(fields.postId), 10 * 60 * 1000);
     }
     res.json({ ok: true });
-    postWebhookNow(webhookEndpoint, makeForm).then(result => {
+    postWebhookNow(webhookEndpoint, makeForm, fields.threadId).then(result => {
       _trackDiscord(`${type} PC${fields.pc} ${fields.nickname}`, result.ok, result.status);
       if (!result.ok) console.warn(`[Discord] card not posted ${type} PC${fields.pc} ${fields.nickname}: ${result.status}`);
     }).catch(err => { _trackDiscord(`${type} ERROR`, false, 0); console.error('[Discord] postWebhookNow error:', err && err.message); });
