@@ -493,11 +493,20 @@ app.get('/api/webhook-test', async (req, res) => {
   }
 });
 
+const _seenPosts = new Set();   // [v270] postIds already accepted, for idempotent /api/report (retry-safe)
 app.post('/api/report', upload.single('screenshot'), async (req, res) => {
   try {
     const { type } = req.body;
     const fields = JSON.parse(req.body.fields);
     fields.hasScreenshot = !!req.file;
+
+    // [v270] Idempotency: the client sends a unique postId per submit and retries reuse it. If we've already
+    // accepted this postId, skip — this prevents a retry (after a slow/lost response) from posting a duplicate.
+    if (fields.postId) {
+      if (_seenPosts.has(fields.postId)) return res.json({ ok: true, deduped: true });
+      _seenPosts.add(fields.postId);
+      setTimeout(() => _seenPosts.delete(fields.postId), 10 * 60 * 1000);
+    }
 
     // clientNo → 캐릭터 이름 (계산기는 nickname 직접 전달, 구 폼은 백엔드 조회)
     if (fields.nickname) {
