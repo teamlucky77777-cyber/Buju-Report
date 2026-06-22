@@ -525,9 +525,7 @@ app.post('/api/report', upload.single('screenshot'), async (req, res) => {
     const fields = JSON.parse(req.body.fields);
     fields.hasScreenshot = !!req.file;
 
-    // [v270/271] Idempotency: skip if this postId already posted successfully (the mark happens after a
-    // successful send below). Prevents a retry from duplicating, without losing a failed one.
-    if (fields.postId && _seenPosts.has(fields.postId)) return res.json({ ok: true, deduped: true });
+    // [v270/271] Idempotency check moved to just before the Discord send below.
 
     // clientNo → 캐릭터 이름 (계산기는 nickname 직접 전달, 구 폼은 백엔드 조회)
     if (fields.nickname) {
@@ -585,9 +583,19 @@ app.post('/api/report', upload.single('screenshot'), async (req, res) => {
       }
       return form;
     };
-    const result = await postWebhookNow(webhookEndpoint, makeForm);
-    if (result.ok && fields.postId) { _seenPosts.add(fields.postId); setTimeout(() => _seenPosts.delete(fields.postId), 10 * 60 * 1000); }
-    res.json({ ok: result.ok, status: result.status });
+    // [v273] Respond immediately — client gets OK in milliseconds, not after waiting for Discord.
+    // Once res.json() is called, Render's request timeout no longer applies, so postWebhookNow can
+    // take as long as it needs to handle rate-limits without killing the connection.
+    // Mark postId NOW (before responding) so a concurrent retry is deduped even during the Discord send.
+    if (fields.postId) {
+      if (_seenPosts.has(fields.postId)) return res.json({ ok: true, deduped: true });
+      _seenPosts.add(fields.postId);
+      setTimeout(() => _seenPosts.delete(fields.postId), 10 * 60 * 1000);
+    }
+    res.json({ ok: true });
+    postWebhookNow(webhookEndpoint, makeForm).then(result => {
+      if (!result.ok) console.warn(`[Discord] card not posted ${type} PC${fields.pc} ${fields.nickname}: ${result.status}`);
+    }).catch(err => { console.error('[Discord] postWebhookNow error:', err && err.message); });
   } catch (err) {
     console.error('[Report Error]', err && err.message);
     res.status(500).json({ error: '리포트 처리 오류' });   // 응답 본문(HTML 등) 절대 노출 안 함
