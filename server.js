@@ -13,6 +13,20 @@ const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const { Client, GatewayIntentBits } = require('discord.js');
 
+// [v277] Discord 전송 코드(postWebhookNow, /api/webhook-test 등)는 require 없이 전역 fetch/FormData/Blob을
+// 그대로 사용함 — 이건 Node 18+에서만 기본 제공됨. Render의 Node 버전이 그보다 낮으면 fetch(...) 호출 자체가
+// "fetch is not defined" 에러를 던지고, 그게 매번 status:0(원인 불명)으로 보였던 것. 부팅 시 바로 확인.
+(function _checkFetchSupport() {
+  const missing = ['fetch', 'FormData', 'Blob'].filter(name => typeof global[name] === 'undefined');
+  if (missing.length) {
+    console.error(`⚠️⚠️⚠️ [부팅 경고] 전역 ${missing.join(', ')}이 없습니다 (Node 버전: ${process.version}). ` +
+      `Discord 웹훅 전송이 전부 실패합니다 (status:0). Render → Settings에서 Node 버전을 18 이상으로 올리거나 ` +
+      `package.json에 "engines": { "node": ">=18" } 를 추가하고 재배포하세요.`);
+  } else {
+    console.log(`[부팅] fetch/FormData/Blob 정상 (Node ${process.version})`);
+  }
+})();
+
 const app = express();
 app.use(express.json({ limit: '25mb' }));
 
@@ -418,8 +432,8 @@ const WH_GAP = 700;
 const MAX_PAUSE = 30 * 60 * 1000;
 const _PAUSE_STEPS = [60000, 120000, 300000, 600000, 900000];
 const _recentDiscord = [];   // [v274] track last 10 Discord post results for /api/debug-discord
-function _trackDiscord(label, ok, status){
-  _recentDiscord.unshift({ t: new Date().toISOString(), label, ok, status });
+function _trackDiscord(label, ok, status, error){
+  _recentDiscord.unshift({ t: new Date().toISOString(), label, ok, status, error: error || undefined });
   if(_recentDiscord.length > 10) _recentDiscord.pop();
 }
 async function _whWorker() {
@@ -487,6 +501,7 @@ async function tryUnarchiveThread(threadId) {
 // posts back off together. No in-memory queue → a restart can't drop a pending card. Returns the real result.
 async function postWebhookNow(endpoint, makeForm, threadId) {
   let triedUnarchive = false;
+  let _lastWhError = null;
   for (let i = 0; i < 6; i++) {
     const wait = _whPausedUntil - Date.now();
     if (wait > 0) await new Promise(r => setTimeout(r, Math.min(wait, 12000)));
@@ -510,10 +525,15 @@ async function postWebhookNow(endpoint, makeForm, threadId) {
       }
       return { ok: false, status: resp.status };   // 4xx (bad thread / expired webhook) — retry won't help
     } catch (e) {
+      // [v277] 이전엔 여기서 에러를 그냥 삼키고 재시도만 했음 — 그래서 "status: 0"이 뜨면 원인을 전혀
+      // 알 수 없었음(예: fetch/FormData/Blob이 없는 구버전 Node, DNS 실패, 네트워크 단절 등 전부 동일하게 보임).
+      // 이제 실제 에러 메시지를 그대로 로그에 남긴다.
+      console.error(`[Discord] fetch 실패 (시도 ${i + 1}/6): ${e && e.name}: ${e && e.message}`);
+      _lastWhError = (e && (e.name + ': ' + e.message)) || String(e);
       await new Promise(r => setTimeout(r, Math.min(1500 * (i + 1), 8000)));
     }
   }
-  return { ok: false, status: 0 };
+  return { ok: false, status: 0, error: _lastWhError };
 }
 
 // ── 진단: 웹훅이 실제로 되는지 한 번 테스트 (브라우저에서 /api/webhook-test 열면 정확한 원인 표시) ──
@@ -639,9 +659,9 @@ app.post('/api/report', upload.single('screenshot'), async (req, res) => {
     }
     res.json({ ok: true });
     postWebhookNow(webhookEndpoint, makeForm, fields.threadId).then(result => {
-      _trackDiscord(`${type} PC${fields.pc} ${fields.nickname}`, result.ok, result.status);
-      if (!result.ok) console.warn(`[Discord] card not posted ${type} PC${fields.pc} ${fields.nickname}: ${result.status}`);
-    }).catch(err => { _trackDiscord(`${type} ERROR`, false, 0); console.error('[Discord] postWebhookNow error:', err && err.message); });
+      _trackDiscord(`${type} PC${fields.pc} ${fields.nickname}`, result.ok, result.status, result.error);
+      if (!result.ok) console.warn(`[Discord] card not posted ${type} PC${fields.pc} ${fields.nickname}: status=${result.status}${result.error ? ' · ' + result.error : ''}`);
+    }).catch(err => { _trackDiscord(`${type} ERROR`, false, 0, err && err.message); console.error('[Discord] postWebhookNow error:', err && err.message); });
   } catch (err) {
     console.error('[Report Error]', err && err.message);
     res.status(500).json({ error: '리포트 처리 오류' });   // 응답 본문(HTML 등) 절대 노출 안 함
