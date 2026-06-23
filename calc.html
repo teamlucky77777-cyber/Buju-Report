@@ -743,6 +743,7 @@ table.tbl.tbl-rec td.rec-staff { font-weight:600; color:var(--tx); }
 .rep-pick-c { flex-direction:column; align-items:flex-start; gap:0; min-width:82px; padding:7px 12px; }
 .rp-c-pc { font-size:9.5px; font-weight:800; color:var(--ac); letter-spacing:.03em; }
 .rp-c-name { font-size:13px; font-weight:800; color:var(--tx); }
+.rp-c-nick { font-size:10.5px; font-weight:700; color:var(--accent); }
 .rp-c-lv { font-size:10px; color:var(--tx3); }
 .rep-pick-m { font-size:12.5px; padding:8px 13px; }
 .rep-pick-test { border-style:dashed; color:var(--tx2); }
@@ -1171,7 +1172,7 @@ async function saveReport(r) {
     const type=typeMap[r.tag]||'hourly';
     const enClass=(JOB_T[r.classJob]&&JOB_T[r.classJob].en)||r.classJob||'';
     const fields={
-      clientNo:r.no, nickname:r.client, clientNoLabel:(r.no!=null?r.no+' ':'')+(r.client||''),
+      clientNo:r.no, nickname:r.nick||r.client, clientNoLabel:(r.no!=null?r.no+' ':'')+(r.client||''),
       pc:r.pc, lv:r.lvAfter, class:enClass, threadId:r.threadId,
       weapon:(r.weapon!=null&&r.weapon!=='')?('+'+r.weapon):'', armor:(r.armor!=null&&r.armor!=='')?('+'+r.armor):'', ac:(r.ac!=null&&r.ac!=='')?r.ac:'',
       playStart:r.start||'', playEnd:r.end||'', map:r.map||'',
@@ -1285,6 +1286,8 @@ const T={
   noMaps:{ko:'맵이 없습니다. 수정에서 추가하세요.',en:'No maps yet. Add one in edit.'},
   addClient:{ko:'+ 클라이언트 추가',en:'+ Add client'},
   clientName:{ko:'클라이언트 이름',en:'Client name'},
+  gameNick:{ko:'게임 닉네임',en:'Game nickname'},
+  phNick:{ko:'예: 아귀님',en:'e.g. character name'},
   editClientTitle:{ko:'클라이언트 수정',en:'Edit client'},
   addClientTitle:{ko:'클라이언트 추가',en:'Add client'},
   clientNoLabel:{ko:'번호 (클라 No.)',en:'No. (client)'},
@@ -1974,6 +1977,7 @@ function editFields(){
       <div class="field"><label class="flabel">${t('pcNum')}</label><input class="input" value="${esc(b.pc)}" oninput="editBuf.pc=this.value" placeholder="${t('phPc')}"></div>
     </div>
     <div class="field"><label class="flabel">${t('clientName')}</label><input class="input" value="${esc(b.name)}" oninput="editBuf.name=this.value" placeholder="${t('phClient')}"></div>
+    <div class="field"><label class="flabel">${t('gameNick')}</label><input class="input" value="${esc(b.nick||'')}" oninput="editBuf.nick=this.value" placeholder="${t('phNick')}"></div>
     <div class="field"><label class="flabel">${t('job')}</label>${(g.jobs&&g.jobs.length)?`<select class="input" onchange="editBuf.job=this.value">${jobOpts}</select>`:`<input class="input" value="${esc(b.job||'')}" oninput="editBuf.job=this.value" placeholder="${t('job')}">`}</div>
     <div class="stepper-row stepper-row-${sf.length}">
       ${steppers}
@@ -2022,7 +2026,7 @@ function addClient(){
   const id='new_'+Date.now(); editingId=id;
   const nextNo=Math.max(0,...clientCache.map(c=>Number(c.no)||0))+1;
   const g=gameById(currentGame); const dt=g.metric.big?1000000:0.8;
-  editBuf={ id, game:currentGame, no:nextNo, name:'', pc:'', level:1, sword:0, armor:0, ac:'', statAttack:0, job:(g.jobs&&g.jobs[0])||'', maps:[{ko:'',en:'',level:33,target:dt}] };
+  editBuf={ id, game:currentGame, no:nextNo, name:'', nick:'', pc:'', level:1, sword:0, armor:0, ac:'', statAttack:0, job:(g.jobs&&g.jobs[0])||'', maps:[{ko:'',en:'',level:33,target:dt}] };
   renderEditModal();
 }
 async function deleteClient(){
@@ -2684,7 +2688,7 @@ function tpStep(id, mins){
 }
 function clientGridHtml(){
   return MOCK_CLIENTS.slice().sort((a,b)=>((Number(a.pc)||0)-(Number(b.pc)||0)) || ((Number(a.no)||0)-(Number(b.no)||0))).map(c=>`<button class="rep-pick rep-pick-c${rpDraft.clientId===c.id?' active':''}" onclick="pickClient('${esc(c.id)}')">
-    <span class="rp-c-pc">PC${c.pc}</span><span class="rp-c-name">${esc(c.name)}</span><span class="rp-c-lv">Lv${c.level} · ${esc(c.job||'')}</span></button>`).join('');
+    <span class="rp-c-pc">PC${c.pc}</span><span class="rp-c-name">${esc(c.name)}</span>${c.nick&&c.nick!==c.name?`<span class="rp-c-nick">@${esc(c.nick)}</span>`:''}<span class="rp-c-lv">Lv${c.level} · ${esc(c.job||'')}</span></button>`).join('');
 }
 function mapGridHtml(){
   const c=MOCK_CLIENTS.find(x=>x.id===rpDraft.clientId);
@@ -2906,7 +2910,7 @@ async function submitCheckin(){
   const f=rpCommon(); if(!f.booster||!f.c){ showToast(t('rpNeed')); return; }
   const lv=f.lv||f.c.level;
   const ciStart=document.getElementById('rp-start')?.value||'';
-  const r=await saveReport({ id:'rpt-'+Date.now(), createdAt:nowStamp(), tag:'checkin', booster:f.booster, client:f.c.name, no:f.c.no, pc:f.c.pc, threadId:commitThread(f.booster),
+  const r=await saveReport({ id:'rpt-'+Date.now(), createdAt:nowStamp(), tag:'checkin', booster:f.booster, client:f.c.name, nick:f.c.nick||f.c.name, no:f.c.no, pc:f.c.pc, threadId:commitThread(f.booster),
     weapon:f.c.sword, armor:f.c.armor, ac:f.c.ac, classJob:f.c.job,
     date:f.date, map:f.map, start:ciStart, end:document.getElementById('rp-end-ci')?.value||'',
     lvBefore:lv, expBefore:f.exp, lvAfter:lv, expAfter:f.exp, adena:f.adena, dead:0, potion:f.potion, drop:0, note:f.note });
@@ -2927,7 +2931,7 @@ async function submitStatus(){
   const lvUp=(f.exp<prevExp)?1:0;                 // EXP로 레벨업 자동 감지
   if(lvUp && !confirm(t('rpLvUpConfirm').replace('{p}',Number(prevExp).toFixed(2)).replace('{c}',Number(f.exp).toFixed(2)))) return;   // 레벨업 의심 → 확인(오타 방지)
   const lv=prevLv+lvUp;
-  const r=await saveReport({ id:'rpt-'+Date.now(), createdAt:nowStamp(), tag:'status', booster:f.booster, client:f.c.name, no:f.c.no, pc:f.c.pc, threadId:commitThread(f.booster),
+  const r=await saveReport({ id:'rpt-'+Date.now(), createdAt:nowStamp(), tag:'status', booster:f.booster, client:f.c.name, nick:f.c.nick||f.c.name, no:f.c.no, pc:f.c.pc, threadId:commitThread(f.booster),
     weapon:f.c.sword, armor:f.c.armor, ac:f.c.ac, classJob:f.c.job,
     date:f.date, map:f.map, start:tm, end:tm,
     lvBefore:prevLv, expBefore:prevExp, lvAfter:lv, expAfter:f.exp, adena:curAdena, prevAdena:prevAdena, dead:f.dead, potion:f.potion, drop:f.drop, note:f.note });
@@ -2947,7 +2951,7 @@ async function submitCheckout(){
   const start=rpDraft.prevStart||(ci?ci.start:'21:00');
   const levelUp=(f.exp<startExp)?1:0;             // 레벨칸 제거 → EXP로 레벨업 자동 감지
   const lv=startLv+levelUp;
-  const r=await saveReport({ id:'rpt-'+Date.now(), createdAt:nowStamp(), tag:'checkout', booster:f.booster, client:f.c.name, no:f.c.no, pc:f.c.pc, threadId:commitThread(f.booster),
+  const r=await saveReport({ id:'rpt-'+Date.now(), createdAt:nowStamp(), tag:'checkout', booster:f.booster, client:f.c.name, nick:f.c.nick||f.c.name, no:f.c.no, pc:f.c.pc, threadId:commitThread(f.booster),
     weapon:f.c.sword, armor:f.c.armor, ac:f.c.ac, classJob:f.c.job,
     date:f.date, map:f.map, start, end:document.getElementById('rp-end')?.value||'09:00',
     lvBefore:startLv, expBefore:startExp, lvAfter:lv, expAfter:f.exp, adena:curAdena, prevAdena:startAdena, dead:f.dead, potion:f.potion, drop:f.drop, note:f.note });
