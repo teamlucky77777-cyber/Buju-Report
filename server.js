@@ -707,6 +707,15 @@ function colon(t) {
   return t ? String(t).replace('.', ':') : t;
 }
 
+// 운영시간(운영 윈도우) 표시 문자열.
+// 클라이언트 고정 운영시간(clients.operating_time)이 있으면 그걸 그대로 쓰고,
+// 없으면 부주의 PLAY TIME으로 폴백한다.
+// → 운영시간 = 손님 고정 레벨링 스케줄, 체크인/체크아웃 = 부주 실제 근무시간.
+function opTimeLine(operatingTime, pStart, pEnd) {
+  if (operatingTime && String(operatingTime).trim()) return String(operatingTime).trim();
+  return `${pStart ? colon(pStart) : '?'} ~ ${pEnd ? colon(pEnd) : '?'}`;
+}
+
 // 시간 범위가 운영시간 윈도우 안에 완전히 포함되는지 (자정 가로지름 처리)
 function windowContains(startStr, endStr, targetStartStr, targetEndStr) {
   if (!startStr || !endStr) return false;
@@ -878,9 +887,12 @@ app.post('/kakao', async (req, res) => {
   // 클라이언트 매칭
   const { data: allClients } = await supabase.from('clients').select('*');
   const clientDisplayName = resolveClient(allClients, utterance) || utterance;
+  // 매칭된 클라이언트의 고정 운영시간(있으면) — 운영시간 라인에 사용
+  const matchedClient = (allClients || []).find(c => c.display_name === clientDisplayName) || null;
+  const operatingTime = matchedClient && matchedClient.operating_time ? matchedClient.operating_time : null;
 
   try {
-    return await handleCurrentSession(res, clientDisplayName);
+    return await handleCurrentSession(res, clientDisplayName, operatingTime);
   } catch (err) {
     console.error('[Handler Error]', err);
     return res.json(makeTextResponse(`처리 중 오류가 발생했습니다. 잠시 후 다시 시도해주세요.`));
@@ -888,7 +900,7 @@ app.post('/kakao', async (req, res) => {
 });
 
 // 현재 세션 / 마지막 체크아웃 분기
-async function handleCurrentSession(res, clientDisplayName) {
+async function handleCurrentSession(res, clientDisplayName, operatingTime) {
   // 최근 로그 넉넉히 — 교대근무 시 부주별 최신 상태 판단용
   const { data: logs } = await supabase
     .from('session_logs')
@@ -920,18 +932,18 @@ async function handleCurrentSession(res, clientDisplayName) {
 
   if (activeLogs.length > 0) {
     // 근무중인 교대근무자 있음 → 운영중 (가장 최근 활성 부주의 세션)
-    return await renderActiveSession(res, clientDisplayName, activeLogs[0]);
+    return await renderActiveSession(res, clientDisplayName, activeLogs[0], operatingTime);
   }
 
   // 모든 부주가 체크아웃 → 운영 종료
   if (lastAny.report_type === 'CHECKOUT') {
-    return await renderCheckoutSummary(res, clientDisplayName, lastAny);
+    return await renderCheckoutSummary(res, clientDisplayName, lastAny, operatingTime);
   }
-  return await renderActiveSession(res, clientDisplayName, lastAny);
+  return await renderActiveSession(res, clientDisplayName, lastAny, operatingTime);
 }
 
 // 체크아웃 요약 (운영 종료 상태)
-async function renderCheckoutSummary(res, clientDisplayName, checkoutLog) {
+async function renderCheckoutSummary(res, clientDisplayName, checkoutLog, operatingTime) {
   const { data: priorCheckins } = await supabase
     .from('session_logs')
     .select('*')
@@ -985,7 +997,7 @@ async function renderCheckoutSummary(res, clientDisplayName, checkoutLog) {
 
   const text =
 `${clientDisplayName} (운영 종료)
-운영시간 : ${playStart ? colon(playStart) : '?'} ~ ${playEnd ? colon(playEnd) : '?'}${breakInfo.line ? `\n${breakInfo.line}` : ''}
+운영시간 : ${opTimeLine(operatingTime, playStart, playEnd)}${breakInfo.line ? `\n${breakInfo.line}` : ''}
 ${dateLabel}
 총 사냥시간 : ${hours}시간
 
@@ -1009,7 +1021,7 @@ ${dateLabel}
 }
 
 // 진행 중 세션
-async function renderActiveSession(res, clientDisplayName, latestLog) {
+async function renderActiveSession(res, clientDisplayName, latestLog, operatingTime) {
   // play_time 있는 가장 최근 체크인 = 현재 운영 윈도우 정의
   const { data: ptCheckIns } = await supabase
     .from('session_logs')
@@ -1125,7 +1137,7 @@ async function renderActiveSession(res, clientDisplayName, latestLog) {
 
   const text =
 `${clientDisplayName}
-운영시간 : ${playStartStr ? colon(playStartStr) : '?'} ~ ${playEndStr ? colon(playEndStr) : '?'}${breakInfo.line ? `\n${breakInfo.line}` : ''}
+운영시간 : ${opTimeLine(operatingTime, playStartStr, playEndStr)}${breakInfo.line ? `\n${breakInfo.line}` : ''}
 ${dateLabel} ${timeStart} ~ ${timeEnd}
 현재까지 사냥시간 : ${hours}시간
 
