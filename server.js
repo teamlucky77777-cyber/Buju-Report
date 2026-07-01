@@ -206,8 +206,11 @@ function buildCheckout(f) {
   const adenaGained = Number(f.adena) - Number(f.prevAdena);
   const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10).replace(/-/g, '.');
   const effHrs = effectiveHours(f.playStart, f.playEnd);
-  const expPerHr = effHrs ? expGained / effHrs : null;
-  const adenaPerHr = effHrs ? adenaGained / effHrs : null;
+  // [v455] EXP / HOUR = ONLY the last hour (previous report → check-out), sent by the ERP as f.expHour.
+  // EXP GAINED above stays the FULL shift (check-in → check-out). If the ERP didn't send it (older client),
+  // fall back to the old full-shift÷hours average so nothing breaks.
+  const expPerHr = (f.expHour != null && f.expHour !== '') ? Number(f.expHour) : (effHrs ? expGained / effHrs : null);
+  const adenaPerHr = (f.adenaHour != null && f.adenaHour !== '') ? Number(f.adenaHour) : (effHrs ? adenaGained / effHrs : null);
   const expPerHrStr = expPerHr != null ? fmtExpSigned(expPerHr) + '%' : '-';
   const adenaPerHrStr = adenaPerHr != null ? (adenaPerHr >= 0 ? '+' : '') + fmtAdenaSigned(adenaPerHr) : '-';
 
