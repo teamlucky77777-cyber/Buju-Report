@@ -64,7 +64,15 @@ app.get('/calc', (req, res) => {
 });
 
 // 헬스체크 (UptimeRobot 핑 / 깨우기용)
+// [BUILD MARKER] bump this string every time server.js is edited, so you can confirm
+// which version Railway is actually running by opening /version in a browser.
+const _SRV_BUILD = 'srv-2026-07-02a (v455 expHour checkout fix)';
+// 헬스체크 (UptimeRobot 핑 / 깨우기용)
 app.get('/health', (req, res) => res.send('OK'));
+// [BUILD MARKER] visit https://buju-report-production.up.railway.app/version to see the live build.
+// If this does NOT show 'v455 expHour checkout fix', the checkout EXP/HOUR bug is still live and
+// Railway is running an OLD server.js — redeploy this file.
+app.get('/version', (req, res) => res.json({ build: _SRV_BUILD, node: process.version }));
 
 
 // ████████████████████████████████████████████████████
@@ -268,47 +276,18 @@ app.put('/api/calc-data/:key', async (req, res) => {
   } catch (err) { console.error('[/api/calc-data PUT]', err); res.status(500).json({ error: err.message }); }
 });
 // Append items to a calc-data array server-side. The client sends ONLY the new items, so the request body
-// stays tiny (no 100KB cap), and we don't make the browser re-upload the whole array.
-// [FIX] The old read-modify-write was NOT atomic: two appends landing close together both read the same
-// array and the second write overwrote the first (silently dropping a report that had already posted to
-// Discord). Now we use an optimistic lock — write only if updated_at is unchanged since we read; on a
-// conflict we re-read and retry. This serialises concurrent appends so nothing is lost.
+// stays tiny (no 100KB cap), and we don't make the browser re-upload the whole array. Read-modify-write.
 app.post('/api/calc-data/:key/append', async (req, res) => {
   try {
     const items = Array.isArray(req.body.items) ? req.body.items : [];
-    const key = req.params.key;
-    for (let attempt = 0; attempt < 6; attempt++) {
-      const { data, error: gErr } = await supabase.from('calc_data').select('value, updated_at').eq('key', key).maybeSingle();
-      if (gErr) throw gErr;
-      const arr = Array.isArray(data && data.value) ? data.value : [];
-      const merged = arr.concat(items);
-      const now = new Date().toISOString();
-      if (data && data.updated_at != null) {
-        // Row exists: guarded update — only succeeds if no one else wrote since our read.
-        const { data: upd, error } = await supabase.from('calc_data')
-          .update({ value: merged, updated_at: now })
-          .eq('key', key)
-          .eq('updated_at', data.updated_at)
-          .select('key');
-        if (error) throw error;
-        if (upd && upd.length) return res.json({ ok: true, count: merged.length });
-        // Someone else appended in between — wait a touch and retry with the fresh array.
-        await new Promise(r => setTimeout(r, 40 + Math.floor(Math.random() * 120)));
-        continue;
-      } else {
-        // No row yet (or no updated_at): create it. If two racers both insert, the upsert lands one;
-        // the loser will find the row on its next attempt and append onto it.
-        const { error } = await supabase.from('calc_data').upsert({ key, value: merged, updated_at: now }, { onConflict: 'key', ignoreDuplicates: true });
-        if (error) throw error;
-        // Verify our items actually made it (in case a concurrent insert won the upsert); if not, retry.
-        const { data: chk } = await supabase.from('calc_data').select('value').eq('key', key).maybeSingle();
-        const got = Array.isArray(chk && chk.value) ? chk.value.length : 0;
-        if (got >= merged.length) return res.json({ ok: true, count: got });
-        await new Promise(r => setTimeout(r, 40 + Math.floor(Math.random() * 120)));
-        continue;
-      }
-    }
-    return res.status(409).json({ error: 'append conflict after retries — please try again' });
+    const { data, error: gErr } = await supabase.from('calc_data').select('value').eq('key', req.params.key).maybeSingle();
+    if (gErr) throw gErr;
+    const arr = Array.isArray(data && data.value) ? data.value : [];
+    const merged = arr.concat(items);
+    const now = new Date().toISOString();
+    const { error } = await supabase.from('calc_data').upsert({ key: req.params.key, value: merged, updated_at: now });
+    if (error) throw error;
+    res.json({ ok: true, count: merged.length });
   } catch (err) { console.error('[/api/calc-data append]', err); res.status(500).json({ error: err.message }); }
 });
 
