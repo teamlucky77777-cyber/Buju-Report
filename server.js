@@ -66,7 +66,7 @@ app.get('/calc', (req, res) => {
 // 헬스체크 (UptimeRobot 핑 / 깨우기용)
 // [BUILD MARKER] bump this string every time server.js is edited, so you can confirm
 // which version Railway is actually running by opening /version in a browser.
-const _SRV_BUILD = 'srv-2026-07-02a (v455 expHour checkout fix)';
+const _SRV_BUILD = 'srv-2026-07-03a (v522 checkout EXP/HOUR = last hour, expHour + prevHour fallback)';
 // 헬스체크 (UptimeRobot 핑 / 깨우기용)
 app.get('/health', (req, res) => res.send('OK'));
 // [BUILD MARKER] visit https://buju-report-production.up.railway.app/version to see the live build.
@@ -214,10 +214,16 @@ function buildCheckout(f) {
   const adenaGained = Number(f.adena) - Number(f.prevAdena);
   const today = new Date(Date.now() + 9 * 60 * 60 * 1000).toISOString().slice(0, 10).replace(/-/g, '.');
   const effHrs = effectiveHours(f.playStart, f.playEnd);
-  // [v455] EXP / HOUR = ONLY the last hour (previous report → check-out), sent by the ERP as f.expHour.
-  // EXP GAINED above stays the FULL shift (check-in → check-out). If the ERP didn't send it (older client),
-  // fall back to the old full-shift÷hours average so nothing breaks.
-  const expPerHr = (f.expHour != null && f.expHour !== '') ? Number(f.expHour) : (effHrs ? expGained / effHrs : null);
+  // [v455/v522] EXP / HOUR = ONLY the last hour (previous report → check-out), while EXP GAINED above stays the
+  // FULL shift. Prefer f.expHour sent by the ERP; if that's missing, derive it from the last-report reference
+  // (f.prevHourLv / f.prevHourExp, also sent by the ERP) so it's still the true last hour — only fall back to the
+  // full-shift÷hours average as a last resort (which is the wrong 0.58 this fix exists to avoid).
+  const _lastHourExp = (f.prevHourExp != null && f.prevHourExp !== '' && f.prevHourLv != null && f.prevHourLv !== '')
+    ? ((Number(f.lv) * 100 + Number(f.exp)) - (Number(f.prevHourLv) * 100 + Number(f.prevHourExp)))
+    : null;
+  const expPerHr = (f.expHour != null && f.expHour !== '') ? Number(f.expHour)
+                 : (_lastHourExp != null) ? _lastHourExp
+                 : (effHrs ? expGained / effHrs : null);
   const adenaPerHr = (f.adenaHour != null && f.adenaHour !== '') ? Number(f.adenaHour) : (effHrs ? adenaGained / effHrs : null);
   const expPerHrStr = expPerHr != null ? fmtExpSigned(expPerHr) + '%' : '-';
   const adenaPerHrStr = adenaPerHr != null ? (adenaPerHr >= 0 ? '+' : '') + fmtAdenaSigned(adenaPerHr) : '-';
