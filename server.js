@@ -81,6 +81,7 @@ app.get('/api/race/verify', async (req, res) => {
     const date = String(req.query.date || '').slice(0, 10);
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'date=YYYY-MM-DD required' });
     const rate = Number(req.query.rate || 900);
+    const mult = (req.query.mult != null && req.query.mult !== '') ? Number(req.query.mult) : 1;
     const keys = ['reports', 'clients', 'hidden_staff', 'training_staff'];
     const got = {};
     for (const k of keys) {
@@ -90,16 +91,18 @@ app.get('/api/race/verify', async (req, res) => {
     const hidden = {}; (Array.isArray(got.hidden_staff) ? got.hidden_staff : []).forEach(x => hidden[String(x).toLowerCase()] = true);
     const training = {}; (Array.isArray(got.training_staff) ? got.training_staff : []).forEach(x => training[String(x).toLowerCase()] = true);
     const settings = { base_point: 1, rank_bonus: { 1: 3, 2: 2, 3: 1 }, goal_bonus: { t100: 1, t110: 3, t120: 6 },
-      point_rate: rate, payout_multiplier: 1, total_pool: 5000000 };
+      point_rate: rate, payout_multiplier: mult, total_pool: 5000000 };
+    // existingPayouts intentionally [] here: the caller (auto-settle task) applies the pool cap against the
+    // real race_payouts it reads from the LEFT project. This endpoint stays RIGHT-only + read-only.
     const rows = RaceEngine.computePayouts(date, {
       reports: Array.isArray(got.reports) ? got.reports : [],
       clients: Array.isArray(got.clients) ? got.clients : [],
-      settings, hidden, training, existingPayouts: [], finalizedBy: 'verify'
+      settings, hidden, training, existingPayouts: [], finalizedBy: 'auto-settle'
     });
     rows.sort((a, b) => String(a.player_key).localeCompare(String(b.player_key)));
-    res.json({ date, rate, count: rows.length,
+    res.json({ date, rate, mult, count: rows.length,
       total_paid: rows.reduce((s, r) => s + r.final_payout_amount, 0),
-      rows: rows.map(r => ({ player_key: r.player_key, group: r.shift_group, total_point: r.total_point, final_payout_amount: r.final_payout_amount })) });
+      rows });   // full race_payouts-shaped rows, ready to insert
   } catch (err) {
     console.error('[/api/race/verify]', err);
     res.status(500).json({ error: String(err && err.message || err) });
