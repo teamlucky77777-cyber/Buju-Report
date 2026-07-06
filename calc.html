@@ -1154,6 +1154,19 @@ async function _saveReportsMerged(removedId){
   }catch(e){}
   const _ts=await _putData('reports', MOCK_REPORTS); if(_ts)_syncTs.reports=_ts;
 }
+// [race-condition fix] append-only write via the server's /append endpoint (one request, server-side
+// read-modify-write) instead of this client doing its own GET -> merge -> PUT of the WHOLE reports array.
+// The old path raced: when two boosters saved near the same hour, whichever browser's PUT landed LAST
+// won and silently overwrote the other's just-added report with a snapshot that didn't know about it yet
+// (found 2026-07-06 explaining Prod's missing 7/1 12:00-21:00 reports — his saves kept losing that race).
+async function _appendReport(r){
+  try{
+    const res=await fetch('/api/calc-data/reports/append',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:[r]})});
+    const j=await res.json().catch(()=>({}));
+    if(!res.ok || j.error){ setSyncStatus('fail'); return false; }
+    setSyncStatus('ok'); return true;
+  }catch(e){ setSyncStatus('fail'); return false; }
+}
 async function saveReport(r) {
   // 재발 방지: 같은 보고(부주+클라+타입+레벨+경험치)가 25초 내 이미 저장됐으면 렉 중복클릭으로 보고 차단
   const now=Date.now();
@@ -1165,7 +1178,8 @@ async function saveReport(r) {
     (now - (Number(String(x.id||'').replace(/^rpt-/,''))||0)) < 25000);
   if(dupRecent){ showToast(t('rpDupBlock')); return {ok:false, blocked:true}; }
   MOCK_REPORTS.push(r);
-  await _saveReportsMerged();   // 서버와 병합 저장(다른 기기 리포트 보존)
+  const appended = await _appendReport(r);
+  if(!appended) await _saveReportsMerged();   // fallback to the old (rarer-path-safe) merge only if append itself failed
   // Discord/카톡 전송: 기존 /api/report 파이프라인 사용 (→ Discord → 봇 → Supabase → /kakao)
   try {
     const typeMap={ checkin:'checkin', status:'hourly', checkout:'checkout' };
