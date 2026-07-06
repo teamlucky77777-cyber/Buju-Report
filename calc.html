@@ -1049,20 +1049,41 @@ let MOCK_CLIENTS = [
     ] },
 ];
 
+// [2026-07-06] Boss's canonical map master list (numbered 1-19 with floors). 'Etc'(18) and
+// 'Test'(19) are appended by the picker itself, so they're not repeated here. NOTE: race scoring
+// still matches by broad ZONE (the English name's keyword), so floors within one dungeon share a
+// standard for now — the floor detail is for record accuracy, not yet per-floor targets.
 const MAP_PRESETS = [
-  {ko:'말하는 섬 던전',       en:'Talking Island Dungeon'},
-  {ko:'요정 숲 던전',         en:'Elven Forest Dungeon'},
-  {ko:'글루디오 던전',        en:'Gludio Dungeon'},
-  {ko:'사막 던전',           en:'Desert Dungeon'},
-  {ko:'개미굴',              en:'Ant Cave'},
-  {ko:'기란 던전',           en:'Giran Dungeon'},
-  {ko:'용의 계곡 던전',       en:'Dragon Valley Dungeon'},
-  {ko:'에바 왕국',           en:'Eva Kingdom'},
-  {ko:'오크 숲',             en:'Orc Forest'},
-  {ko:'축복의 땅 (ATS ZONE)', en:'Blessed Lands (ATS Zone)'},
-  {ko:'상아탑',              en:'Ivory Tower'},
-  {ko:'몽환의 섬',           en:'Dream Island'},
-  {ko:'화룡의 둥지',         en:'Fire Dragon Nest'},
+  {ko:'1. 몽환의 섬',              en:'Dream Island'},
+  {ko:'2-1. 상아탑 4~5층',        en:'Ivory Tower F4-5'},
+  {ko:'2-2. 상아탑 6~7층',        en:'Ivory Tower F6-7'},
+  {ko:'3-1. 용의 계곡 입구',       en:'Dragon Valley Entrance'},
+  {ko:'3-2. 용의 계곡 던전 1~2층', en:'Dragon Valley Dungeon F1-2'},
+  {ko:'3-3. 용의 계곡 던전 3~4층', en:'Dragon Valley Dungeon F3-4'},
+  {ko:'3-4. 용의 계곡 던전 5~6층', en:'Dragon Valley Dungeon F5-6'},
+  {ko:'4-1. 오렌 설벽',           en:'Oren Snow Field'},
+  {ko:'4-2. 오렌 3시간 사냥터',    en:'Oren -3 Hour Map'},
+  {ko:'4-3. 오렌 엘모어 밭',       en:'Oren Elmore Field'},
+  {ko:'5. 화룡의 둥지',           en:'Fire Dragon Nest'},
+  {ko:'6. 은기사 마을 흑기사',     en:'Silver Town Black Knight'},
+  {ko:'7. 축복의 땅 (ATS ZONE)',  en:'Blessed Lands (ATS Zone)'},
+  {ko:'8. 수정동굴',              en:'Crystal Cave'},
+  {ko:'9-1. 글루디오 던전 1~3층',  en:'Gludio Dungeon F1-3'},
+  {ko:'9-2. 글루디오 던전 4~5층',  en:'Gludio Dungeon F4-5'},
+  {ko:'9-3. 글루디오 던전 6~7층',  en:'Gludio Dungeon F6-7'},
+  {ko:'10-1. 사막 던전 1층',       en:'Desert Dungeon F1'},
+  {ko:'10-2. 사막 던전 2~3층',     en:'Desert Dungeon F2-3'},
+  {ko:'10-3. 사막 던전 4층',       en:'Desert Dungeon F4'},
+  {ko:'11-1. 기란 던전 1~2층',     en:'Giran Dungeon F1-2'},
+  {ko:'11-2. 기란 던전 3층',       en:'Giran Dungeon F3'},
+  {ko:'11-3. 기란 던전 4층',       en:'Giran Dungeon F4'},
+  {ko:'12. 개미굴',               en:'Ant Cave'},
+  {ko:'13. 오크 숲',              en:'Orc Forest'},
+  {ko:'14-1. 지하수로 1층',        en:'Underground Waterway F1'},
+  {ko:'14-2. 지하수로 2~3층',      en:'Underground Waterway F2-3'},
+  {ko:'15. 에바 왕국',            en:'Eva Kingdom'},
+  {ko:'16. 말하는 섬 던전',        en:'Talking Island Dungeon'},
+  {ko:'17. 요정 숲 던전',          en:'Elven Forest Dungeon'},
 ];
 
 // 직원: name(=리포트의 booster와 일치), rate(월급), protectedUntil(보호 종료일), shift(참고)
