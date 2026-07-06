@@ -66,9 +66,45 @@ app.get('/calc', (req, res) => {
 // 헬스체크 (UptimeRobot 핑 / 깨우기용)
 // [BUILD MARKER] bump this string every time server.js is edited, so you can confirm
 // which version Railway is actually running by opening /version in a browser.
-const _SRV_BUILD = 'srv-2026-07-03a (v522 checkout EXP/HOUR = last hour, expHour + prevHour fallback)';
+const _SRV_BUILD = 'srv-2026-07-06a (race-engine verify endpoint; append-only report writes already live via calc.html)';
 // 헬스체크 (UptimeRobot 핑 / 깨우기용)
 app.get('/health', (req, res) => res.send('OK'));
+
+// ── [2026-07-06] Race scoring engine (extracted verbatim from the Lucky-7-Web app) ──
+const RaceEngine = require('./race-engine.js');
+// Verify endpoint: score a given date with the SAME engine the admin Settle button uses and
+// return the payout rows, so we can prove server-side auto-settle matches the app to the rupiah
+// BEFORE wiring any DB writes. READ-ONLY. Reads calc_data (this server's Supabase = the reports
+// project). Settings are passed as query/hardcoded so no cross-project creds are needed to verify.
+app.get('/api/race/verify', async (req, res) => {
+  try {
+    const date = String(req.query.date || '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'date=YYYY-MM-DD required' });
+    const rate = Number(req.query.rate || 900);
+    const keys = ['reports', 'clients', 'hidden_staff', 'training_staff'];
+    const got = {};
+    for (const k of keys) {
+      const { data } = await supabase.from('calc_data').select('value').eq('key', k).maybeSingle();
+      got[k] = data ? data.value : null;
+    }
+    const hidden = {}; (Array.isArray(got.hidden_staff) ? got.hidden_staff : []).forEach(x => hidden[String(x).toLowerCase()] = true);
+    const training = {}; (Array.isArray(got.training_staff) ? got.training_staff : []).forEach(x => training[String(x).toLowerCase()] = true);
+    const settings = { base_point: 1, rank_bonus: { 1: 3, 2: 2, 3: 1 }, goal_bonus: { t100: 1, t110: 3, t120: 6 },
+      point_rate: rate, payout_multiplier: 1, total_pool: 5000000 };
+    const rows = RaceEngine.computePayouts(date, {
+      reports: Array.isArray(got.reports) ? got.reports : [],
+      clients: Array.isArray(got.clients) ? got.clients : [],
+      settings, hidden, training, existingPayouts: [], finalizedBy: 'verify'
+    });
+    rows.sort((a, b) => String(a.player_key).localeCompare(String(b.player_key)));
+    res.json({ date, rate, count: rows.length,
+      total_paid: rows.reduce((s, r) => s + r.final_payout_amount, 0),
+      rows: rows.map(r => ({ player_key: r.player_key, group: r.shift_group, total_point: r.total_point, final_payout_amount: r.final_payout_amount })) });
+  } catch (err) {
+    console.error('[/api/race/verify]', err);
+    res.status(500).json({ error: String(err && err.message || err) });
+  }
+});
 // [BUILD MARKER] visit https://buju-report-production.up.railway.app/version to see the live build.
 // If this does NOT show 'v455 expHour checkout fix', the checkout EXP/HOUR bug is still live and
 // Railway is running an OLD server.js — redeploy this file.
