@@ -142,7 +142,7 @@ function _srRecCompute(reports, clients){
       var _flag=(_gain!=null)&&(_gain>80 || _gain>_jThr);
       var _rms=reportMs(r);
       var _ignored=!!r.ignored;   // [v447] 미반영 — excluded from performance calc/averages/stats, but still shown (greyed) in the session log
-      var _isBreak=isBreakMap(r);   // [v500] ATS = break time — auto-excluded from stats like an ignored row
+      var _isBreak=isBreakMap(r) && !(_tgt!=null && _tgt>0);   // [v587] ATS excluded ONLY while the client has no ATS standard; a card with a real ATS target (순수쌤 0.94, boss 2026-07-09) scores like any other map — keep in lockstep with index.html _srRecCompute
       sessions.push({ id:r.id, name:g.name, key:normName(g.name), date:_rd, ms:_rms, tag:_tag, client:r.client||'', pc:r.pc, lv:(r.lvAfter!=null?r.lvAfter:r.lv), map:r.map||'', gain:_gain, expAt:(Number(r.expAfter)||0), target:_tgt, sh:_sh, sl:_sl, dup:_dup, flag:_flag, ignored:_ignored, brk:_isBreak });
       if(_rd){
         if(!recAgg[g.name]) recAgg[g.name]={};
