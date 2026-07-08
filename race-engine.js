@@ -127,6 +127,10 @@ function _srRecCompute(reports, clients){
     var _med=0; if(_g.length){ var _gs=_g.slice().sort(function(a,b){return a-b;}); _med=_gs[Math.floor(_gs.length/2)]; }
     var _jThr=Math.max(5, 6*Math.max(_med,0.3));   // flag if a single hour gained > 6x the usual, with a 5% floor
     var _hourSeqByDate={};   // [v384] per-date rolling-gap hour sequence — see _SR_HOUR_GAP_MS
+    // [v588] ATS manual-play sessions — an ATS block scores only when flagged hand-played (atsManual=true,
+    // set at submit when a 2h+ ATS block is confirmed manual) AND its card has an ATS standard. Auto/rest ATS
+    // stays excluded. Keep in lockstep with index.html _srRecCompute.
+    var _atsMan={}; allRs.forEach(function(r){ if(r&&isBreakMap(r)&&r.atsManual===true){ _atsMan[normName(r.booster)+'|'+shiftDateOf(r)+'|'+String(r.client||'').trim()]=1; } });
     allRs.forEach(function(r){
       if(isTestMap(r)) return;
       var _rd=shiftDateOf(r);
@@ -142,7 +146,7 @@ function _srRecCompute(reports, clients){
       var _flag=(_gain!=null)&&(_gain>80 || _gain>_jThr);
       var _rms=reportMs(r);
       var _ignored=!!r.ignored;   // [v447] 미반영 — excluded from performance calc/averages/stats, but still shown (greyed) in the session log
-      var _isBreak=isBreakMap(r) && !(_tgt!=null && _tgt>0);   // [v587] ATS excluded ONLY while the client has no ATS standard; a card with a real ATS target (순수쌤 0.94, boss 2026-07-09) scores like any other map — keep in lockstep with index.html _srRecCompute
+      var _isBreak=isBreakMap(r) && !(_tgt!=null && _tgt>0 && _atsMan[normName(r.booster)+'|'+_rd+'|'+String(r.client||'').trim()]);   // [v588] ATS scores ONLY when it has a real standard AND the session was flagged hand-played; else excluded (auto/rest). Lockstep with index.html.
       sessions.push({ id:r.id, name:g.name, key:normName(g.name), date:_rd, ms:_rms, tag:_tag, client:r.client||'', pc:r.pc, lv:(r.lvAfter!=null?r.lvAfter:r.lv), map:r.map||'', gain:_gain, expAt:(Number(r.expAfter)||0), target:_tgt, sh:_sh, sl:_sl, dup:_dup, flag:_flag, ignored:_ignored, brk:_isBreak });
       if(_rd){
         if(!recAgg[g.name]) recAgg[g.name]={};
