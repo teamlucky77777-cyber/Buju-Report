@@ -34,7 +34,8 @@ function _rcIsTestReport(r){
 function _srRecCompute(reports, clients){
   reports = Array.isArray(reports)?reports:[];
   clients = Array.isArray(clients)?clients:[];
-  var normName=function(n){ return String(n||'').toLowerCase().replace(/^\s*(mr|ms|mrs)(\.|\s)\s*/,'').trim().split(/\s+/)[0]||''; };
+  var _NAME_ALIAS={ ericson:'eric' };   // [v591] same alias table as the app's _RC_NAME_ALIAS — keeps server-settled player_key identical to app-settled ('eric'), ending the mixed eric/ericson keys in race_payouts
+  var normName=function(n){ var k=String(n||'').toLowerCase().replace(/^\s*(mr|ms|mrs)(\.|\s)\s*/,'').trim().split(/\s+/)[0]||''; return _NAME_ALIAS[k]||k; };
   var MAX_LV_JUMP=20;
   var gainedPct=function(r){ var dLv=(Number(r.lvAfter)||0)-(Number(r.lvBefore)||0); var dExp=(Number(r.expAfter)||0)-(Number(r.expBefore)||0); if(Math.abs(dLv)>MAX_LV_JUMP) return dExp; return dLv*100+dExp; };
   var reportMs=function(r){ if(!r) return null; if(typeof r.createdAt==='number'&&r.createdAt>1e12) return r.createdAt; var m=String(r.id||'').match(/^rpt-(\d+)/); return m?Number(m[1]):null; };
