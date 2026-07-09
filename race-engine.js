@@ -12,7 +12,7 @@ var _RC_MAXJMP = 20;
 var _RC_ROSTER = { claws:'d12',prod:'d12',jeff:'d12',bruce:'d12',kyros:'d12',hana:'d12', ace:'n12',sid:'n12',kaiji:'n12',vici:'n12', ron:'s1',bob:'s1', eric:'s2',san:'s2',bin:'s2', el:'s3',sil:'s3',miru:'s3',ditt:'s3' };   /* [v593] 'eric' aliased · [v594] hana n12→d12 (boss 7/9) */
 var _RC_NAME_ALIAS={ ericson:'eric' };   // [v593] alias applied in _rcNorm too (was only in the inner normName) — _rcNorm feeds playerKey → race_payouts.player_key, so without this a server settle would still write 'ericson'
 // [v593] per-player RACE START DATE (boss 7/9): BOB/SAN/DITT join 2026-07-06; earlier records are fully out of the race.
-var _RC_JOIN_DATE = { bob:'2026-07-06', san:'2026-07-06', ditt:'2026-07-06' };
+var _RC_JOIN_DATE = { bob:'2026-07-06', san:'2026-07-06', ditt:'2026-07-06', sil:'2026-07-04' };   /* [v595] boss 7/9: SIL from 7/4 */
 
 // ---- small helpers (index.html:21560,21587,21591,21592) ----
 function _rcMs(r){ if(!r) return null; if(typeof r.createdAt==='number'&&r.createdAt>1e12) return r.createdAt; var m=String(r.id||'').match(/^rpt-(\d+)/); return m?Number(m[1]):null; }
