@@ -46,7 +46,18 @@ function _srRecCompute(reports, clients){
   var zoneKey=function(s){ s=(s||'').toLowerCase(); if(s.indexOf('orc')>=0||s.indexOf('오크')>=0||s.indexOf('totem')>=0||s.indexOf('토템')>=0)return'orc'; if(s.indexOf('dream')>=0||s.indexOf('ivory')>=0||s.indexOf('드림')>=0||s.indexOf('상아')>=0||s.indexOf('아일랜드')>=0)return'dream'; if(s.indexOf('oren')>=0||s.indexOf('snow')>=0||s.indexOf('오렌')>=0||s.indexOf('설원')>=0)return'oren'; if(s.indexOf('ant')>=0)return'ant'; if(s.indexOf('dragon')>=0||s.indexOf('드래곤')>=0)return'dragon'; if(s.indexOf('blessed')>=0||s.indexOf('ats')>=0)return'ats'; if(s.indexOf('gludio')>=0||s.indexOf('giran')>=0||s.indexOf('desert')>=0||s.indexOf('dessert')>=0)return'dgg'; return s; };
   var isBreakMap=function(r){ return zoneKey(String(r.map||''))==='ats'; };   // [v500/v519] ATS has NO standard yet -> still EXCLUDED from all performance math (%, average, actual/h, quota, hours) so it never distorts scores, but as of v519 it is NO LONGER treated/labelled as a player 'break': the row shows the normal unscored verdict (check-in='Start', otherwise '—') and is not greyed. Once a real ATS standard EXP is added it will be scored like any other map.
   var _stdNorm=function(x){ return String(x||'').replace(/[\s\u00b7.\-_'"’]/g,'').replace(/(쌤|선생님|님|씨|형님|형|누님|누나|언니|오빠)$/,'').toLowerCase(); };
-  var _pickFromMaps=function(maps,z,lv){ if(!Array.isArray(maps)) return null; var cand=maps.filter(function(m){return zoneKey(m.en||m.ko)===z;}); if(!cand.length) return null; var wild=cand.find(function(m){return m.level==null||m.level==='';}); if(wild) return wild; var leveled=cand.filter(function(m){return isFinite(Number(m.level));}).sort(function(a,b){return Number(a.level)-Number(b.level);}); if(!leveled.length) return null; var below=leveled.filter(function(m){return Number(m.level)<=lv;}); return below.length?below[below.length-1]:leveled[0]; };
+  // [v597] NAME-AWARE same-zone pick (lockstep with index.html): a card can carry TWO maps of the same zone
+  // with different standards (순수쌤 오렌 3시간 1.20 vs 오렌 설원 0.94, boss 7/10) — score candidates by name-token
+  // overlap with the report's map (equal, or containment at len≥3: snow/field↔snowfield, hour↔hours) and take
+  // a clear winner (≥2 shared, no tie); otherwise the old wild→level ladder.
+  var _pkTok=function(s){ return String(s||'').toLowerCase().split(/[^a-z0-9가-힣]+/).filter(Boolean); };
+  var _pickFromMaps=function(maps,z,lv,nm){ if(!Array.isArray(maps)) return null; var cand=maps.filter(function(m){return zoneKey(m.en||m.ko)===z;}); if(!cand.length) return null;
+    if(nm && cand.length>1){ var rt=_pkTok(nm); if(rt.length){ var best=null,bs=0,tie=false;
+      cand.forEach(function(m){ var mt=_pkTok(String(m.en||'')+' '+String(m.ko||'')); var s=0;
+        rt.forEach(function(t){ for(var _q=0;_q<mt.length;_q++){ var u=mt[_q]; if(t===u||(t.length>=3&&u.indexOf(t)>=0)||(u.length>=3&&t.indexOf(u)>=0)){s++;return;} } });
+        if(s>bs){bs=s;best=m;tie=false;} else if(s===bs&&s>0){tie=true;} });
+      if(best&&bs>=2&&!tie) return best; } }
+    var wild=cand.find(function(m){return m.level==null||m.level==='';}); if(wild) return wild; var leveled=cand.filter(function(m){return isFinite(Number(m.level));}).sort(function(a,b){return Number(a.level)-Number(b.level);}); if(!leveled.length) return null; var below=leveled.filter(function(m){return Number(m.level)<=lv;}); return below.length?below[below.length-1]:leveled[0]; };
   var findMap=function(clients,r){
     var cn=String(r.client||'').trim(), cnn=_stdNorm(cn); var c=null,i;
     // [v494] tolerant client match: exact name -> normalized name (쌤/님/spaces stripped) -> PC number
@@ -57,7 +68,7 @@ function _srRecCompute(reports, clients){
     if(!c){ for(i=0;i<clients.length;i++){ if(String(clients[i].name||'').trim()===cn && cn){c=clients[i];break;} } }
     if(!c && cnn){ for(i=0;i<clients.length;i++){ if(_stdNorm(clients[i].name)===cnn){c=clients[i];break;} } }
     var z=zoneKey(r.map); var lv=Number(r.lvAfter!=null?r.lvAfter:r.lv);
-    var hit = (c && c.maps) ? _pickFromMaps(c.maps,z,lv) : null;
+    var hit = (c && c.maps) ? _pickFromMaps(c.maps,z,lv,r.map) : null;
     var _hasBand=function(m){ return !!(m && m.sh!=null && m.sh!=='' && m.sl!=null && m.sl!==''); };
     if(hit && _hasBand(hit)) return hit;
     // [v495] BAND-BACKFILL + last-resort fallback: the matched card's own map entry either doesn't exist,
@@ -76,7 +87,7 @@ function _srRecCompute(reports, clients){
     var prefFull=null, prefAny=null, anyFull=null, anyAny=null;
     for(i=0;i<clients.length;i++){
       if(_isTrain(clients[i].name)) continue;   // never borrow FROM a training card
-      var m=_pickFromMaps(clients[i].maps,z,lv); if(!m) continue;
+      var m=_pickFromMaps(clients[i].maps,z,lv,r.map); if(!m) continue;
       var full=_hasBand(m);
       if(anyAny==null) anyAny=m;
       if(full && anyFull==null) anyFull=m;
@@ -106,7 +117,7 @@ function _srRecCompute(reports, clients){
                       (cnn && cnn.length>=2 && _ocn && _ocn.length>=2 && (_ocn.indexOf(cnn)>=0 || cnn.indexOf(_ocn)>=0));
         var _same=(_rpcD!=='' && _ocpcD===_rpcD) || _nameLink;
         if(!_same) continue;
-        var _h2=_pickFromMaps(_oc.maps,z,lv);
+        var _h2=_pickFromMaps(_oc.maps,z,lv,r.map);
         if(_h2){ hit=_h2; break; }
       }
     }
