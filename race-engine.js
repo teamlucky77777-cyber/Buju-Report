@@ -9,11 +9,14 @@
 // ---- constants (index.html:19584, 21558, 21590) ----
 var _SR_HOUR_GAP_MS = 20*60*1000;   // merge only true catch-up/batch readings (<=20min apart)
 var _RC_MAXJMP = 20;
-var _RC_ROSTER = { claws:'d12',prod:'d12',jeff:'d12',bruce:'d12',kyros:'d12', ace:'n12',sid:'n12',kaiji:'n12',vici:'n12',hana:'n12', ron:'s1',bob:'s1', ericson:'s2',san:'s2',bin:'s2', el:'s3',sil:'s3',miru:'s3',ditt:'s3' };
+var _RC_ROSTER = { claws:'d12',prod:'d12',jeff:'d12',bruce:'d12',kyros:'d12', ace:'n12',sid:'n12',kaiji:'n12',vici:'n12',hana:'n12', ron:'s1',bob:'s1', eric:'s2',san:'s2',bin:'s2', el:'s3',sil:'s3',miru:'s3',ditt:'s3' };   /* [v593] 'eric' — matches the aliased _rcNorm key */
+var _RC_NAME_ALIAS={ ericson:'eric' };   // [v593] alias applied in _rcNorm too (was only in the inner normName) — _rcNorm feeds playerKey → race_payouts.player_key, so without this a server settle would still write 'ericson'
+// [v593] per-player RACE START DATE (boss 7/9): BOB/SAN/DITT join 2026-07-06; earlier records are fully out of the race.
+var _RC_JOIN_DATE = { bob:'2026-07-06', san:'2026-07-06', ditt:'2026-07-06' };
 
 // ---- small helpers (index.html:21560,21587,21591,21592) ----
 function _rcMs(r){ if(!r) return null; if(typeof r.createdAt==='number'&&r.createdAt>1e12) return r.createdAt; var m=String(r.id||'').match(/^rpt-(\d+)/); return m?Number(m[1]):null; }
-function _rcNorm(n){ return String(n||'').toLowerCase().replace(/^\s*(mr|ms|mrs)(\.|\s)\s*/,'').trim().split(/\s+/)[0]||''; }
+function _rcNorm(n){ var k=String(n||'').toLowerCase().replace(/^\s*(mr|ms|mrs)(\.|\s)\s*/,'').trim().split(/\s+/)[0]||''; return _RC_NAME_ALIAS[k]||k; }   /* [v593] alias-aware */
 function _rcGroupOf(name){ return _RC_ROSTER[_rcNorm(name)] || 'un'; }
 function _rcModeOf(group){ return (group==='d12'||group==='n12') ? '1212' : '888'; }
 
@@ -241,6 +244,7 @@ function _rcScoreReports(reports, clients, settings, dqSet){
     if(_rcIsTestReport(r)) return;   /* [v548] test/practice reports fully out of the race (map contains TEST, client is *TRAINING or a listed test client e.g. 일점커) */
     if(typeof _isHiddenKey==='function' && _isHiddenKey(_rcNorm(r.booster))) return;   /* [v547] hidden/monitoring staff are fully out of the race: no points, no rank slots, no payouts */
     if(typeof _isTrainingKey==='function' && _isTrainingKey(_rcNorm(r.booster), r.booster)) return;   /* [v549] trainees (calc 'training_staff') fully out of the race even when they touch a real client — prevents a trainee helping on a real account from earning points or stealing a rank slot */
+    var _jd0=_RC_JOIN_DATE[_rcNorm(r.booster)]; if(_jd0 && String(_sdMap[r.id]||r.date||'').slice(0,10)<_jd0) return;   /* [v593] before this player's race start date — fully out of the race (boss 7/9) */
     var sess = sessById[r.id];
     if(!sess) return;   // not resolvable by Records either (shouldn't normally happen) — skip rather than guess
     if(sess.brk) return;   // ATS — same exclusion Records applies (isBreakMap), still no standard for it
