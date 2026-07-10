@@ -273,8 +273,11 @@ function _rcScoreReports(reports, clients, settings, dqSet){
     else if(dqSet.has && dqSet.has(r.id)) { row.dq=true; row.dqReason='Safety Issue'; }
     if(sess.target!=null && Number(sess.target)>0){
       var t=Number(sess.target), sh=Number(sess.sh), sl=Number(sess.sl);
-      row.target=t; row.sh=sh; row.sl=sl; row.rate=t>0?(gain/t*100):null;
-      if(gain>=sh) row.result='Goal'; else if(gain>=sl) row.result='Stable'; else row.result='Cut';
+      // [v601] float-safe boundaries (lockstep with app): subtraction artifacts (1.2999999999999972 for a true
+      // 1.30) must not drop a tier/verdict at an exact boundary — round gain/rate to a 1e-6 grid first.
+      var _g2=Math.round(gain*1e6)/1e6;
+      row.target=t; row.sh=sh; row.sl=sl; row.rate=t>0?(Math.round(gain/t*100*1e6)/1e6):null;
+      if(_g2>=sh) row.result='Goal'; else if(_g2>=sl) row.result='Stable'; else row.result='Cut';
     }
     var eligible=(!row.dq)&&(row.result==='Goal'||row.result==='Stable');
     if(eligible) row.base=base;
