@@ -216,7 +216,7 @@ function _rcScoreReports(reports, clients, settings, dqSet){
   settings = settings || {}; reports = Array.isArray(reports)?reports:[]; clients = Array.isArray(clients)?clients:[];
   var base = settings.base_point!=null ? Number(settings.base_point) : 1;
   var rb = settings.rank_bonus || {1:3,2:2,3:1};
-  var gb = settings.goal_bonus || {t100:1,t110:3,t120:6};
+  var gb = settings.goal_bonus || {t100:1,t110:3,t120:6,t130:9,t140:12};   /* [v600] even +3 ladder extended to 130/140 */
   dqSet = dqSet || (typeof Set!=='undefined' ? new Set() : {has:function(){return false;}});
   var _rcm = _srRecCompute(reports, clients);
   // [v540] SHIFT-DATE attribution (same idea Records uses): every report belongs to the day its shift
@@ -278,7 +278,7 @@ function _rcScoreReports(reports, clients, settings, dqSet){
     }
     var eligible=(!row.dq)&&(row.result==='Goal'||row.result==='Stable');
     if(eligible) row.base=base;
-    if(eligible && row.rate!=null){ if(row.rate>=120) row.goal=Number(gb.t120); else if(row.rate>=110) row.goal=Number(gb.t110); else if(row.rate>=100) row.goal=Number(gb.t100); }
+    if(eligible && row.rate!=null){ if(row.rate>=140 && gb.t140!=null) row.goal=Number(gb.t140); else if(row.rate>=130 && gb.t130!=null) row.goal=Number(gb.t130); else if(row.rate>=120) row.goal=Number(gb.t120); else if(row.rate>=110) row.goal=Number(gb.t110); else if(row.rate>=100) row.goal=Number(gb.t100); }   /* [v600] 130/140 tiers, null-guarded */
     row.total=row.base+row.goal;
     rows.push(row);
   });
