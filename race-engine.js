@@ -249,6 +249,16 @@ function _rcScoreReports(reports, clients, settings, dqSet){
     });
   })();
   var sessById = {}; (_rcm.sessions||[]).forEach(function(s){ sessById[s.id] = s; });
+  // [v604] multi-hour pro-rating (lockstep with app): real time since the booster's previous row decides the
+  // row's quota span — gap ≤90min = normal hour; beyond, quota=target×spanH so a 2-hour catch-up post scores
+  // its honest hourly pace instead of farming the 130/140 tiers.
+  var _prevMsMap={}; (function(){ try{
+    var arr=reports.filter(function(r){ return r && _rcMs(r)!=null; }).slice().sort(function(a,b){ return _rcMs(a)-_rcMs(b); });
+    var last={};
+    arr.forEach(function(r){ var k=_rcNorm(r.booster)+'|'+String(r.client||'').trim(); var m=_rcMs(r);
+      if(last[k]!=null && (m-last[k])<12*3600000) _prevMsMap[r.id]=last[k];
+      last[k]=m; });
+  }catch(_){ } })();
   var rows = [];
   reports.forEach(function(r){
     if(r.tag==='checkin') return;
@@ -275,9 +285,12 @@ function _rcScoreReports(reports, clients, settings, dqSet){
       var t=Number(sess.target), sh=Number(sess.sh), sl=Number(sess.sl);
       // [v601] float-safe boundaries (lockstep with app): subtraction artifacts (1.2999999999999972 for a true
       // 1.30) must not drop a tier/verdict at an exact boundary — round gain/rate to a 1e-6 grid first.
-      var _g2=Math.round(gain*1e6)/1e6;
-      row.target=t; row.sh=sh; row.sl=sl; row.rate=t>0?(Math.round(gain/t*100*1e6)/1e6):null;
-      if(_g2>=sh) row.result='Goal'; else if(_g2>=sl) row.result='Stable'; else row.result='Cut';
+      // [v604] multi-hour pro-rating: quota scales by the row's real time span.
+      var _spanH=1; try{ var _pm0=_prevMsMap[r.id]; if(_pm0!=null && ms!=null){ var _gm0=(ms-_pm0)/60000; if(_gm0>90) _spanH=Math.min(6,Math.round(_gm0/60)); } }catch(_){ }
+      var _g2=Math.round(gain*1e6)/1e6; var _gH=_g2/_spanH;
+      row.target=t*_spanH; row.sh=sh; row.sl=sl; row.spanH=_spanH;
+      row.rate=t>0?(Math.round(gain/(t*_spanH)*100*1e6)/1e6):null;
+      if(_gH>=sh) row.result='Goal'; else if(_gH>=sl) row.result='Stable'; else row.result='Cut';
     }
     var eligible=(!row.dq)&&(row.result==='Goal'||row.result==='Stable');
     if(eligible) row.base=base;
