@@ -66,48 +66,9 @@ app.get('/calc', (req, res) => {
 // 헬스체크 (UptimeRobot 핑 / 깨우기용)
 // [BUILD MARKER] bump this string every time server.js is edited, so you can confirm
 // which version Railway is actually running by opening /version in a browser.
-const _SRV_BUILD = 'srv-2026-07-06a (race-engine verify endpoint; append-only report writes already live via calc.html)';
+const _SRV_BUILD = 'srv-2026-07-03a (v522 checkout EXP/HOUR = last hour, expHour + prevHour fallback)';
 // 헬스체크 (UptimeRobot 핑 / 깨우기용)
 app.get('/health', (req, res) => res.send('OK'));
-
-// ── [2026-07-06] Race scoring engine (extracted verbatim from the Lucky-7-Web app) ──
-const RaceEngine = require('./race-engine.js');
-// Verify endpoint: score a given date with the SAME engine the admin Settle button uses and
-// return the payout rows, so we can prove server-side auto-settle matches the app to the rupiah
-// BEFORE wiring any DB writes. READ-ONLY. Reads calc_data (this server's Supabase = the reports
-// project). Settings are passed as query/hardcoded so no cross-project creds are needed to verify.
-app.get('/api/race/verify', async (req, res) => {
-  try {
-    const date = String(req.query.date || '').slice(0, 10);
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'date=YYYY-MM-DD required' });
-    const rate = Number(req.query.rate || 900);
-    const mult = (req.query.mult != null && req.query.mult !== '') ? Number(req.query.mult) : 1;
-    const keys = ['reports', 'clients', 'hidden_staff', 'training_staff'];
-    const got = {};
-    for (const k of keys) {
-      const { data } = await supabase.from('calc_data').select('value').eq('key', k).maybeSingle();
-      got[k] = data ? data.value : null;
-    }
-    const hidden = {}; (Array.isArray(got.hidden_staff) ? got.hidden_staff : []).forEach(x => hidden[String(x).toLowerCase()] = true);
-    const training = {}; (Array.isArray(got.training_staff) ? got.training_staff : []).forEach(x => training[String(x).toLowerCase()] = true);
-    const settings = { base_point: 1, rank_bonus: { 1: 3, 2: 2, 3: 1 }, goal_bonus: { t100: 1, t110: 3, t120: 6 },
-      point_rate: rate, payout_multiplier: mult, total_pool: 5000000 };
-    // existingPayouts intentionally [] here: the caller (auto-settle task) applies the pool cap against the
-    // real race_payouts it reads from the LEFT project. This endpoint stays RIGHT-only + read-only.
-    const rows = RaceEngine.computePayouts(date, {
-      reports: Array.isArray(got.reports) ? got.reports : [],
-      clients: Array.isArray(got.clients) ? got.clients : [],
-      settings, hidden, training, existingPayouts: [], finalizedBy: 'auto-settle'
-    });
-    rows.sort((a, b) => String(a.player_key).localeCompare(String(b.player_key)));
-    res.json({ date, rate, mult, count: rows.length,
-      total_paid: rows.reduce((s, r) => s + r.final_payout_amount, 0),
-      rows });   // full race_payouts-shaped rows, ready to insert
-  } catch (err) {
-    console.error('[/api/race/verify]', err);
-    res.status(500).json({ error: String(err && err.message || err) });
-  }
-});
 // [BUILD MARKER] visit https://buju-report-production.up.railway.app/version to see the live build.
 // If this does NOT show 'v455 expHour checkout fix', the checkout EXP/HOUR bug is still live and
 // Railway is running an OLD server.js — redeploy this file.
@@ -561,19 +522,28 @@ async function postWebhookNow(endpoint, makeForm, threadId) {
   let _last429RetryAfterSec = null;   // [v278] 429로 재시도 소진됐을 때, status:0이 아니라 진짜 사유를 남기기 위함
   for (let i = 0; i < 6; i++) {
     const wait = _whPausedUntil - Date.now();
-    if (wait > 0) await new Promise(r => setTimeout(r, Math.min(wait, 12000)));
+    // [v279] Circuit breaker active for a real ban → do NOT poke Discord. Give up this card now
+    // (data is safe in the web app) so the Cloudflare/429 block can expire instead of being extended.
+    if (wait > 15000) return { ok: false, status: 429, error: `paused (429 recovery) — ${Math.round(wait / 1000)}s 남음, 전송 보류(데이터는 웹앱에 저장됨)` };
+    if (wait > 0) await new Promise(r => setTimeout(r, wait));
     try {
       const resp = await fetch(endpoint, { method: 'POST', body: makeForm() });
       if (resp.ok) { _wh429Streak = 0; return { ok: true, status: resp.status }; }
       if (resp.status === 429) {
         let ra = parseFloat(resp.headers.get('retry-after') || '');
+        if (!(ra >= 0)) { try { const j = await resp.clone().json(); if (j && j.retry_after != null) ra = parseFloat(j.retry_after); } catch (_) {} }
         if (!(ra >= 0)) ra = 2;
         _last429RetryAfterSec = ra;
-        // [v278] 15초 캡은 진짜 rate-limit(보통 몇십 초 이상)엔 너무 짧음 — Discord가 알려준 시간만큼 더 기다림(최대 20초/회).
-        const ms = Math.min(ra * 1000 + 300, 20000);
-        _wh429Streak++; _whPausedUntil = Date.now() + ms;
-        console.warn(`[Discord] 429 rate-limit (시도 ${i + 1}/6) — Discord가 ${ra}s 대기 요청`);
-        await new Promise(r => setTimeout(r, ms));
+        _wh429Streak++;
+        // [v279] Honor Discord's REAL retry-after on the SHARED circuit breaker (up to MAX_PAUSE) so every
+        // other card backs off too. The old 20s cap kept poking every ~20s during a 1000s+ ban — it never
+        // succeeded and (per this file's own note at the queue) only prolongs the Cloudflare block.
+        const step = _PAUSE_STEPS[Math.min(_wh429Streak - 1, _PAUSE_STEPS.length - 1)];
+        _whPausedUntil = Date.now() + Math.min(Math.max(ra * 1000, step), MAX_PAUSE);
+        console.warn(`[Discord] 429 rate-limit (시도 ${i + 1}/6) — Discord가 ${ra}s 대기 요청; 전체 전송 ${Math.round((_whPausedUntil - Date.now()) / 1000)}s 정지`);
+        // [v279] Long ban → don't sit here poking; give up THIS card now (data is safe) and let the breaker hold.
+        if (ra > 30) break;
+        await new Promise(r => setTimeout(r, Math.min(ra * 1000 + 300, 20000)));
         continue;
       }
       if (resp.status >= 500) { await new Promise(r => setTimeout(r, Math.min(1500 * (i + 1), 8000))); continue; }
