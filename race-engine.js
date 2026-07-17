@@ -291,6 +291,8 @@ function _rcScoreReports(reports, clients, settings, dqSet){
       var _spanH=1; try{ var _pm0=_prevMsMap[r.id]; if(_pm0!=null && ms!=null){ var _gm0=(ms-_pm0)/60000;
         try{ var _wib=new Date(_pm0+7*3600000); if(_wib.getUTCDay()===5){ var _d0=Date.UTC(_wib.getUTCFullYear(),_wib.getUTCMonth(),_wib.getUTCDate()); var _ws=_d0+4*3600000, _we=_d0+6.5*3600000; var _ov=Math.min(ms,_we)-Math.max(_pm0,_ws); if(_ov>0) _gm0-=Math.min(_ov/60000,120); } }catch(_){ }
         if(_gm0>90) _spanH=Math.min(6,Math.round(_gm0/60)); } }catch(_){ }
+      // [v632] boss 7/18: multi-hour catch-up rows are EXCLUDED from the race entirely (was ÷N pro-rating).
+      if(_spanH>1 && !row.dq){ row.dq=true; row.dqReason='몰아쓰기 ('+_spanH+'h) — 레이스 제외'; }
       var _g2=Math.round(gain*1e6)/1e6; var _gH=_g2/_spanH;
       row.target=t*_spanH; row.sh=sh; row.sl=sl; row.spanH=_spanH;
       row.rate=t>0?(Math.round(gain/(t*_spanH)*100*1e6)/1e6):null;
