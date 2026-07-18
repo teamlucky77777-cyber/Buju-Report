@@ -66,7 +66,7 @@ app.get('/calc', (req, res) => {
 // 헬스체크 (UptimeRobot 핑 / 깨우기용)
 // [BUILD MARKER] bump this string every time server.js is edited, so you can confirm
 // which version Railway is actually running by opening /version in a browser.
-const _SRV_BUILD = 'srv-2026-07-03a (v522 checkout EXP/HOUR = last hour, expHour + prevHour fallback)';
+const _SRV_BUILD = 'srv-2026-07-18a (append race-condition fix RE-APPLIED — per-key serialized append; concurrent whole-hour submits no longer erase each other)';
 // 헬스체크 (UptimeRobot 핑 / 깨우기용)
 app.get('/health', (req, res) => res.send('OK'));
 // [BUILD MARKER] visit https://buju-report-production.up.railway.app/version to see the live build.
@@ -283,18 +283,27 @@ app.put('/api/calc-data/:key', async (req, res) => {
 });
 // Append items to a calc-data array server-side. The client sends ONLY the new items, so the request body
 // stays tiny (no 100KB cap), and we don't make the browser re-upload the whole array. Read-modify-write.
-app.post('/api/calc-data/:key/append', async (req, res) => {
-  try {
-    const items = Array.isArray(req.body.items) ? req.body.items : [];
-    const { data, error: gErr } = await supabase.from('calc_data').select('value').eq('key', req.params.key).maybeSingle();
-    if (gErr) throw gErr;
-    const arr = Array.isArray(data && data.value) ? data.value : [];
-    const merged = arr.concat(items);
-    const now = new Date().toISOString();
-    const { error } = await supabase.from('calc_data').upsert({ key: req.params.key, value: merged, updated_at: now });
-    if (error) throw error;
-    res.json({ ok: true, count: merged.length });
-  } catch (err) { console.error('[/api/calc-data append]', err); res.status(500).json({ error: err.message }); }
+// [2026-07-18] RACE-CONDITION FIX (재적용): two boosters submitting in the same second both read the same
+// base array, then the second upsert ERASES the first's report (real losses: Kyros 12:00 + Ron 14:00 KST
+// 7/18 — Discord card fine, website row gone). All appends for a key now run through a per-key promise
+// queue so read→concat→upsert is strictly serialized. (The same fix existed before but was reverted by the
+// 7/13 server.js re-upload.)
+const _appendChain = {};
+app.post('/api/calc-data/:key/append', (req, res) => {
+  const k = req.params.key;
+  _appendChain[k] = (_appendChain[k] || Promise.resolve()).then(async () => {
+    try {
+      const items = Array.isArray(req.body.items) ? req.body.items : [];
+      const { data, error: gErr } = await supabase.from('calc_data').select('value').eq('key', k).maybeSingle();
+      if (gErr) throw gErr;
+      const arr = Array.isArray(data && data.value) ? data.value : [];
+      const merged = arr.concat(items);
+      const now = new Date().toISOString();
+      const { error } = await supabase.from('calc_data').upsert({ key: k, value: merged, updated_at: now });
+      if (error) throw error;
+      res.json({ ok: true, count: merged.length });
+    } catch (err) { console.error('[/api/calc-data append]', err); res.status(500).json({ error: err.message }); }
+  });
 });
 
 app.get('/api/clients', async (req, res) => {
