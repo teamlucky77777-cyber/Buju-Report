@@ -66,7 +66,7 @@ app.get('/calc', (req, res) => {
 // 헬스체크 (UptimeRobot 핑 / 깨우기용)
 // [BUILD MARKER] bump this string every time server.js is edited, so you can confirm
 // which version Railway is actually running by opening /version in a browser.
-const _SRV_BUILD = 'srv-2026-07-18a (append race-condition fix RE-APPLIED — per-key serialized append; concurrent whole-hour submits no longer erase each other)';
+const _SRV_BUILD = 'srv-2026-07-18b (append is now ATOMIC in Postgres via append_calc_data() — row-lock UPDATE kills lost-updates across ALL writers incl. the edge fallback, and id-idempotency kills duplicates)';
 // 헬스체크 (UptimeRobot 핑 / 깨우기용)
 app.get('/health', (req, res) => res.send('OK'));
 // [BUILD MARKER] visit https://buju-report-production.up.railway.app/version to see the live build.
@@ -288,20 +288,21 @@ app.put('/api/calc-data/:key', async (req, res) => {
 // 7/18 — Discord card fine, website row gone). All appends for a key now run through a per-key promise
 // queue so read→concat→upsert is strictly serialized. (The same fix existed before but was reverted by the
 // 7/13 server.js re-upload.)
+// [2026-07-18b] DEFINITIVE FIX: append now runs through the append_calc_data() Postgres function —
+// a single atomic UPDATE under row lock (no read-modify-write window, so concurrent submits can NEVER
+// erase each other, even across DIFFERENT writers like this server and the Supabase edge fallback), and
+// idempotent by item id (the same batch landing twice via the app's Railway-vs-edge race can't duplicate —
+// the Prod 17:00 double). The in-process queue above was necessary but not sufficient: it couldn't
+// serialize against the edge function. The DB-level lock covers every writer.
 const _appendChain = {};
 app.post('/api/calc-data/:key/append', (req, res) => {
   const k = req.params.key;
   _appendChain[k] = (_appendChain[k] || Promise.resolve()).then(async () => {
     try {
       const items = Array.isArray(req.body.items) ? req.body.items : [];
-      const { data, error: gErr } = await supabase.from('calc_data').select('value').eq('key', k).maybeSingle();
-      if (gErr) throw gErr;
-      const arr = Array.isArray(data && data.value) ? data.value : [];
-      const merged = arr.concat(items);
-      const now = new Date().toISOString();
-      const { error } = await supabase.from('calc_data').upsert({ key: k, value: merged, updated_at: now });
+      const { data, error } = await supabase.rpc('append_calc_data', { k, items });
       if (error) throw error;
-      res.json({ ok: true, count: merged.length });
+      res.json({ ok: true, count: data });
     } catch (err) { console.error('[/api/calc-data append]', err); res.status(500).json({ error: err.message }); }
   });
 });
