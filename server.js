@@ -66,13 +66,58 @@ app.get('/calc', (req, res) => {
 // 헬스체크 (UptimeRobot 핑 / 깨우기용)
 // [BUILD MARKER] bump this string every time server.js is edited, so you can confirm
 // which version Railway is actually running by opening /version in a browser.
-const _SRV_BUILD = 'srv-2026-07-18b (append is now ATOMIC in Postgres via append_calc_data() — row-lock UPDATE kills lost-updates across ALL writers incl. the edge fallback, and id-idempotency kills duplicates)';
+const _SRV_BUILD = 'srv-2026-07-20a (restored /api/race/verify — the 7/13 "Add files via upload" had silently dropped the race route, breaking nightly auto-settle for 5 nights; engine itself was never lost)';
 // 헬스체크 (UptimeRobot 핑 / 깨우기용)
 app.get('/health', (req, res) => res.send('OK'));
 // [BUILD MARKER] visit https://buju-report-production.up.railway.app/version to see the live build.
 // If this does NOT show 'v455 expHour checkout fix', the checkout EXP/HOUR bug is still live and
 // Railway is running an OLD server.js — redeploy this file.
 app.get('/version', (req, res) => res.json({ build: _SRV_BUILD, node: process.version }));
+
+// ── [2026-07-06] Race scoring engine (extracted verbatim from the Lucky-7-Web app) ──
+// [2026-07-20] RESTORED: this block was lost when server.js was re-uploaded via the GitHub web UI
+// on 7/13 (commit d135b8f "Add files via upload"), which overwrote the file with a pre-race-engine
+// copy. race-engine.js itself survived, so only these ~35 lines were missing — but their absence
+// made /api/race/verify 404 and the nightly auto-settle task aborted every night from 7/13 on
+// (first missed target date 7/12), silently, until it was noticed on 7/17.
+// Do NOT re-upload server.js through the web UI; edit + push, or this will silently regress again.
+const RaceEngine = require('./race-engine.js');
+// Verify endpoint: score a given date with the SAME engine the admin Settle button uses and
+// return the payout rows, so we can prove server-side auto-settle matches the app to the rupiah
+// BEFORE wiring any DB writes. READ-ONLY. Reads calc_data (this server's Supabase = the reports
+// project). Settings are passed as query/hardcoded so no cross-project creds are needed to verify.
+app.get('/api/race/verify', async (req, res) => {
+  try {
+    const date = String(req.query.date || '').slice(0, 10);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return res.status(400).json({ error: 'date=YYYY-MM-DD required' });
+    const rate = Number(req.query.rate || 900);
+    const mult = (req.query.mult != null && req.query.mult !== '') ? Number(req.query.mult) : 1;
+    const keys = ['reports', 'clients', 'hidden_staff', 'training_staff'];
+    const got = {};
+    for (const k of keys) {
+      const { data } = await supabase.from('calc_data').select('value').eq('key', k).maybeSingle();
+      got[k] = data ? data.value : null;
+    }
+    const hidden = {}; (Array.isArray(got.hidden_staff) ? got.hidden_staff : []).forEach(x => hidden[String(x).toLowerCase()] = true);
+    const training = {}; (Array.isArray(got.training_staff) ? got.training_staff : []).forEach(x => training[String(x).toLowerCase()] = true);
+    const settings = { base_point: 1, rank_bonus: { 1: 3, 2: 2, 3: 1 }, goal_bonus: { t100: 1, t110: 3, t120: 6 },
+      point_rate: rate, payout_multiplier: mult, total_pool: 5000000 };
+    // existingPayouts intentionally [] here: the caller (auto-settle task) applies the pool cap against the
+    // real race_payouts it reads from the LEFT project. This endpoint stays RIGHT-only + read-only.
+    const rows = RaceEngine.computePayouts(date, {
+      reports: Array.isArray(got.reports) ? got.reports : [],
+      clients: Array.isArray(got.clients) ? got.clients : [],
+      settings, hidden, training, existingPayouts: [], finalizedBy: 'auto-settle'
+    });
+    rows.sort((a, b) => String(a.player_key).localeCompare(String(b.player_key)));
+    res.json({ date, rate, mult, count: rows.length,
+      total_paid: rows.reduce((s, r) => s + r.final_payout_amount, 0),
+      rows });   // full race_payouts-shaped rows, ready to insert
+  } catch (err) {
+    console.error('[/api/race/verify]', err);
+    res.status(500).json({ error: String(err && err.message || err) });
+  }
+});
 
 
 // ████████████████████████████████████████████████████
